@@ -214,7 +214,7 @@ class Design:
         Write input files for each design point to `basedir`.
 
         """
-        outdir = basedir / self.type / self.system
+        outdir = basedir / self.type / self.system 
         outdir.mkdir(parents=True, exist_ok=True)
 
         for point, row in zip(self.points, self.array):

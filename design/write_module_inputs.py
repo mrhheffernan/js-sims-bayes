@@ -1,5 +1,7 @@
 #a function to write module input files given design params
 import math
+import os
+import os.path
 
 def write_module_inputs(
     outdir = 'test/',
@@ -72,9 +74,13 @@ def write_module_inputs(
     cent_high = 100
 
     #write appropriate input files
+
+    design_point_outdir=os.path.join(outdir,str(design_point_id))
+    os.mkdir(design_point_outdir)
     
     #freestream file
-    fs_file = open(outdir + 'freestream_input_' + str(design_point_id),'w')
+    #fs_file = open(os.path.join(outdir, 'freestream_input_' + str(design_point_id)),'w')
+    fs_file = open(os.path.join(design_point_outdir, 'freestream_input'),'w')
 
     fs_file.write("OUTPUTFORMAT 2\n")
     fs_file.write("BARYON 0\n")
@@ -96,13 +102,15 @@ def write_module_inputs(
     fs_file.write("DTAU " + str(tau_fs) + "\n")
     fs_file.write("TAU0 0.0\n")
     fs_file.write("EOS_TYPE 1\n")
-    fs_file.write("E_FREEZE " + str(e_c) + "\n")
+    dummy_e_c = 1.7   # used to compute energy density inside freeze-out surface
+    fs_file.write("E_FREEZE " + str(dummy_e_c) + "\n")
     fs_file.write("VISCOUS_MATCHING 1 ")
 
     fs_file.close()
 
     #MUSIC file
-    music_file = open(outdir + 'music_input_' + str(design_point_id),'w')
+    #music_file = open(os.path.join(outdir, 'music_input_' + str(design_point_id)),'w')
+    music_file = open(os.path.join(design_point_outdir, 'music_input'),'w')
 
     music_file.write("echo_level  1\n")                  # control the mount of message output to screen
     music_file.write("mode 2\n")                         # MUSIC running mode
@@ -143,7 +151,7 @@ def write_module_inputs(
     music_file.write("Do_FreezeOut_lowtemp 0\n")         # flag to include cold corona
     music_file.write("freeze_out_method 4\n")            # method for hyper-surface finder
     music_file.write("average_surface_over_this_many_time_steps 5\n")   # the step skipped in the tau
-    music_file.write("epsilon_freeze " + str(e_c) + "\n")            # the freeze out energy density (GeV/fm^3)
+    #music_file.write("epsilon_freeze " + str(e_c) + "\n")            # the freeze out energy density (GeV/fm^3)
     music_file.write("use_eps_for_freeze_out 0\n")       # 0: use temperature, 1: use energy density
     music_file.write("T_freeze " + str(T_switch) + "\n")                 # freeze-out temperature (GeV)
     music_file.write("EndOfData\n")
@@ -153,7 +161,8 @@ def write_module_inputs(
     #the iS3D files, one for each delta_f
     #delta_f_mode = 4 # 1: 14 moment, 2: C.E., 3: McNelis feq_mod, 4: Bernhard feq_mod
     for df_mode in range(1,5):
-        iS3D_file = open(outdir + 'iS3D_parameters_' + str(design_point_id) + '_df_' + str(df_mode) + '.dat','w')
+        #iS3D_file = open(os.path.join(outdir, 'iS3D_parameters_' + str(design_point_id) + '_df_' + str(df_mode) + '.dat'),'w')
+        iS3D_file = open(os.path.join(design_point_outdir, 'iS3D_parameters_df_' + str(df_mode) + '.dat'),'w')
 
         iS3D_file.write("operation = 2\n")
         iS3D_file.write("mode      = 6\n")
@@ -200,7 +209,8 @@ def write_module_inputs(
 
     #the jetscape init xml file
     #note that this file can potentially override parameters set in the MUSIC input file
-    js_file = open('jetscape_init.xml', 'w')
+    js_file = open(os.path.join(design_point_outdir, 'jetscape_init.xml'),'w')
+    #js_file = open('jetscape_init.xml', 'w')
 
     js_file.write("<?xml version=\"1.0\"?>\n")
     js_file.write(" <jetscape>\n")
