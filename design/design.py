@@ -1,10 +1,8 @@
 """
 Generates Latin-hypercube parameter designs.
 
-When run as a script, writes input files for use with my
-`heavy-ion collision event generator
-<https://github.com/jbernhard/heavy-ion-collisions-osg>`_.
-Run ``python -m src.design --help`` for usage information.
+Writes input files for use with the JETSCAPE framework
+Run ``python design.py --help`` for usage information.
 
 .. warning::
 
@@ -27,8 +25,9 @@ import subprocess
 
 import numpy as np
 
-from . import cachedir, parse_system
+#from . import cachedir, parse_system
 
+from write_module_inputs import write_module_inputs
 
 def generate_lhs(npoints, ndim, seed):
     """
@@ -42,34 +41,22 @@ def generate_lhs(npoints, ndim, seed):
         npoints, ndim, seed
     )
 
-    cachefile = (
-        cachedir / 'lhs' /
-        'npoints{}_ndim{}_seed{}.npy'.format(npoints, ndim, seed)
+    logging.debug('generating using R')
+    proc = subprocess.run(
+        ['R', '--slave'],
+        input="""
+        library('lhs')
+        set.seed({})
+        write.table(maximinLHS({}, {}), col.names=FALSE, row.names=FALSE)
+        """.format(seed, npoints, ndim).encode(),
+        stdout=subprocess.PIPE,
+        check=True
     )
 
-    if cachefile.exists():
-        logging.debug('loading from cache')
-        lhs = np.load(cachefile)
-    else:
-        logging.debug('not found in cache, generating using R')
-        proc = subprocess.run(
-            ['R', '--slave'],
-            input="""
-            library('lhs')
-            set.seed({})
-            write.table(maximinLHS({}, {}), col.names=FALSE, row.names=FALSE)
-            """.format(seed, npoints, ndim).encode(),
-            stdout=subprocess.PIPE,
-            check=True
-        )
-
-        lhs = np.array(
-            [l.split() for l in proc.stdout.splitlines()],
-            dtype=float
-        )
-
-        cachefile.parent.mkdir(exist_ok=True)
-        np.save(cachefile, lhs)
+    lhs = np.array(
+        [l.split() for l in proc.stdout.splitlines()],
+        dtype=float
+    )
 
     return lhs
 
@@ -104,45 +91,47 @@ class Design:
     project, if not completely rewritten.
 
     """
-    def __init__(self, system, npoints=500, validation=False, seed=None):
-        self.system = system
-        self.projectiles, self.beam_energy = parse_system(system)
+    def __init__(self, system, npoints=5, validation=False, seed=None):
+        #self.system = system
+        self.system = system[0]+system[1]+"-"+str(system[2])
+        #self.projectiles, self.beam_energy = parse_system(system)
+        self.projectiles, self.target, self.beam_energy = system
         self.type = 'validation' if validation else 'main'
 
         # 5.02 TeV has ~1.2x particle production as 2.76 TeV
         # [https://inspirehep.net/record/1410589]
         norm_range = {
             2760: (8., 20.),
-            5020: (10., 25.),
+            #5020: (10., 25.),
         }[self.beam_energy]
 
         self.keys, labels, self.range = map(list, zip(*[
             ('norm',          r'{Norm}',                      (norm_range   )),
-            ('trento_p',      r'p',                           ( -0.5,    0.5)),
-            ('fluct_std',     r'\sigma {fluct}',              (  0.0,    2.0)),
-            ('nucleon_width', r'w [{fm}]',                    (  0.4,    1.0)),
-            ('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
-            ('tau_fs',        r'\tau {fs} [{fm}/c]',          (  0.0,    1.5)),
-            ('etas_hrg',      r'\eta/s {hrg}',                (  0.1,    0.5)),
-            ('etas_min',      r'\eta/s {min}',                (  0.0,    0.2)),
-            ('etas_slope',    r'\eta/s {slope} [{GeV}^{-1}]', (  0.0,    8.0)),
-            ('etas_crv',      r'\eta/s {crv}',                ( -1.0,    1.0)),
-            ('zetas_max',     r'\zeta/s {max}',               (  0.0,    0.1)),
-            ('zetas_width',   r'\zeta/s {width} [{GeV}]',     (  0.0,    0.1)),
-            ('zetas_t0',      r'\zeta/s T_0 [{GeV}]',         (0.150,  0.200)),
-            ('Tswitch',       r'T {switch} [{GeV}]',          (0.135,  0.165)),
+            #('trento_p',      r'p',                           ( -0.5,    0.5)),
+            #('fluct_std',     r'\sigma {fluct}',              (  0.0,    2.0)),
+            #('nucleon_width', r'w [{fm}]',                    (  0.4,    1.0)),
+            #('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
+            #('tau_fs',        r'\tau {fs} [{fm}/c]',          (  1e-2,    1.5)),
+            #('etas_hrg',      r'\eta/s {hrg}',                (  0.1,    0.5)),
+            #('etas_min',      r'\eta/s {min}',                (  0.0,    0.2)),
+            #('etas_slope',    r'\eta/s {slope} [{GeV}^{-1}]', (  0.0,    8.0)),
+            #('etas_crv',      r'\eta/s {crv}',                ( -1.0,    1.0)),
+            #('zetas_max',     r'\zeta/s {max}',               (  0.0,    0.1)),
+            #('zetas_width',   r'\zeta/s {width} [{GeV}]',     (  0.0,    0.1)),
+            #('zetas_t0',      r'\zeta/s T_0 [{GeV}]',         (0.150,  0.200)),
+            #('Tswitch',       r'T {switch} [{GeV}]',          (0.135,  0.165)),
         ]))
 
         # convert labels into TeX:
         #   - wrap normal text with \mathrm{}
         #   - escape spaces
         #   - surround with $$
-        self.labels = [
+        '''self.labels = [
             re.sub(r'({[A-Za-z]+})', r'\mathrm\1', i)
             .replace(' ', r'\ ')
             .join('$$')
             for i in labels
-        ]
+        ]'''
 
         self.ndim = len(self.range)
         self.min, self.max = map(np.array, zip(*self.range))
@@ -151,8 +140,7 @@ class Design:
         fmt = '{:0' + str(len(str(npoints - 1))) + 'd}'
         self.points = [fmt.format(i) for i in range(npoints)]
 
-        # XXX OK, what the heck is going on here?
-        #
+
         # The original design transformed etas_slope to arctangent space, i.e.,
         # atan(slope) was sampled uniformly in (0, pi/2).  This was intended to
         # help place an upper bound on the slope, but it backfired, instead
@@ -172,82 +160,23 @@ class Design:
         # minima for several parameters (and the emulators can extrapolate to
         # zero).
         lhsmin = self.min.copy()
-        if not validation:
-            for k, m in [
-                    ('fluct_std', 1e-3),
-                    ('tau_fs', 1e-3),
-                    ('zetas_width', 1e-4),
-            ]:
-                lhsmin[self.keys.index(k)] = m
+        #if not validation:
+        #    for k, m in [
+        #            ('fluct_std', 1e-3),
+        #            ('tau_fs', 1e-3),
+        #            ('zetas_width', 1e-4),
+        #    ]:
+        #        lhsmin[self.keys.index(k)] = m
 
+        #The seed is fixed here, which fixes the design points
+        #One should not rely on this seed for reproducibility, and 
+        #should store the design points in a file instead
         if seed is None:
             seed = 751783496 if validation else 450829120
 
         self.array = lhsmin + (self.max - lhsmin)*generate_lhs(
             npoints=npoints, ndim=self.ndim, seed=seed
         )
-
-        # As it turns out, the minimum for tau_fs (above) was not high
-        # enough.  For reasons I don't quite understand, including low
-        # tau_fs points in the design messes with GP training, leading to
-        # bad predictions (with a smaller length scale, larger noise term,
-        # and lower marginal likelihood).
-        #
-        # I chose this new minimum value by excluding points until GP
-        # training stabilized.  This doesn't really matter because tau_fs
-        # smaller than this is extremely unlikely.
-        #
-        # Future projects like this should definitely NOT reuse this code --
-        # just set good parameter ranges to begin with!
-        tau_fs_min = .03
-        tau_fs_idx = self.keys.index('tau_fs')
-
-        if validation:
-            # Transform etas_slope from arctan space and remove points outside
-            # the design range (see above).
-            slope_idx = self.keys.index('etas_slope')
-            slope_max = self.max[slope_idx]
-            self.array[:, slope_idx] = \
-                np.tan(np.pi/2/slope_max*self.array[:, slope_idx])
-            keep = (
-                (self.array[:, tau_fs_idx] >= tau_fs_min) &
-                (self.array[:, slope_idx] <= slope_max)
-            )
-            # Remove outlier point.  Probably caused by bug in hydro code
-            # related to very low eta/s min ~ 2e-6.  Despite having the lowest
-            # eta/s min in the design, this point had very low flow and
-            # anomalous energy / particle production.
-            keep[281] = False
-            self.array = self.array[keep]
-            self.points = list(itertools.compress(self.points, keep))
-            logging.debug(
-                'removed validation points with tau_fs < %s and '
-                'etas_slope > %s (%d points remaining)',
-                tau_fs_min, slope_max, len(self.points)
-            )
-        else:
-            # Resample ONLY the points with tau_fs below the minimum, leaving
-            # other parameters unchanged.  Sample one new tau_fs value in each
-            # equal subdivision of the new range (Latin sample).
-            resample = self.array[:, tau_fs_idx] < tau_fs_min
-            nresample = np.count_nonzero(resample)
-            array_rs = self.array[resample]
-            bins = np.linspace(
-                tau_fs_min, self.max[tau_fs_idx],
-                nresample + 1
-            )
-            array_rs[:, tau_fs_idx] = \
-                np.random.RandomState(2603139165).uniform(bins[:-1], bins[1:])
-            # Move the resampled points to the end of the design.
-            self.array = np.concatenate([self.array[~resample], array_rs])
-            self.points = (
-                list(itertools.compress(self.points, ~resample)) +
-                [fmt.format(n) for n in range(npoints, npoints + nresample)]
-            )
-            logging.debug(
-                'resampled points %s which had tau_fs < %s',
-                resample.nonzero()[0].tolist(), tau_fs_min
-            )
 
     def __array__(self):
         return self.array
@@ -299,19 +228,45 @@ class Design:
                     5020: 7.0,
                 }[self.beam_energy]
             )
-            kwargs.update(
-                fluct=1/kwargs.pop('fluct_std')**2,
-                dmin=kwargs.pop('dmin3')**(1/3),
-            )
-            filepath = outdir / point
-            with filepath.open('w') as f:
-                f.write(self._template.format(**kwargs))
-                logging.debug('wrote %s', filepath)
+            #########################################################
+            # Transformation and processing on the input parameters #
+            #########################################################
+            #kwargs.update(
+            #    fluct=1/kwargs.pop('fluct_std')**2,
+            #    dmin=kwargs.pop('dmin3')**(1/3),
+            #)
+            #filepath = outdir / point
+            #with filepath.open('w') as f:
+            #    f.write(self._template.format(**kwargs))
+            #    logging.debug('wrote %s', filepath)
+
+            #write the module input files for JETSCAPE-SIMS
+            write_module_inputs(
+                                outdir = str(outdir),
+                                design_point_id = point,
+                                projectile = self.projectiles,
+                                target = self.projectiles,
+                                sqrts = self.beam_energy,
+                                #inel_nucleon_cross_section = kwargs['cross_section'],
+                                trento_normalization = kwargs['norm'],
+                                #trento_reduced_thickness = kwargs['trento_p'],
+                                #trento_fluctuation_k = kwargs['fluct'],
+                                #trento_nucleon_width = kwargs['nucleon_width'],
+                                #trento_nucleon_min_dist  = kwargs['dmin'],
+                                #tau_fs = kwargs['tau_fs'],
+                                #T_switch = kwargs['Tswitch'],
+                                #eta_over_s_min = kwargs['etas_min'],
+                                #eta_over_s_slope = kwargs['etas_slope'],
+                                #eta_over_s_curv = kwargs['etas_crv'],
+                                #bulk_viscosity_normalisation = kwargs['zetas_max'],
+                                #bulk_viscosity_width_in_GeV = kwargs['zetas_width'],
+                                #bulk_viscosity_peak_in_GeV = kwargs['zetas_t0']
+                                )
 
 
 def main():
     import argparse
-    from . import systems
+    #from . import systems
 
     parser = argparse.ArgumentParser(description='generate design input files')
     parser.add_argument(
@@ -320,11 +275,12 @@ def main():
     )
     args = parser.parse_args()
 
+    systems = [('Pb', 'Pb', 2760)]
+
     for system, validation in itertools.product(systems, [False, True]):
         Design(system, validation=validation).write_files(args.inputs_dir)
 
     logging.info('wrote all files to %s', args.inputs_dir)
 
 
-if __name__ == '__main__':
-    main()
+main()
