@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 import h5py
 import sys, os, glob
 # Input data format
-from format_single_event_observable_input import *
+from file_format_single_event import *
 # Output data format
-from format_event_average_observable_output import *
+from file_format_event_average import *
 
 def list2array(func):
 	def func_wrapper(x, w):
