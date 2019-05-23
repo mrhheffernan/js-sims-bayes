@@ -14,28 +14,28 @@ def write_module_inputs(
     sqrts = 2760,
     inel_nucleon_cross_section = 6.4,
     trento_normalization = 30.0,
-    trento_reduced_thickness = 1.0,
+    trento_reduced_thickness = 0.0,
     trento_fluctuation_k = 0.3,
-    trento_nucleon_width = 2.0,
+    trento_nucleon_width = 0.956,
     trento_nucleon_min_dist = 1.27,
 
     #freestreaming params
-    tau_fs = 1.0,
+    tau_fs = 1.16,
 
     #hydro params
-    T_switch = 0.120,
+    T_switch = 0.151,
 
     #shear viscosity p'zation
-    eta_over_s_min = 1.0,
-    eta_over_s_slope = 0.0,
-    eta_over_s_curv = 0.0,
+    eta_over_s_min = 0.081,
+    eta_over_s_slope = 1.11,
+    eta_over_s_curv = -0.48,
     #bulk viscosity p'zation
     bulk_viscosity_normalisation = 0.05,
     bulk_viscosity_width_in_GeV = 0.02,
-    bulk_viscosity_peak_in_GeV = 0.18
+    bulk_viscosity_peak_in_GeV = 0.183
     ):
     #the jetscape seed sets the seed in smash, set to 0 for random (clocktime) seed
-    js_seed = 0
+    js_seed = 9
     
     
     #iS3D Parameters
@@ -160,52 +160,53 @@ def write_module_inputs(
 
     #the iS3D files, one for each delta_f
     #delta_f_mode = 4 # 1: 14 moment, 2: C.E., 3: McNelis feq_mod, 4: Bernhard feq_mod
-    for df_mode in range(1,5):
-        #iS3D_file = open(os.path.join(outdir, 'iS3D_parameters_' + str(design_point_id) + '_df_' + str(df_mode) + '.dat'),'w')
-        iS3D_file = open(os.path.join(design_point_outdir, 'iS3D_parameters_df_' + str(df_mode) + '.dat'),'w')
+    #for df_mode in range(1,5):
+    #iS3D_file = open(os.path.join(outdir, 'iS3D_parameters_' + str(design_point_id) + '_df_' + str(df_mode) + '.dat'),'w')
+    #iS3D_file = open(os.path.join(design_point_outdir, 'iS3D_parameters_df_' + str(df_mode) + '.dat'),'w')
+    iS3D_file = open(os.path.join(design_point_outdir, 'iS3D_parameters.dat'),'w')
 
-        iS3D_file.write("operation = 2\n")
-        iS3D_file.write("mode      = 6\n")
-        iS3D_file.write("hrg_eos   = 3\n")
-        iS3D_file.write("set_FO_temperature          = " + str(set_T_switch) + "\n")
-        iS3D_file.write("T_switch                    = " + str(T_switch) + "\n")
-        iS3D_file.write("dimension = 2\n")
-        iS3D_file.write("df_mode                     = " + str(delta_f_mode) + "\n")
-        iS3D_file.write("include_baryon                 = 0\n")
-        iS3D_file.write("include_bulk_deltaf            = 1\n")
-        iS3D_file.write("include_shear_deltaf           = 1\n")
-        iS3D_file.write("include_baryondiff_deltaf      = 0\n")
-        iS3D_file.write("regulate_deltaf                = 0\n")
-        iS3D_file.write("outflow                        = 1\n")
-        iS3D_file.write("deta_min                = 1.e-6\n")
-        iS3D_file.write("group_particles            = 0\n")
-        iS3D_file.write("particle_diff_tolerance    = 0.01\n")
-        iS3D_file.write("mass_pion0                 = 0.138\n")
-        iS3D_file.write("do_resonance_decays = 0\n")
-        iS3D_file.write("lightest_particle       = 111\n")
-        iS3D_file.write("oversample                  = 1\n")
-        iS3D_file.write("min_num_hadrons             = " + str(min_num_hadrons) + "\n")
-        iS3D_file.write("max_num_samples             = " + str(max_num_samples) + "\n")
-        iS3D_file.write("fast                        = 1\n")
-        iS3D_file.write("y_cut                       = " + str(rap_max) + "\n")
-        iS3D_file.write("sampler_seed        = -1\n")
-    
-        #these only used for testing, are dummys
-        iS3D_file.write("test_sampler = 0\n")
-        iS3D_file.write("pT_lower_cut = 0.0\n")
-        iS3D_file.write("pT_upper_cut = 3.0\n")
-        iS3D_file.write("pT_bins = 100\n")
-        iS3D_file.write("y_bins                      = 50\n")
-        iS3D_file.write("eta_cut                     = 7\n")
-        iS3D_file.write("eta_bins                    = 70\n")
-        iS3D_file.write("tau_min = 0.0\n")
-        iS3D_file.write("tau_max = 12.0\n")
-        iS3D_file.write("tau_bins = 120\n")
-        iS3D_file.write("r_min = 0.0\n")
-        iS3D_file.write("r_max = 10.0\n")
-        iS3D_file.write("r_bins = 50\n")
+    iS3D_file.write("operation = 2\n")
+    iS3D_file.write("mode      = 6\n")
+    iS3D_file.write("hrg_eos   = 3\n")
+    iS3D_file.write("set_FO_temperature          = " + str(set_T_switch) + "\n")
+    iS3D_file.write("T_switch                    = " + str(T_switch) + "\n")
+    iS3D_file.write("dimension = 2\n")
+    iS3D_file.write("df_mode                     = " + str(delta_f_mode) + "\n")
+    iS3D_file.write("include_baryon                 = 0\n")
+    iS3D_file.write("include_bulk_deltaf            = 1\n")
+    iS3D_file.write("include_shear_deltaf           = 1\n")
+    iS3D_file.write("include_baryondiff_deltaf      = 0\n")
+    iS3D_file.write("regulate_deltaf                = 0\n")
+    iS3D_file.write("outflow                        = 1\n")
+    iS3D_file.write("deta_min                = 1.e-6\n")
+    iS3D_file.write("group_particles            = 0\n")
+    iS3D_file.write("particle_diff_tolerance    = 0.01\n")
+    iS3D_file.write("mass_pion0                 = 0.138\n")
+    iS3D_file.write("do_resonance_decays = 0\n")
+    iS3D_file.write("lightest_particle       = 111\n")
+    iS3D_file.write("oversample                  = 1\n")
+    iS3D_file.write("min_num_hadrons             = " + str(min_num_hadrons) + "\n")
+    iS3D_file.write("max_num_samples             = " + str(max_num_samples) + "\n")
+    iS3D_file.write("fast                        = 1\n")
+    iS3D_file.write("y_cut                       = " + str(rap_max) + "\n")
+    iS3D_file.write("sampler_seed        = -1\n")
 
-        iS3D_file.close()
+    #these only used for testing, are dummys
+    iS3D_file.write("test_sampler = 0\n")
+    iS3D_file.write("pT_lower_cut = 0.0\n")
+    iS3D_file.write("pT_upper_cut = 3.0\n")
+    iS3D_file.write("pT_bins = 100\n")
+    iS3D_file.write("y_bins                      = 50\n")
+    iS3D_file.write("eta_cut                     = 7\n")
+    iS3D_file.write("eta_bins                    = 70\n")
+    iS3D_file.write("tau_min = 0.0\n")
+    iS3D_file.write("tau_max = 12.0\n")
+    iS3D_file.write("tau_bins = 120\n")
+    iS3D_file.write("r_min = 0.0\n")
+    iS3D_file.write("r_max = 10.0\n")
+    iS3D_file.write("r_bins = 50\n")
+
+    iS3D_file.close()
 
     #the jetscape init xml file
     #note that this file can potentially override parameters set in the MUSIC input file
