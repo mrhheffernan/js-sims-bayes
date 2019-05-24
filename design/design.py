@@ -91,7 +91,7 @@ class Design:
     project, if not completely rewritten.
 
     """
-    def __init__(self, system, npoints=5, validation=False, seed=None):
+    def __init__(self, system, npoints=200, validation=False, seed=None):
         #self.system = system
         self.system = system[0]+system[1]+"-"+str(system[2])
         #self.projectiles, self.beam_energy = parse_system(system)
@@ -137,8 +137,9 @@ class Design:
         self.min, self.max = map(np.array, zip(*self.range))
 
         # use padded numbers for design point names
-        fmt = '{:0' + str(len(str(npoints - 1))) + 'd}'
-        self.points = [fmt.format(i) for i in range(npoints)]
+        #fmt = '{:0' + str(len(str(npoints - 1))) + 'd}'
+        #self.points = [fmt.format(i) for i in range(npoints)]
+        self.points = [str(i) for i in range(npoints)]
 
 
         # The original design transformed etas_slope to arctangent space, i.e.,
