@@ -91,7 +91,7 @@ class Design:
     project, if not completely rewritten.
 
     """
-    def __init__(self, system, npoints=200, validation=False, seed=None):
+    def __init__(self, system, npoints=20, validation=False, seed=None):
         #self.system = system
         self.system = system[0]+system[1]+"-"+str(system[2])
         #self.projectiles, self.beam_energy = parse_system(system)
@@ -107,19 +107,19 @@ class Design:
 
         self.keys, labels, self.range = map(list, zip(*[
             ('norm',          r'{Norm}',                      (norm_range   )),
-            #('trento_p',      r'p',                           ( -0.5,    0.5)),
-            #('fluct_std',     r'\sigma {fluct}',              (  0.0,    2.0)),
-            #('nucleon_width', r'w [{fm}]',                    (  0.4,    1.0)),
-            #('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
-            #('tau_fs',        r'\tau {fs} [{fm}/c]',          (  1e-2,    1.5)),
-            #('etas_hrg',      r'\eta/s {hrg}',                (  0.1,    0.5)),
-            #('etas_min',      r'\eta/s {min}',                (  0.0,    0.2)),
-            #('etas_slope',    r'\eta/s {slope} [{GeV}^{-1}]', (  0.0,    8.0)),
-            #('etas_crv',      r'\eta/s {crv}',                ( -1.0,    1.0)),
-            #('zetas_max',     r'\zeta/s {max}',               (  0.0,    0.1)),
-            #('zetas_width',   r'\zeta/s {width} [{GeV}]',     (  0.0,    0.1)),
-            #('zetas_t0',      r'\zeta/s T_0 [{GeV}]',         (0.150,  0.200)),
-            #('Tswitch',       r'T {switch} [{GeV}]',          (0.135,  0.165)),
+            ('trento_p',      r'p',                           ( -0.5,    0.5)),
+            ('fluct_std',     r'\sigma {fluct}',              (  0.0,    2.0)),
+            ('nucleon_width', r'w [{fm}]',                    (  0.4,    1.0)),
+            ('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
+            ('tau_fs',        r'\tau {fs} [{fm}/c]',          (  1e-2,    1.5)),
+            ('etas_hrg',      r'\eta/s {hrg}',                (  0.1,    0.5)),
+            ('etas_min',      r'\eta/s {min}',                (  0.0,    0.2)),
+            ('etas_slope',    r'\eta/s {slope} [{GeV}^{-1}]', (  0.0,    8.0)),
+            ('etas_crv',      r'\eta/s {crv}',                ( -1.0,    1.0)),
+            ('zetas_max',     r'\zeta/s {max}',               (  0.0,    0.1)),
+            ('zetas_width',   r'\zeta/s {width} [{GeV}]',     (  0.0,    0.1)),
+            ('zetas_t0',      r'\zeta/s T_0 [{GeV}]',         (0.150,  0.200)),
+            ('Tswitch',       r'T {switch} [{GeV}]',          (0.135,  0.165)),
         ]))
 
         # convert labels into TeX:
@@ -170,7 +170,7 @@ class Design:
         #        lhsmin[self.keys.index(k)] = m
 
         #The seed is fixed here, which fixes the design points
-        #One should not rely on this seed for reproducibility, and 
+        #One should not rely on this seed for reproducibility, and
         #should store the design points in a file instead
         if seed is None:
             seed = 751783496 if validation else 450829120
@@ -215,7 +215,7 @@ class Design:
         Write input files for each design point to `basedir`.
 
         """
-        outdir = basedir / self.type / self.system 
+        outdir = basedir / self.type / self.system
         outdir.mkdir(parents=True, exist_ok=True)
 
         for point, row in zip(self.points, self.array):
@@ -248,23 +248,50 @@ class Design:
                                 projectile = self.projectiles,
                                 target = self.projectiles,
                                 sqrts = self.beam_energy,
-                                #inel_nucleon_cross_section = kwargs['cross_section'],
+                                inel_nucleon_cross_section = kwargs['cross_section'],
                                 trento_normalization = kwargs['norm'],
-                                #trento_reduced_thickness = kwargs['trento_p'],
+                                trento_reduced_thickness = kwargs['trento_p'],
                                 #trento_fluctuation_k = kwargs['fluct'],
-                                #trento_nucleon_width = kwargs['nucleon_width'],
+                                trento_nucleon_width = kwargs['nucleon_width'],
                                 #trento_nucleon_min_dist  = kwargs['dmin'],
-                                #tau_fs = kwargs['tau_fs'],
-                                #T_switch = kwargs['Tswitch'],
-                                #eta_over_s_min = kwargs['etas_min'],
-                                #eta_over_s_slope = kwargs['etas_slope'],
-                                #eta_over_s_curv = kwargs['etas_crv'],
-                                #bulk_viscosity_normalisation = kwargs['zetas_max'],
-                                #bulk_viscosity_width_in_GeV = kwargs['zetas_width'],
-                                #bulk_viscosity_peak_in_GeV = kwargs['zetas_t0']
+                                tau_fs = kwargs['tau_fs'],
+                                T_switch = kwargs['Tswitch'],
+                                eta_over_s_min = kwargs['etas_min'],
+                                eta_over_s_slope = kwargs['etas_slope'],
+                                eta_over_s_curv = kwargs['etas_crv'],
+                                bulk_viscosity_normalisation = kwargs['zetas_max'],
+                                bulk_viscosity_width_in_GeV = kwargs['zetas_width'],
+                                bulk_viscosity_peak_in_GeV = kwargs['zetas_t0']
                                 )
 
+        #save the design points to file to be imported by emulator
+        design_file = open(str(outdir) + '-design.dat', 'w')
 
+        #write header
+        design_file.write("# ")
+        design_file.write("idx")
+        for key in self.keys:
+            design_file.write(" " + key)
+        design_file.write("\n")
+
+        #write each design point as a row
+        for point, row in zip(self.points, self.array):
+            kwargs = dict(
+                zip(self.keys, row),
+                projectiles=self.projectiles,
+                cross_section={
+                    # sqrt(s) [GeV] : sigma_NN [fm^2]
+                    200: 4.2,
+                    2760: 6.4,
+                    5020: 7.0,
+                }[self.beam_energy]
+            )
+            #write a new row for every point
+            design_file.write(str(point))
+            for key in self.keys:
+                design_file.write(" " + str(kwargs[key]))
+            design_file.write("\n")
+        design_file.close()
 def main():
     import argparse
     #from . import systems
