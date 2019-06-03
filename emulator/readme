@@ -1,0 +1,14 @@
+Input:
+- Where the model calculations are
+- How to read the model calculations
+- Where the input parameters are
+
+Function:
+- Read model calculations
+- Compute observables (including centrality selection)
+- Principal component analysis (PCA) on the observables
+- Build emulator on subset of PCA
+
+Output:
+- Save emulator so that observable calculations/PCA 
+  doesn't have to be performed again

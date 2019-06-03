@@ -23,9 +23,30 @@ from sklearn.gaussian_process import GaussianProcessRegressor as GPR
 from sklearn.gaussian_process import kernels
 from sklearn.preprocessing import StandardScaler
 
-from . import cachedir, lazydict, model
-from .design import Design
+#from . import cachedir, lazydict, model
+#from .design import Design
 
+######################################
+############### Inputs ###############
+######################################
+
+# How to read the model calculations
+from ../model_calculations/file_format_event_average import *
+
+# Where the model calculations are
+model_calc_path='../calcs/'
+
+# Where to read the design points
+design_point_path='../design/'
+
+# Number of principal components to keep in the emulator
+npca=10
+
+
+
+###########################################################
+############### Emulator and help functions ############### 
+###########################################################
 
 class _Covariance:
     """
