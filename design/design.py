@@ -22,6 +22,7 @@ import logging
 from pathlib import Path
 import re
 import subprocess
+import os.path
 
 import numpy as np
 
@@ -215,10 +216,25 @@ class Design:
         Write input files for each design point to `basedir`.
 
         """
+
+        # Directory where the input files will be saved
         outdir = basedir / self.type / self.system
         outdir.mkdir(parents=True, exist_ok=True)
 
+        # File where a summary of the design points will be saved
+        # (to be imported later by the emulator)
+        design_file = open(os.path.join(basedir, 'design_points_'+str(self.type)+'_'+str(self.system)+'.dat'), 'w')
+        #write header
+        design_file.write("# ")
+        design_file.write("idx")
+        for key in self.keys:
+            design_file.write(" " + key)
+        design_file.write("\n")
+
+        # Loop over design points
         for point, row in zip(self.points, self.array):
+
+            # Add some missing parameters for the parameter dictionary
             kwargs = dict(
                 zip(self.keys, row),
                 projectiles=self.projectiles,
@@ -229,6 +245,7 @@ class Design:
                     5020: 7.0,
                 }[self.beam_energy]
             )
+
             #########################################################
             # Transformation and processing on the input parameters #
             #########################################################
@@ -241,7 +258,7 @@ class Design:
             #    f.write(self._template.format(**kwargs))
             #    logging.debug('wrote %s', filepath)
 
-            #write the module input files for JETSCAPE-SIMS
+            # Write the module input files for JETSCAPE-SIMS
             write_module_inputs(
                                 outdir = str(outdir),
                                 design_point_id = point,
@@ -264,34 +281,14 @@ class Design:
                                 bulk_viscosity_peak_in_GeV = kwargs['zetas_t0']
                                 )
 
-        #save the design points to file to be imported by emulator
-        design_file = open(str(outdir) + '-design.dat', 'w')
-
-        #write header
-        design_file.write("# ")
-        design_file.write("idx")
-        for key in self.keys:
-            design_file.write(" " + key)
-        design_file.write("\n")
-
-        #write each design point as a row
-        for point, row in zip(self.points, self.array):
-            kwargs = dict(
-                zip(self.keys, row),
-                projectiles=self.projectiles,
-                cross_section={
-                    # sqrt(s) [GeV] : sigma_NN [fm^2]
-                    200: 4.2,
-                    2760: 6.4,
-                    5020: 7.0,
-                }[self.beam_energy]
-            )
-            #write a new row for every point
+            # Write parameters for current design point in the design-point-summary file
             design_file.write(str(point))
             for key in self.keys:
                 design_file.write(" " + str(kwargs[key]))
             design_file.write("\n")
+
         design_file.close()
+
 def main():
     import argparse
     #from . import systems
