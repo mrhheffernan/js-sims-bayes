@@ -2,12 +2,12 @@
 
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sys, os, glob
 import re
 # Output data format
-from file_format_event_average import *
+from calculations_file_format_event_average import *
 
 
 #################################################################################

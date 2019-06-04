@@ -28,7 +28,7 @@ import numpy as np
 
 #from . import cachedir, parse_system
 
-from write_module_inputs import write_module_inputs
+from design_write_module_inputs import write_module_inputs
 
 def generate_lhs(npoints, ndim, seed):
     """

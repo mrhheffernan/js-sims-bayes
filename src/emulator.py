@@ -31,7 +31,7 @@ from sklearn.preprocessing import StandardScaler
 ######################################
 
 # How to read the model calculations
-from ../model_calculations/file_format_event_average import *
+from calculations_file_format_event_average import *
 
 # Where the model calculations are
 model_calc_path='../calcs/'

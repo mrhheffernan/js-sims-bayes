@@ -4,9 +4,9 @@ import numpy as np
 import h5py
 import sys, os, glob
 # Input data format
-from file_format_single_event import *
+from calculations_file_format_single_event import *
 # Output data format
-from file_format_event_average import *
+from calculations_file_format_event_average import *
 
 def list2array(func):
         def func_wrapper(x, w):

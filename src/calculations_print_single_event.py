@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 
 # Input data format
-from file_format_single_event import *
+from calculations_file_format_single_event import *
 
 filename=sys.argv[1]
 data = np.fromfile(filename, dtype=result_dtype)
