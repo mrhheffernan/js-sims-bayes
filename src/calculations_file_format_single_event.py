@@ -2,7 +2,7 @@
 # (or quantities that can be used to compute hadronic observables)
 # for each hydrodynamic event (oversamples or not)
 
-import configurations
+from configurations import *
 
 # species (name, ID) for identified particle observables
 species = [

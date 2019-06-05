@@ -27,8 +27,9 @@ import os.path
 import numpy as np
 
 #from . import cachedir, parse_system
-from __init__ import parse_system
+#from __init__ import parse_system
 
+from configurations import *
 from design_write_module_inputs import write_module_inputs
 
 def generate_lhs(npoints, ndim, seed):
@@ -293,9 +294,10 @@ class Design:
 
         design_file.close()
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
+def main():
     import argparse
-    from __init__ import systems
+    #from __init__ import systems
 
     print("In design main()")
 
@@ -303,9 +305,12 @@ if __name__ == '__main__':
     parser.add_argument('inputs_dir', type=Path, help='directory to place input files')
     args = parser.parse_args()
 
-    systems = [('Pb', 'Pb', 2760)]
+    #systems = [('Pb', 'Pb', 2760)]
 
     for system, validation in itertools.product(systems, [False, True]):
         Design(system, validation=validation).write_files(args.inputs_dir)
 
     logging.info('wrote all files to %s', args.inputs_dir)
+
+#run the design script
+main()

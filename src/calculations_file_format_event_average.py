@@ -1,7 +1,7 @@
 # Data structure used to save hadronic observables
 # after average over
 
-import configurations
+from configurations import *
 
 from collections.abc import Iterable
 
