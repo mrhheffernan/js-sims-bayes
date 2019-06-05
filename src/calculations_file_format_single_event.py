@@ -1,13 +1,8 @@
-# Data structure used to save hadronic observables 
+# Data structure used to save hadronic observables
 # (or quantities that can be used to compute hadronic observables)
 # for each hydrodynamic event (oversamples or not)
 
-
-# fully specify numeric data types, including endianness and size, to
-# ensure consistency across all machines
-float_t = '<f8'
-int_t = '<i8'
-complex_t = '<c16'
+import configurations
 
 # species (name, ID) for identified particle observables
 species = [
@@ -76,5 +71,3 @@ result_dtype=[
 						for (name,_) in pi_K_p	], 1),
 	], 5)
 ]
-
-

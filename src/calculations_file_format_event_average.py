@@ -1,13 +1,9 @@
 # Data structure used to save hadronic observables
 # after average over
 
-from collections.abc import Iterable
+import configurations
 
-# fully specify numeric data types, including endianness and size, to
-# ensure consistency across all machines
-float_t = '<f8'
-int_t = '<i8'
-complex_t = '<c16'
+from collections.abc import Iterable
 
 # Center-of-mass energies
 sqrts_list=['Au-Au-200','Pb-Pb-2760','Pb-Pb-5020']
@@ -61,9 +57,6 @@ for obs, cent_list in obs_cent_list.items():
             ],
         )
     )
-
-
-number_of_models_per_run = 5
 
 bayes_dtype=[(sqrts, tmp_dtype, number_of_models_per_run) for sqrts in sqrts_list]
 
