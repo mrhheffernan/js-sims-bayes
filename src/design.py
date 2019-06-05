@@ -27,6 +27,7 @@ import os.path
 import numpy as np
 
 #from . import cachedir, parse_system
+from __init__ import parse_system
 
 from design_write_module_inputs import write_module_inputs
 
@@ -99,6 +100,9 @@ class Design:
         self.projectiles, self.target, self.beam_energy = system
         self.type = 'validation' if validation else 'main'
 
+        print("self.system = ")
+        print(self.system)
+
         # 5.02 TeV has ~1.2x particle production as 2.76 TeV
         # [https://inspirehep.net/record/1410589]
         norm_range = {
@@ -107,20 +111,20 @@ class Design:
         }[self.beam_energy]
 
         self.keys, labels, self.range = map(list, zip(*[
-            ('norm',          r'{Norm}',                      (norm_range   )),
-            ('trento_p',      r'p',                           ( -0.5,    0.5)),
-            ('fluct_std',     r'\sigma {fluct}',              (  0.0,    2.0)),
-            ('nucleon_width', r'w [{fm}]',                    (  0.4,    1.0)),
-            ('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
+            #('norm',          r'{Norm}',                      (norm_range   )),
+            #('trento_p',      r'p',                           ( -0.5,    0.5)),
+            #('fluct_std',     r'\sigma {fluct}',              (  0.0,    2.0)),
+            #('nucleon_width', r'w [{fm}]',                    (  0.4,    1.0)),
+            #('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
             ('tau_fs',        r'\tau {fs} [{fm}/c]',          (  1e-2,    1.5)),
-            ('etas_hrg',      r'\eta/s {hrg}',                (  0.1,    0.5)),
-            ('etas_min',      r'\eta/s {min}',                (  0.0,    0.2)),
-            ('etas_slope',    r'\eta/s {slope} [{GeV}^{-1}]', (  0.0,    8.0)),
-            ('etas_crv',      r'\eta/s {crv}',                ( -1.0,    1.0)),
-            ('zetas_max',     r'\zeta/s {max}',               (  0.0,    0.1)),
-            ('zetas_width',   r'\zeta/s {width} [{GeV}]',     (  0.0,    0.1)),
-            ('zetas_t0',      r'\zeta/s T_0 [{GeV}]',         (0.150,  0.200)),
-            ('Tswitch',       r'T {switch} [{GeV}]',          (0.135,  0.165)),
+            #('etas_hrg',      r'\eta/s {hrg}',                (  0.1,    0.5)),
+            #('etas_min',      r'\eta/s {min}',                (  0.0,    0.2)),
+            #('etas_slope',    r'\eta/s {slope} [{GeV}^{-1}]', (  0.0,    8.0)),
+            #('etas_crv',      r'\eta/s {crv}',                ( -1.0,    1.0)),
+            #('zetas_max',     r'\zeta/s {max}',               (  0.0,    0.1)),
+            #('zetas_width',   r'\zeta/s {width} [{GeV}]',     (  0.0,    0.1)),
+            #('zetas_t0',      r'\zeta/s T_0 [{GeV}]',         (0.150,  0.200)),
+            #('Tswitch',       r'T {switch} [{GeV}]',          (0.135,  0.165)),
         ]))
 
         # convert labels into TeX:
@@ -266,19 +270,19 @@ class Design:
                                 target = self.projectiles,
                                 sqrts = self.beam_energy,
                                 inel_nucleon_cross_section = kwargs['cross_section'],
-                                trento_normalization = kwargs['norm'],
-                                trento_reduced_thickness = kwargs['trento_p'],
+                                #trento_normalization = kwargs['norm'],
+                                #trento_reduced_thickness = kwargs['trento_p'],
                                 #trento_fluctuation_k = kwargs['fluct'],
-                                trento_nucleon_width = kwargs['nucleon_width'],
+                                #trento_nucleon_width = kwargs['nucleon_width'],
                                 #trento_nucleon_min_dist  = kwargs['dmin'],
                                 tau_fs = kwargs['tau_fs'],
-                                T_switch = kwargs['Tswitch'],
-                                eta_over_s_min = kwargs['etas_min'],
-                                eta_over_s_slope = kwargs['etas_slope'],
-                                eta_over_s_curv = kwargs['etas_crv'],
-                                bulk_viscosity_normalisation = kwargs['zetas_max'],
-                                bulk_viscosity_width_in_GeV = kwargs['zetas_width'],
-                                bulk_viscosity_peak_in_GeV = kwargs['zetas_t0']
+                                #T_switch = kwargs['Tswitch'],
+                                #eta_over_s_min = kwargs['etas_min'],
+                                #eta_over_s_slope = kwargs['etas_slope'],
+                                #eta_over_s_curv = kwargs['etas_crv'],
+                                #bulk_viscosity_normalisation = kwargs['zetas_max'],
+                                #bulk_viscosity_width_in_GeV = kwargs['zetas_width'],
+                                #bulk_viscosity_peak_in_GeV = kwargs['zetas_t0']
                                 )
 
             # Write parameters for current design point in the design-point-summary file
@@ -289,15 +293,14 @@ class Design:
 
         design_file.close()
 
-def main():
+if __name__ == '__main__':
     import argparse
-    #from . import systems
+    from __init__ import systems
+
+    print("In design main()")
 
     parser = argparse.ArgumentParser(description='generate design input files')
-    parser.add_argument(
-        'inputs_dir', type=Path,
-        help='directory to place input files'
-    )
+    parser.add_argument('inputs_dir', type=Path, help='directory to place input files')
     args = parser.parse_args()
 
     systems = [('Pb', 'Pb', 2760)]
@@ -306,6 +309,3 @@ def main():
         Design(system, validation=validation).write_files(args.inputs_dir)
 
     logging.info('wrote all files to %s', args.inputs_dir)
-
-
-main()

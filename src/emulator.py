@@ -26,6 +26,10 @@ from sklearn.preprocessing import StandardScaler
 #from . import cachedir, lazydict, model
 #from .design import Design
 
+from design import Design
+from __init__ import lazydict
+import emulator_model
+
 ######################################
 ############### Inputs ###############
 ######################################
@@ -45,7 +49,7 @@ npca=10
 
 
 ###########################################################
-############### Emulator and help functions ############### 
+############### Emulator and help functions ###############
 ###########################################################
 
 class _Covariance:
@@ -97,20 +101,21 @@ class Emulator:
     ]
 
     def __init__(self, system, npc=10, nrestarts=0):
-        logging.info(
-            'training emulator for system %s (%d PC, %d restarts)',
-            system, npc, nrestarts
-        )
-
+        logging.info( 'training emulator for system %s (%d PC, %d restarts)', system, npc, nrestarts )
         Y = []
         self._slices = {}
 
         # Build an array of all observables to emulate.
+        print("Building array of observables to emulate")
         nobs = 0
+
+        #for testing used fixed delta-f
+        idf = 3
         for obs, subobslist in self.observables:
             self._slices[obs] = {}
             for subobs in subobslist:
-                Y.append(model.data[system][obs][subobs]['Y'])
+                Y.append(emulator_model.data[system][obs][subobs][idf]['Y'])
+                #Y.append( emulator_model.data[system][obs]['mean'][idf] )
                 n = Y[-1].shape[1]
                 self._slices[obs][subobs] = slice(nobs, nobs + n)
                 nobs += n
@@ -124,6 +129,7 @@ class Emulator:
 
         # Standardize observables and transform through PCA.  Use the first
         # `npc` components but save the full PC transformation for later.
+        print("Standardizing and transforming via PCA")
         Z = self.pca.fit_transform(self.scaler.fit_transform(Y))[:, :npc]
 
         # Define kernel (covariance function):
@@ -142,6 +148,7 @@ class Emulator:
         )
 
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
+        print("Fitting a GP to each PC")
         self.gps = [
             GPR(
                 kernel=kernel, alpha=0,
@@ -192,22 +199,22 @@ class Emulator:
         train and cache a new instance.
 
         """
-        cachefile = cachedir / 'emulator' / '{}.pkl'.format(system)
+        #cachefile = cachedir / 'emulator' / '{}.pkl'.format(system)
 
         # cache the __dict__ rather than the Emulator instance itself
         # this way the __name__ doesn't matter, e.g. a pickled
         # __main__.Emulator can be unpickled as a src.emulator.Emulator
-        if not retrain and cachefile.exists():
-            logging.debug('loading emulator for system %s from cache', system)
-            emu = cls.__new__(cls)
-            emu.__dict__ = joblib.load(cachefile)
-            return emu
+        #if not retrain and cachefile.exists():
+        #    logging.debug('loading emulator for system %s from cache', system)
+        #    emu = cls.__new__(cls)
+        #    emu.__dict__ = joblib.load(cachefile)
+        #    return emu
 
         emu = cls(system, **kwargs)
 
-        logging.info('writing cache file %s', cachefile)
-        cachefile.parent.mkdir(exist_ok=True)
-        joblib.dump(emu.__dict__, cachefile, protocol=pickle.HIGHEST_PROTOCOL)
+        #logging.info('writing cache file %s', cachefile)
+        #cachefile.parent.mkdir(exist_ok=True)
+        #joblib.dump(emu.__dict__, cachefile, protocol=pickle.HIGHEST_PROTOCOL)
 
         return emu
 
@@ -325,10 +332,12 @@ class Emulator:
 
 emulators = lazydict(Emulator.from_cache)
 
-
+#def main_emulator():
 if __name__ == '__main__':
     import argparse
-    from . import systems
+    from __init__ import systems
+
+    print("In emulator main")
 
     def arg_to_system(arg):
         if arg not in systems:
@@ -378,3 +387,5 @@ if __name__ == '__main__':
                 'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
                 .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
             )
+
+#main_emulator()

@@ -44,9 +44,13 @@ from hic import flow
 import numpy as np
 from sklearn.externals import joblib
 
-from . import workdir, cachedir, systems, lazydict, expt
-from .design import Design
+#from . import workdir, cachedir, systems, lazydict, expt
+#from .design import Design
+from __init__ import lazydict, workdir, cachedir, systems
+from design import Design
 
+from calculations_file_format_event_average import bayes_dtype
+#import calculations_file_format_event_average
 
 def pT_fluct(events):
     """
@@ -153,13 +157,14 @@ class ModelData:
     def __init__(self, *files):
         # read each file using the above dtype and treat each as a minimum-bias
         # event sample
-        def load_events(f):
-            logging.debug('loading %s', f)
-            d = np.fromfile(str(f), dtype=self.dtype)
-            d.sort(order='dNch_deta')
-            return d
+        #def load_events(f):
+        #    logging.debug('loading %s', f)
+        #    d = np.fromfile(str(f), dtype=self.dtype)
+        #    d.sort(order='dNch_deta')
+        #    return d
 
-        self.events = [load_events(f) for f in files]
+        #self.events = [load_events(f) for f in files]
+        return
 
     def observables_like(self, data, *keys):
         """
@@ -244,57 +249,57 @@ def _data(system, dataset='main'):
         - 'map' (maximum a posteriori, i.e. "best-fit" point)
 
     """
-    if dataset not in {'main', 'validation', 'map'}:
-        raise ValueError('invalid dataset: {}'.format(dataset))
 
-    files = (
-        [Path(workdir, 'model_output', dataset, '{}.dat'.format(system))]
-        if dataset == 'map' else
-        [
-            Path(workdir, 'model_output', dataset, system, '{}.dat'.format(p))
-            for p in
-            Design(system, validation=(dataset == 'validation')).points
-        ]
-    )
+    #if dataset not in {'main', 'validation', 'map'}:
+    #    raise ValueError('invalid dataset: {}'.format(dataset))
 
-    cachefile = Path(cachedir, 'model', dataset, '{}.pkl'.format(system))
+    #files = (
+    #    [Path(workdir, 'model_output', dataset, '{}.dat'.format(system))]
+    #    if dataset == 'map' else
+    #    [
+    #        Path(workdir, 'model_output', dataset, system, '{}.dat'.format(p))
+    #        for p in
+    #        Design(system, validation=(dataset == 'validation')).points
+    #    ]
+    #)
 
-    if cachefile.exists():
+
+    #cachefile = Path(cachedir, 'model', dataset, '{}.pkl'.format(system))
+
+    #if cachefile.exists():
         # use the cache unless any of the model data files are newer
         # this DOES NOT check any other logical dependencies, e.g. the
         # experimental data
         # to force recomputation, delete the cache file
-        mtime = cachefile.stat().st_mtime
-        if all(f.stat().st_mtime < mtime for f in files):
-            logging.debug('loading observables cache file %s', cachefile)
-            return joblib.load(cachefile)
-        else:
-            logging.debug('cache file %s is older than event data', cachefile)
-    else:
-        logging.debug('cache file %s does not exist', cachefile)
+        #mtime = cachefile.stat().st_mtime
+        #if all(f.stat().st_mtime < mtime for f in files):
+        #    logging.debug('loading observables cache file %s', cachefile)
+        #    return joblib.load(cachefile)
+        #else:
+        #    logging.debug('cache file %s is older than event data', cachefile)
+    #else:
+        #logging.debug('cache file %s does not exist', cachefile)
 
-    logging.info(
-        'loading %s/%s data and computing observables',
-        system, dataset
-    )
-
-    data = expt.data[system]
-
+    #logging.info('loading %s/%s data and computing observables', system, dataset)
+    #data = expt.data[system]
     # some data are not yet available for PbPb5020
     # create dummy entries so that they are computed for the model
-    if system == 'PbPb5020':
-        data = dict(
-            ((obs, obsdata) for obs, obsdata in
-             expt.data['PbPb2760'].items() if obs not in data),
-            **data
-        )
+    #if system == 'PbPb5020':
+    #    data = dict( ( (obs, obsdata) for obs, obsdata in expt.data['PbPb2760'].items() if obs not in data), **data )
 
-    data = ModelData(*files).observables_like(data)
+    #data = ModelData(*files).observables_like(data)
+    #logging.info('writing cache file %s', cachefile)
+    #cachefile.parent.mkdir(parents=True, exist_ok=True)
+    #joblib.dump(data, cachefile, protocol=pickle.HIGHEST_PROTOCOL)
 
-    logging.info('writing cache file %s', cachefile)
-    cachefile.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(data, cachefile, protocol=pickle.HIGHEST_PROTOCOL)
+    #load the design points from file?
 
+    #load the model data from file
+    logging.info('loading %s/%s observables from file', system, dataset)
+    data = np.fromfile('model_calculations/obs.dat', dtype=bayes_dtype)
+    #data = np.fromfile('model_calculations/obs.dat', dtype=new_dtype)
+    print("In emulator_model _data()")
+    print("data = " + str(data) )
     return data
 
 

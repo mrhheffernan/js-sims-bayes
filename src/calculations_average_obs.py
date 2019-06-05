@@ -120,8 +120,6 @@ def calculate_vn(ds, exp, cen, idf):
         def obs_and_err(qn, m):
                 w = m*(m-1.) # is this P_{M,2} in notation of Jonah's Thesis
                 cn2 = (np.abs(qn)**2 - m)/w # is this is <2> in Jonah's thesis (p.27)
-                #print("cn2 = ")
-                #print(cn2)
                 avg_cn2, std_avg_cn2 = weighted_mean_std(cn2, w)
                 vn = np.sqrt(avg_cn2)
                 vn_err = std_avg_cn2/2./vn
@@ -133,7 +131,6 @@ def calculate_vn(ds, exp, cen, idf):
         obs = np.zeros([len(cenM), Nharmonic])
         obs_err = np.zeros([len(cenM), Nharmonic])
 
-        #print("Inside calculate_vn")
         for i, (nl, nh) in enumerate(zip(index[:,0], index[:,1])):
                 M = ds[exp]['flow']['N'][nl:nh, idf]+1e-10
                 for n in range(Nharmonic):
@@ -218,19 +215,22 @@ def load_and_compute(inputfile):
                     entry['Pb-Pb-2760']['dN_dy_'+s]['stat_err'][:,idf] = info['err'][s]
 
                 # mean-pT-fluct
+                """
                 tmp_obs='pT_fluct'
                 cenb=np.array(obs_cent_list[tmp_obs])
                 info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
                 entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
                 entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
-
+                """
                 # vn
+                """
                 for n in range(2,5):
                     tmp_obs='v'+str(n)+'2'
                     cenb=np.array(obs_cent_list[tmp_obs])
                     info = calculate_vn(res, 'ALICE', cenb, idf)
                     entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
                     entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err'][:, n-1]
+                """
 
         return entry
 

@@ -1,5 +1,5 @@
-# Data structure used to save hadronic observables 
-# after average over 
+# Data structure used to save hadronic observables
+# after average over
 
 from collections.abc import Iterable
 
@@ -19,6 +19,16 @@ dN_dy_strange_cents=[[0,10],[10,20],[20,40],[40,60]]
 mean_pt_cents=[[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70]]
 pT_fluct_cents=[[0,5],[5,10],[10,15],[15,20],[20,25],[25,30],[30,35],[35,40],[40,45],[45,50],[50,55],[55,60]]
 vn_cents=[[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70]]
+
+#TEMPORARY FOR SINGLE IC TESTS
+dNch_deta_cents = [[0,100]]
+dET_deta_cent = [[0,100]]
+dN_dy_cents = [[0,100]]
+dN_dy_strange_cents = [[0,100]]
+mean_pt_cents = [[0,100]]
+pT_fluct_cents = [[0,100]]
+vn_cents = [[0,100]]
+#TEMPORARY FOR SINGLE IC TESTS
 
 # Observable name, data type, centralities
 obs_cent_list={
@@ -53,12 +63,9 @@ for obs, cent_list in obs_cent_list.items():
     )
 
 
-number_of_models_per_run=5
+number_of_models_per_run = 5
 
 bayes_dtype=[(sqrts, tmp_dtype, number_of_models_per_run) for sqrts in sqrts_list]
-
-
-
 
 #bayes_dtype=[
 #('Au-Au-200',
@@ -107,4 +114,3 @@ bayes_dtype=[(sqrts, tmp_dtype, number_of_models_per_run) for sqrts in sqrts_lis
 #		('v42-d', float_t, [1,10]),
 #	], 5)
 #]
-
