@@ -4,7 +4,7 @@ Trains Gaussian process emulators.
 When run as a script, allows retraining emulators, specifying the number of
 principal components, and other options (however it is not necessary to do this
 explicitly --- the emulators will be trained automatically when needed).  Run
-``python -m src.emulator --help`` for usage information.
+``python3 src/emulator.py --help`` for usage information.
 
 Uses the `scikit-learn <http://scikit-learn.org>`_ implementations of
 `principal component analysis (PCA)
@@ -227,7 +227,8 @@ class Emulator:
 
 
     @classmethod
-    def from_cache(cls, system, retrain=False, **kwargs):
+    #def from_cache(cls, system, retrain=False, **kwargs):
+    def build_emu(cls, system, retrain=False, **kwargs):
         """
         Load the emulator for `system` from the cache if available, otherwise
         train and cache a new instance.
@@ -270,6 +271,22 @@ class Emulator:
                 for subobs, s in slices.items()
             } for obs, slices in self._slices.items()
         }
+
+    #this version from J. Scott Moreland's code, doesn't use 'slices' (I dont know what slices are)
+    def predict_2(self, x):
+        """
+        Predict y at location x using the emulator
+
+        """
+        Z = np.array([gp.sample_y(x, n_samples=10**3) for gp in self.gps]).T
+
+        size = Z.shape[:-1] + (self.nobs - self.npc,)
+        R = np.random.normal(size=size)
+
+        Z = np.concatenate((Z, R), axis=2)
+        Y = self.scaler.inverse_transform(self.pca.inverse_transform(Z))
+
+        return np.squeeze(Y.mean(axis=0)), np.squeeze(Y.std(axis=0))
 
     def predict(self, X, return_cov=False, extra_std=0):
         """
@@ -365,7 +382,6 @@ class Emulator:
 
 
 #emulators = lazydict(Emulator.from_cache)
-emulators = Emulator.from_cache
 
 #if __name__ == '__main__':
 def main():
@@ -407,7 +423,8 @@ def main():
     #for s in kwargs.pop('systems'):
     for s in systems:
         print("system = " + str(s))
-        emu = Emulator.from_cache(s, **kwargs)
+        #emu = Emulator.from_cache(s, **kwargs)
+        emu = Emulator.build_emu(s, **kwargs)
 
         print('{} PCs explain {:.5f} of variance'.format(
             emu.npc,
