@@ -10,3 +10,9 @@ number_of_models_per_run = 5
 
 #the Collision systems
 systems = [('Pb', 'Pb', 2760)]
+
+#the number of design points
+n_design_pts = 20
+
+# Number of principal components to keep in the emulator
+npca=1

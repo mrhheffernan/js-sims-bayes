@@ -17,6 +17,7 @@ import logging
 import pickle
 
 import numpy as np
+import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
@@ -26,9 +27,7 @@ from sklearn.preprocessing import StandardScaler
 #from . import cachedir, lazydict, model
 #from .design import Design
 
-from design import Design
-from __init__ import lazydict
-import emulator_model
+from configurations import *
 
 ######################################
 ############### Inputs ###############
@@ -42,9 +41,6 @@ model_calc_path='../calcs/'
 
 # Where to read the design points
 design_point_path='../design/'
-
-# Number of principal components to keep in the emulator
-npca=10
 
 
 
@@ -100,28 +96,48 @@ class Emulator:
         ('vnk', [(2, 2), (3, 2), (4, 2)]),
     ]
 
-    def __init__(self, system, npc=10, nrestarts=0):
+    def __init__(self, system, npc=npca, nrestarts=0):
         logging.info( 'training emulator for system %s (%d PC, %d restarts)', system, npc, nrestarts )
         Y = []
-        self._slices = {}
+        #self._slices = {}
+
+        system_str = system[0]+"-"+system[1]+"-"+str(system[2])
+
+        #read in the model data from file
+        model_file = 'model_calculations/obs.dat'
+        print("Reading model calculated observables from " + model_file)
+        model_data = np.fromfile(model_file, dtype=bayes_dtype)
 
         # Build an array of all observables to emulate.
         print("Building array of observables to emulate")
-        nobs = 0
 
-        #for testing used fixed delta-f
+        #what is this block doing??
+        #nobs = 0
+        #for obs, subobslist in self.observables:
+        #    self._slices[obs] = {}
+        #    for subobs in subobslist:
+                #Y.append(model_data[system_str][obs][subobs][idf]['Y'])
+        #        n = Y[-1].shape[1]
+        #        self._slices[obs][subobs] = slice(nobs, nobs + n)
+        #        nobs += n
+        #Y = np.concatenate(Y, axis=1)
+
+        #we need to fill Y with the model calculation data
+        #for now let's just take one observable dET_deta
+        nobs = 1
+        obs = 'dET_deta'
+        #for testing use fixed delta-f
         idf = 3
-        for obs, subobslist in self.observables:
-            self._slices[obs] = {}
-            for subobs in subobslist:
-                Y.append(emulator_model.data[system][obs][subobs][idf]['Y'])
-                #Y.append( emulator_model.data[system][obs]['mean'][idf] )
-                n = Y[-1].shape[1]
-                self._slices[obs][subobs] = slice(nobs, nobs + n)
-                nobs += n
 
-        Y = np.concatenate(Y, axis=1)
+        #Y = np.array( model_data[system_str][pt, idf][obs]['mean'] for pt in range(n_design_pts))
+        for pt in range(n_design_pts):
+            Y.append(model_data[system_str][pt, idf][obs]['mean'])
 
+        Y = np.array(Y)
+        #need to reshape Y into 2d array for PCA (what it expects)
+        Y = Y.reshape(-1, 1)
+
+        #Principal Components
         self.npc = npc
         self.nobs = nobs
         self.scaler = StandardScaler(copy=False)
@@ -132,10 +148,20 @@ class Emulator:
         print("Standardizing and transforming via PCA")
         Z = self.pca.fit_transform(self.scaler.fit_transform(Y))[:, :npc]
 
+        #design = Design(system)
+        #read design points from file
+        design_dir = 'design_pts'
+        print("Reading design points from " + design_dir)
+        design = pd.read_csv(design_dir + '/design_points_main_PbPb-2760.dat')
+
+        #need to read in parameter ranges from file
+        design_range = pd.read_csv(design_dir + '/design_ranges_main_PbPb-2760.dat')
+        design_max = design_range['max'].values
+        design_min = design_range['min'].values
+        ptp = design_max - design_min
+
         # Define kernel (covariance function):
         # Gaussian correlation (RBF) plus a noise term.
-        design = Design(system)
-        ptp = design.max - design.min
         kernel = (
             1. * kernels.RBF(
                 length_scale=ptp,
@@ -151,9 +177,9 @@ class Emulator:
         print("Fitting a GP to each PC")
         self.gps = [
             GPR(
-                kernel=kernel, alpha=0,
-                n_restarts_optimizer=nrestarts,
-                copy_X_train=False
+            kernel=kernel, alpha=0,
+            n_restarts_optimizer=nrestarts,
+            copy_X_train=False
             ).fit(design, z)
             for z in Z.T
         ]
@@ -181,8 +207,7 @@ class Emulator:
         # Compute the partial transformation for the first `npc` components
         # that are actually emulated.
         A = self._trans_matrix[:npc]
-        self._var_trans = np.einsum(
-            'ki,kj->kij', A, A, optimize=False).reshape(npc, nobs**2)
+        self._var_trans = np.einsum('ki,kj->kij', A, A, optimize=False).reshape(npc, nobs**2)
 
         # Compute the covariance matrix for the remaining neglected PCs
         # (truncation error).  These components always have variance == 1.
@@ -330,19 +355,18 @@ class Emulator:
         )
 
 
-emulators = lazydict(Emulator.from_cache)
+#emulators = lazydict(Emulator.from_cache)
+emulators = Emulator.from_cache
 
-#def main_emulator():
-if __name__ == '__main__':
+#if __name__ == '__main__':
+def main():
     import argparse
-    from __init__ import systems
+    #from __init__ import systems
 
-    print("In emulator main")
-
-    def arg_to_system(arg):
-        if arg not in systems:
-            raise argparse.ArgumentTypeError(arg)
-        return arg
+    #def arg_to_system(arg):
+    #    if arg not in systems:
+    #        raise argparse.ArgumentTypeError(arg)
+    #    return arg
 
     parser = argparse.ArgumentParser(
         description='train emulators for each collision system',
@@ -362,19 +386,20 @@ if __name__ == '__main__':
         '--retrain', action='store_true',
         help='retrain even if emulator is cached'
     )
-    parser.add_argument(
-        'systems', nargs='*', type=arg_to_system,
-        default=systems, metavar='SYSTEM',
-        help='system(s) to train'
-    )
+    #parser.add_argument(
+    #    'systems', nargs='*', type=arg_to_system,
+    #    default=systems, metavar='SYSTEM',
+    #    help='system(s) to train'
+    #)
 
     args = parser.parse_args()
     kwargs = vars(args)
 
-    for s in kwargs.pop('systems'):
+    #for s in kwargs.pop('systems'):
+    for s in systems:
+        print("system = " + str(s))
         emu = Emulator.from_cache(s, **kwargs)
 
-        print(s)
         print('{} PCs explain {:.5f} of variance'.format(
             emu.npc,
             emu.pca.explained_variance_ratio_[:emu.npc].sum()
@@ -388,4 +413,4 @@ if __name__ == '__main__':
                 .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
             )
 
-#main_emulator()
+main()

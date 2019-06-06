@@ -230,10 +230,10 @@ class Design:
         # (to be imported later by the emulator)
         design_file = open(os.path.join(basedir, 'design_points_'+str(self.type)+'_'+str(self.system)+'.dat'), 'w')
         #write header
-        design_file.write("# ")
+        #design_file.write("#")
         design_file.write("idx")
         for key in self.keys:
-            design_file.write(" " + key)
+            design_file.write("," + key)
         design_file.write("\n")
 
         # Loop over design points
@@ -289,7 +289,7 @@ class Design:
             # Write parameters for current design point in the design-point-summary file
             design_file.write(str(point))
             for key in self.keys:
-                design_file.write(" " + str(kwargs[key]))
+                design_file.write("," + str(kwargs[key]))
             design_file.write("\n")
 
         design_file.close()
@@ -297,9 +297,10 @@ class Design:
         #write parameter ranges to file to be imported by emulator
         range_file = open(os.path.join(basedir, 'design_ranges_'+str(self.type)+'_'+str(self.system)+'.dat'), 'w')
         #write header
-        range_file.write("# param min max \n")
+        #range_file.write("# param min max \n")
+        range_file.write("param,min,max\n")
         for i in range(0, len(self.keys)):
-            range_file.write( self.keys[i] + " " + str(self.range[i][0]) + " " + str(self.range[i][1]) + "\n")
+            range_file.write( self.keys[i] + "," + str(self.range[i][0]) + "," + str(self.range[i][1]) + "\n")
         range_file.close()
 
 #if __name__ == '__main__':

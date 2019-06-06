@@ -4,6 +4,7 @@ cd $1
 for design_pt in ./*
 do
   cd $design_pt
+  echo $design_pt  
   python ../../calculations_average_obs.py results.dat
   cd ..
 done
