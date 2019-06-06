@@ -94,7 +94,7 @@ class Design:
     project, if not completely rewritten.
 
     """
-    def __init__(self, system, npoints=20, validation=False, seed=None):
+    def __init__(self, system, npoints=n_design_pts, validation=False, seed=None):
         #self.system = system
         self.system = system[0]+system[1]+"-"+str(system[2])
         #self.projectiles, self.beam_energy = parse_system(system)
@@ -294,12 +294,18 @@ class Design:
 
         design_file.close()
 
+        #write parameter ranges to file to be imported by emulator
+        range_file = open(os.path.join(basedir, 'design_ranges_'+str(self.type)+'_'+str(self.system)+'.dat'), 'w')
+        #write header
+        range_file.write("# param min max \n")
+        for i in range(0, len(self.keys)):
+            range_file.write( self.keys[i] + " " + str(self.range[i][0]) + " " + str(self.range[i][1]) + "\n")
+        range_file.close()
+
 #if __name__ == '__main__':
 def main():
     import argparse
     #from __init__ import systems
-
-    print("In design main()")
 
     parser = argparse.ArgumentParser(description='generate design input files')
     parser.add_argument('inputs_dir', type=Path, help='directory to place input files')
