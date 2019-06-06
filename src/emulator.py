@@ -15,9 +15,11 @@ and `Gaussian process regression
 
 import logging
 import pickle
+import dill
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
@@ -133,6 +135,9 @@ class Emulator:
         for pt in range(n_design_pts):
             Y.append(model_data[system_str][pt, idf][obs]['mean'])
 
+        #save model values to array for plotting
+        Y_arr = Y
+
         Y = np.array(Y)
         #need to reshape Y into 2d array for PCA (what it expects)
         Y = Y.reshape(-1, 1)
@@ -153,6 +158,9 @@ class Emulator:
         design_dir = 'design_pts'
         print("Reading design points from " + design_dir)
         design = pd.read_csv(design_dir + '/design_points_main_PbPb-2760.dat')
+
+        design = design.drop("idx", axis=1)
+        design_vals = design['tau_fs'].values
 
         #need to read in parameter ranges from file
         design_range = pd.read_csv(design_dir + '/design_ranges_main_PbPb-2760.dat')
@@ -216,6 +224,7 @@ class Emulator:
 
         # Add small term to diagonal for numerical stability.
         self._cov_trunc.flat[::nobs + 1] += 1e-4 * self.scaler.var_
+
 
     @classmethod
     def from_cache(cls, system, retrain=False, **kwargs):
@@ -412,5 +421,10 @@ def main():
                 'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
                 .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
             )
+
+        #dill the emulator to be loaded later
+        system_str = s[0]+"-"+s[1]+"-"+str(s[2])
+        with open('emulator/emu-' + system_str +'.dill', 'wb') as file:
+            dill.dump(emu, file)
 
 main()

@@ -38,9 +38,9 @@ from sklearn.decomposition import PCA
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
 from sklearn.gaussian_process import kernels
 
-from . import workdir, systems, parse_system, expt, model, mcmc
-from .design import Design
-from .emulator import emulators
+#from . import workdir, systems, parse_system, expt, model, mcmc
+#from .design import Design
+#from .emulator import emulators
 
 fontsize = dict(
     large=11,
@@ -81,9 +81,9 @@ plt.rcParams.update({
     'axes.titlesize': fontsize['large'],
     'xtick.labelsize': fontsize['small'],
     'ytick.labelsize': fontsize['small'],
-    'font.weight': 400,
-    'axes.labelweight': 400,
-    'axes.titleweight': 400,
+    #'font.weight': 400,
+    #'axes.labelweight': 400,
+    #'axes.titleweight': 400,
     'axes.prop_cycle': plt.cycler('color', list(colors.values())),
     'lines.linewidth': .8,
     'lines.markersize': 3,
@@ -2016,7 +2016,8 @@ def diag_emu_partial():
     )
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
+def main():
     import argparse
     from matplotlib.mathtext import MathTextWarning
 
@@ -2068,3 +2069,5 @@ if __name__ == '__main__':
     else:
         for f in plot_functions.values():
             f()
+
+main()
