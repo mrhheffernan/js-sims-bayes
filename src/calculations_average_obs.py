@@ -223,14 +223,13 @@ def load_and_compute(inputfile):
                 entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
                 """
                 # vn
-                """
                 for n in range(2,5):
                     tmp_obs='v'+str(n)+'2'
                     cenb=np.array(obs_cent_list[tmp_obs])
                     info = calculate_vn(res, 'ALICE', cenb, idf)
                     entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
                     entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err'][:, n-1]
-                """
+
 
         return entry
 

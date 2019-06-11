@@ -13,8 +13,8 @@ def write_module_inputs(
     target = 'Pb',
     sqrts = 2760,
     inel_nucleon_cross_section = 6.4,
-    trento_normalization = 30.0,
-    trento_reduced_thickness = 0.0,
+    trento_normalization = 13.94,
+    trento_reduced_thickness = 0.007,
     trento_fluctuation_k = 0.3,
     trento_nucleon_width = 0.956,
     trento_nucleon_min_dist = 1.27,
@@ -35,27 +35,27 @@ def write_module_inputs(
     bulk_viscosity_peak_in_GeV = 0.183
     ):
     #the jetscape seed sets the seed in smash, set to 0 for random (clocktime) seed
-    js_seed = 9
-    
-    
+    js_seed = 0
+
+
     #iS3D Parameters
     #delta-f mode will be overwritten by the run-events script
     delta_f_mode = 4 # 1: 14 moment, 2: C.E., 3: McNelis feq_mod, 4: Bernhard feq_mod
     rap_max = 2.0    # dN/dY sampled is flat for y in (-rap_max, rap_max) and zero outside
-    min_num_hadrons = 50000
-    max_num_samples = 500
+    min_num_hadrons = 100000
+    max_num_samples = 5000
     set_T_switch = 0 #if on, iS3D will use Tc read in iS3D_parameters.dat as temperature
-    
+
     #SMASH Parameters
     max_time_smash = 1000.0 #max run time [fm/c]
 
     #this chooses grid spacing based on nucleon width
     dx = 0.15 * trento_nucleon_width #[fm]
     dy = 0.15 * trento_nucleon_width #[fm]
-    #set hydro time step based on grid spacing for convergence 
+    #set hydro time step based on grid spacing for convergence
     dtau = dx / 8.0
     #choose a grid size large enough to capture central events
-    #Does [-15fm, 15fm] work even for events with very large norm? 
+    #Does [-15fm, 15fm] work even for events with very large norm?
     L_x = 15.0 #[fm]
     L_y = 15.0 #[fm]
     nx = 1.0 + (2.0 * L_x)/dx
@@ -77,7 +77,7 @@ def write_module_inputs(
 
     design_point_outdir=os.path.join(outdir,str(design_point_id))
     os.mkdir(design_point_outdir)
-    
+
     #freestream file
     #fs_file = open(os.path.join(outdir, 'freestream_input_' + str(design_point_id)),'w')
     fs_file = open(os.path.join(design_point_outdir, 'freestream_input'),'w')
@@ -288,7 +288,7 @@ def write_module_inputs(
     js_file.write("      <only_decays>0</only_decays>\n")
     js_file.write("    </SMASH>\n")
     js_file.write("  </Afterburner>\n")
-    
+
     js_file.write("</jetscape>\n")
 
     js_file.close()

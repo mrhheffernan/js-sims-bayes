@@ -127,7 +127,9 @@ class Emulator:
         #we need to fill Y with the model calculation data
         #for now let's just take one observable dET_deta
         nobs = 1
-        obs = 'dET_deta'
+        #obs = 'dET_deta'
+        obs = 'v22'
+
         #for testing use fixed delta-f
         idf = 3
 
@@ -160,7 +162,8 @@ class Emulator:
         design = pd.read_csv(design_dir + '/design_points_main_PbPb-2760.dat')
 
         design = design.drop("idx", axis=1)
-        design_vals = design['tau_fs'].values
+        #design_vals = design['tau_fs'].values
+        design_vals = design['etas_min'].values
 
         #need to read in parameter ranges from file
         design_range = pd.read_csv(design_dir + '/design_ranges_main_PbPb-2760.dat')
