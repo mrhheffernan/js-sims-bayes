@@ -26,25 +26,10 @@ from sklearn.gaussian_process import GaussianProcessRegressor as GPR
 from sklearn.gaussian_process import kernels
 from sklearn.preprocessing import StandardScaler
 
-#from . import cachedir, lazydict, model
-#from .design import Design
-
 from configurations import *
-
-######################################
-############### Inputs ###############
-######################################
 
 # How to read the model calculations
 from calculations_file_format_event_average import *
-
-# Where the model calculations are
-model_calc_path='../calcs/'
-
-# Where to read the design points
-design_point_path='../design/'
-
-
 
 ###########################################################
 ############### Emulator and help functions ###############
@@ -68,7 +53,6 @@ class _Covariance:
             self._slices[obs2][subobs2]
         ]
 
-
 class Emulator:
     """
     Multidimensional Gaussian process emulator using principal component
@@ -87,21 +71,23 @@ class Emulator:
     could be tricky.
 
     """
-    #: Observables to emulate as a list of 2-tuples
-    #: ``(obs, [list of subobs])``.
-    observables = [
-        ('dNch_deta', [None]),
-        ('dET_deta', [None]),
-        ('dN_dy', ['pion', 'kaon', 'proton']),
-        ('mean_pT', ['pion', 'kaon', 'proton']),
-        ('pT_fluct', [None]),
-        ('vnk', [(2, 2), (3, 2), (4, 2)]),
-    ]
+
+    #list of observables is defined in calculations_file_format_event_average
+    #here we get there names and sum all the centrality bins to find the total number of observables nobs
+    nobs = 0
+    observables = []
+    for obs, cent_list in obs_cent_list.items():
+        observables.append(obs)
+        nobs += np.array(cent_list).shape[0]
 
     def __init__(self, system, npc=npca, nrestarts=0):
-        logging.info( 'training emulator for system %s (%d PC, %d restarts)', system, npc, nrestarts )
+        print("Training emulator for system   : " + str(system) )
+        print("Number of principal components : " + str(npc) )
+        print("Number of restarts             : " + str(nrestarts))
+
+        nobs = self.nobs
         Y = []
-        #self._slices = {}
+        self._slices = {}
 
         system_str = system[0]+"-"+system[1]+"-"+str(system[2])
 
@@ -113,56 +99,54 @@ class Emulator:
         # Build an array of all observables to emulate.
         print("Building array of observables to emulate")
 
-        #what is this block doing??
-        #nobs = 0
-        #for obs, subobslist in self.observables:
-        #    self._slices[obs] = {}
-        #    for subobs in subobslist:
-                #Y.append(model_data[system_str][obs][subobs][idf]['Y'])
-        #        n = Y[-1].shape[1]
-        #        self._slices[obs][subobs] = slice(nobs, nobs + n)
-        #        nobs += n
-        #Y = np.concatenate(Y, axis=1)
-
-        #we need to fill Y with the model calculation data
-        #for now let's just take one observable dET_deta
-        nobs = 1
-        #obs = 'dET_deta'
-        obs = 'v22'
-
         #for testing use fixed delta-f
         idf = 3
 
-        #Y = np.array( model_data[system_str][pt, idf][obs]['mean'] for pt in range(n_design_pts))
+        #this works for one observable type
+        """
+        nobs = 8
+        obs = 'v22'
         for pt in range(n_design_pts):
             Y.append(model_data[system_str][pt, idf][obs]['mean'])
+        """
 
-        #save model values to array for plotting
-        Y_arr = Y
+        #this is my most up to date version
+        #want to build a matrix of dimension (num design pts) x (number of observables)
+        for pt in range(n_design_pts): # loop over all design points
+            row = np.array([])
+            for obs in self.observables:
+                #these are the values of 'obs' at ALL the centrality bins (as an array)
+                values = np.array( model_data[system_str][pt, idf][obs]['mean'] )
+                is_nan = np.isnan(values)
+                contains_nan = np.sum(is_nan)
+                if contains_nan:
+                    print("WARNING! MODEL DATA CONTAINS NAN!") #probably should have an exit statement here
+                    values = np.nan_to_num(values)
+                row = np.append(row, values)
+            #each row in matrix is a different design point, and each column is an observable
+            Y.append(row)
 
         Y = np.array(Y)
-        #need to reshape Y into 2d array for PCA (what it expects)
-        Y = Y.reshape(-1, 1)
+
+        print("Number of observables nobs    = " + str(nobs) )
+        print("Shape of Model Matrix Y.shape = " + str(Y.shape))
 
         #Principal Components
         self.npc = npc
-        self.nobs = nobs
         self.scaler = StandardScaler(copy=False)
         self.pca = PCA(copy=False, whiten=True, svd_solver='full')
 
         # Standardize observables and transform through PCA.  Use the first
         # `npc` components but save the full PC transformation for later.
         print("Standardizing and transforming via PCA")
-        Z = self.pca.fit_transform(self.scaler.fit_transform(Y))[:, :npc]
+        Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc]
 
-        #design = Design(system)
         #read design points from file
         design_dir = 'design_pts'
         print("Reading design points from " + design_dir)
         design = pd.read_csv(design_dir + '/design_points_main_PbPb-2760.dat')
 
         design = design.drop("idx", axis=1)
-        #design_vals = design['tau_fs'].values
         design_vals = design['etas_min'].values
 
         #need to read in parameter ranges from file
@@ -195,6 +179,7 @@ class Emulator:
             for z in Z.T
         ]
 
+        print("Constructing full linear transformation matrix")
         # Construct the full linear transformation matrix, which is just the PC
         # matrix with the first axis multiplied by the explained standard
         # deviation of each PC and the second axis multiplied by the
@@ -215,6 +200,7 @@ class Emulator:
         # where A is the trans matrix and var_k is the variance of the kth PC.
         # https://en.wikipedia.org/wiki/Propagation_of_uncertainty
 
+        print("Computing partial transformation for first npc components")
         # Compute the partial transformation for the first `npc` components
         # that are actually emulated.
         A = self._trans_matrix[:npc]
@@ -230,29 +216,14 @@ class Emulator:
 
 
     @classmethod
-    #def from_cache(cls, system, retrain=False, **kwargs):
     def build_emu(cls, system, retrain=False, **kwargs):
         """
         Load the emulator for `system` from the cache if available, otherwise
         train and cache a new instance.
 
         """
-        #cachefile = cachedir / 'emulator' / '{}.pkl'.format(system)
-
-        # cache the __dict__ rather than the Emulator instance itself
-        # this way the __name__ doesn't matter, e.g. a pickled
-        # __main__.Emulator can be unpickled as a src.emulator.Emulator
-        #if not retrain and cachefile.exists():
-        #    logging.debug('loading emulator for system %s from cache', system)
-        #    emu = cls.__new__(cls)
-        #    emu.__dict__ = joblib.load(cachefile)
-        #    return emu
 
         emu = cls(system, **kwargs)
-
-        #logging.info('writing cache file %s', cachefile)
-        #cachefile.parent.mkdir(exist_ok=True)
-        #joblib.dump(emu.__dict__, cachefile, protocol=pickle.HIGHEST_PROTOCOL)
 
         return emu
 
@@ -383,18 +354,8 @@ class Emulator:
             ], axis=2)
         )
 
-
-#emulators = lazydict(Emulator.from_cache)
-
-#if __name__ == '__main__':
 def main():
     import argparse
-    #from __init__ import systems
-
-    #def arg_to_system(arg):
-    #    if arg not in systems:
-    #        raise argparse.ArgumentTypeError(arg)
-    #    return arg
 
     parser = argparse.ArgumentParser(
         description='train emulators for each collision system',
@@ -423,10 +384,8 @@ def main():
     args = parser.parse_args()
     kwargs = vars(args)
 
-    #for s in kwargs.pop('systems'):
     for s in systems:
         print("system = " + str(s))
-        #emu = Emulator.from_cache(s, **kwargs)
         emu = Emulator.build_emu(s, **kwargs)
 
         print('{} PCs explain {:.5f} of variance'.format(

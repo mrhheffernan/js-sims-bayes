@@ -15,4 +15,4 @@ systems = [('Pb', 'Pb', 2760)]
 n_design_pts = 10
 
 # Number of principal components to keep in the emulator
-npca=1
+npca=10

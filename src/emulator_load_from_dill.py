@@ -12,17 +12,13 @@ def main():
         system_str = s[0]+"-"+s[1]+"-"+str(s[2])
         emu = dill.load(open('emulator/emu-' + system_str + '.dill', "rb"))
 
-        #use the emulator to approximate model output
-
-        #a single point
-        #test_pt = 1.0
-        #X = [[test_pt]]
-        #predictions = emu.predict_2(X)
-
-        # a series of points
-        test_pts = np.random.uniform(0.0, 0.2, size=20)
+        #test emulator at a series of points in parameter space
+        test_pts = np.random.uniform(0.0, 0.2, size=15)
         X = test_pts.reshape(1,-1)
         predictions = [emu.predict_2(x.reshape(1,-1)) for x in X.T]
+
+        predictions = np.array(predictions)
+        print("predictions.shape = " + str(predictions.shape) )
 
         y_emu = []
         dy_emu = []
@@ -37,6 +33,7 @@ def main():
 
         #get design points
         design_dir = 'design_pts'
+        print("Reading in design points from " + str(design_dir))
         design = pd.read_csv(design_dir + '/design_points_main_PbPb-2760.dat')
         #design_vals = design['tau_fs'].values
         design_vals = design['etas_min'].values
@@ -58,19 +55,24 @@ def main():
             Y.append( model_data[system_str][obs]['mean'][pt,idf] )
             Y_err.append( model_data[system_str][obs]['stat_err'][pt,idf] )
 
-        #plot the emulator prediction against model data
-        plt.scatter(design_vals, Y, label='model')
-        plt.errorbar(design_vals, Y, Y_err, ls='none')
-        plt.scatter(test_pts, y_emu, label='emulator', color='r')
-        plt.errorbar(test_pts, y_emu, 2*dy_emu, ls='none', color='r')
-        #plt.fill_between(
-        #    test_pts, y_emu - 2*dy_emu, y_emu + 2*dy_emu,
-        #    color=plt.cm.Blues(.6), alpha=.2, lw=0, zorder=0
-        #)
+        Y = np.array(Y)
+        Y_err = np.array(Y_err)
+
+        #take a particular centrality bin
+        y_emu_2030 = y_emu[:, 2]
+        dy_emu_2030 = dy_emu[:, 2]
+
+        Y_2030 = Y[:, 2]
+        Y_err_2030 = Y[:,2]
+
+        #plot the emulator prediction against model data for a observable
+        plt.scatter(design_vals, Y_2030, label='model')
+        plt.errorbar(design_vals, Y_2030, Y_err_2030, ls='none')
+        plt.scatter(test_pts, y_emu_2030, label='emulator', color='r')
+        plt.errorbar(test_pts, y_emu_2030, 2*dy_emu_2030, ls='none', color='r')
         plt.legend()
         plt.xlabel(r'$(\eta / s)_{min}$')
         plt.ylabel(r'$v_{2,2}$')
-        #plt.xlim(0.2,1.5)
-        #plt.ylim(560,640)
         plt.show()
+
 main()
