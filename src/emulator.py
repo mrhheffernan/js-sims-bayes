@@ -53,6 +53,7 @@ class _Covariance:
             self._slices[obs2][subobs2]
         ]
 
+
 class Emulator:
     """
     Multidimensional Gaussian process emulator using principal component
@@ -76,9 +77,12 @@ class Emulator:
     #here we get there names and sum all the centrality bins to find the total number of observables nobs
     nobs = 0
     observables = []
+    _slices = {}
     for obs, cent_list in obs_cent_list.items():
         observables.append(obs)
-        nobs += np.array(cent_list).shape[0]
+        n = np.array(cent_list).shape[0]
+        _slices[obs] = slice(nobs, nobs + n)
+        nobs += n
 
     def __init__(self, system, npc=npca, nrestarts=0):
         print("Training emulator for system   : " + str(system) )
@@ -87,7 +91,6 @@ class Emulator:
 
         nobs = self.nobs
         Y = []
-        self._slices = {}
 
         system_str = system[0]+"-"+system[1]+"-"+str(system[2])
 
@@ -120,7 +123,8 @@ class Emulator:
                 is_nan = np.isnan(values)
                 contains_nan = np.sum(is_nan)
                 if contains_nan:
-                    print("WARNING! MODEL DATA CONTAINS NAN!") #probably should have an exit statement here
+                    print("WARNING! MODEL DATA CONTAINS NAN!")
+                    #probably should have an exit statement here
                     values = np.nan_to_num(values)
                 row = np.append(row, values)
             #each row in matrix is a different design point, and each column is an observable
@@ -134,12 +138,13 @@ class Emulator:
         #Principal Components
         self.npc = npc
         self.scaler = StandardScaler(copy=False)
+        #whiten to ensure uncorrelated outputs with unit variances
         self.pca = PCA(copy=False, whiten=True, svd_solver='full')
 
         # Standardize observables and transform through PCA.  Use the first
         # `npc` components but save the full PC transformation for later.
         print("Standardizing and transforming via PCA")
-        Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc]
+        Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
         #read design points from file
         design_dir = 'design_pts'
@@ -147,6 +152,7 @@ class Emulator:
         design = pd.read_csv(design_dir + '/design_points_main_PbPb-2760.dat')
 
         design = design.drop("idx", axis=1)
+        print("Design matrix shape design.shape = " + str(design.shape))
         design_vals = design['etas_min'].values
 
         #need to read in parameter ranges from file
@@ -157,6 +163,7 @@ class Emulator:
 
         # Define kernel (covariance function):
         # Gaussian correlation (RBF) plus a noise term.
+        # noise term is necessary since model calculations contain statistical noise
         kernel = (
             1. * kernels.RBF(
                 length_scale=ptp,
@@ -239,19 +246,23 @@ class Emulator:
         Y = np.dot(Z, self._trans_matrix[:Z.shape[-1]])
         Y += self.scaler.mean_
 
+        """
         return {
             obs: {
                 subobs: Y[..., s]
                 for subobs, s in slices.items()
             } for obs, slices in self._slices.items()
         }
+        """
 
-    #this version from J. Scott Moreland's code, doesn't use 'slices' (I dont know what slices are)
+        return {
+            obs: Y[..., s] for obs, s in self._slices.items()
+        }
+
+
+    #this version from J. Scott Moreland's code, doesn't use 'slices'
     def predict_2(self, x):
-        """
-        Predict y at location x using the emulator
-
-        """
+        #Predict y at location x using the emulator
         Z = np.array([gp.sample_y(x, n_samples=10**3) for gp in self.gps]).T
 
         size = Z.shape[:-1] + (self.nobs - self.npc,)
