@@ -45,12 +45,22 @@ class _Covariance:
         self.array = array
         self._slices = slices
 
+    """
     def __getitem__(self, key):
         (obs1, subobs1), (obs2, subobs2) = key
         return self.array[
             ...,
             self._slices[obs1][subobs1],
             self._slices[obs2][subobs2]
+        ]
+    """
+
+    def __getitem__(self, key):
+        (obs1), (obs2) = key
+        return self.array[
+            ...,
+            self._slices[obs1],
+            self._slices[obs2]
         ]
 
 
@@ -417,4 +427,5 @@ def main():
         with open('emulator/emu-' + system_str +'.dill', 'wb') as file:
             dill.dump(emu, file)
 
-main()
+if __name__ == "__main__":
+    main()

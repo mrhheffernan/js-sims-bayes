@@ -5,6 +5,7 @@ import pandas as pd
 
 from configurations import *
 from calculations_file_format_event_average import *
+from emulator import _Covariance
 
 def main():
     for s in systems:
@@ -19,15 +20,13 @@ def main():
         emu = dill.load(open('emulator/emu-' + system_str + '.dill', "rb"))
         print("Number of principal components : " + str(emu.npc) )
 
-
         #test emulator at a series of points in parameter space
         test_pts = np.random.uniform(0.0, 0.2, size=15)
         X = test_pts.reshape(-1,1)
 
-        #need to be able to import _Covariance for this to work
-        #mean, cov = emu.predict(X, return_cov=True)
+        mean, cov = emu.predict(X, return_cov=True)
 
-        mean = emu.predict(X, return_cov=False)
+        #print(cov['dNch_deta', 'dNch_deta'])
 
         #get design points
         design_dir = 'design_pts'
@@ -46,6 +45,7 @@ def main():
         n = 0
         for obs in observables:
             y_emu = mean[obs]
+            dy_emu = cov[obs, obs]
             Y = []
             Y_err = []
             for pt in range(n_design_pts):
@@ -57,7 +57,7 @@ def main():
 
             #take a particular centrality bin
             y_emu_2030 = y_emu[:, 2]
-            #dy_emu_2030 = dy_emu[:, 2]
+            dy_emu_2030 = dy_emu[:, 2]
 
             Y_2030 = Y[:, 2]
             Y_err_2030 = Y[:,2]
@@ -75,4 +75,5 @@ def main():
         plt.legend()
         plt.show()
 
-main()
+if __name__ == "__main__":
+    main()
