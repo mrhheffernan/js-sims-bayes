@@ -179,11 +179,12 @@ def load_and_compute(inputfile):
         res_unsort = np.fromfile(inputfile, dtype=result_dtype)
 
         for idf in range(0,number_of_models_per_run):
-
+                
+                print("Computing observables for idf = " + str(idf) )
                 res = np.array(sorted(res_unsort, key=lambda x: x['ALICE'][idf]['dNch_deta'], reverse=True))
 
                 print("Result size is " + str(res.size))
-                print("Number of events with no charged particles : " + str( (res_unsort['ALICE']['dNch_deta'][:,3]==0).sum() ) )
+                print("Number of events with no charged particles : " + str( (res_unsort['ALICE']['dNch_deta'][:, idf] == 0).sum() ) )
 
                 # dNdeta
                 tmp_obs='dNch_deta'
@@ -215,13 +216,13 @@ def load_and_compute(inputfile):
                     entry['Pb-Pb-2760']['dN_dy_'+s]['stat_err'][:,idf] = info['err'][s]
 
                 # mean-pT-fluct
-                """
+                
                 tmp_obs='pT_fluct'
                 cenb=np.array(obs_cent_list[tmp_obs])
                 info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
                 entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
                 entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
-                """
+                
                 # vn
                 for n in range(2,5):
                     tmp_obs='v'+str(n)+'2'
