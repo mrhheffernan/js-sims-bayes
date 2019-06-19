@@ -84,7 +84,7 @@ class Emulator:
     """
 
     #list of observables is defined in calculations_file_format_event_average
-    #here we get there names and sum all the centrality bins to find the total number of observables nobs
+    #here we get their names and sum all the centrality bins to find the total number of observables nobs
     nobs = 0
     observables = []
     _slices = {}
@@ -115,16 +115,7 @@ class Emulator:
         #for testing use fixed delta-f
         idf = 3
 
-        #this works for one observable type
-        """
-        nobs = 8
-        obs = 'v22'
-        for pt in range(n_design_pts):
-            Y.append(model_data[system_str][pt, idf][obs]['mean'])
-        """
-
-        #this is my most up to date version
-        #want to build a matrix of dimension (num design pts) x (number of observables)
+        #build a matrix of dimension (num design pts) x (number of observables)
         for pt in range(n_design_pts): # loop over all design points
             row = np.array([])
             for obs in self.observables:
@@ -133,9 +124,9 @@ class Emulator:
                 is_nan = np.isnan(values)
                 contains_nan = np.sum(is_nan)
                 if contains_nan:
-                    print("WARNING! MODEL DATA CONTAINS NAN!")
-                    #probably should have an exit statement here
-                    values = np.nan_to_num(values)
+                    print("MODEL DATA CONTAINS NAN! EXITING!")
+                    exit()
+                    #values = np.nan_to_num(values)
                 row = np.append(row, values)
             #each row in matrix is a different design point, and each column is an observable
             Y.append(row)
@@ -163,7 +154,6 @@ class Emulator:
 
         design = design.drop("idx", axis=1)
         print("Design matrix shape design.shape = " + str(design.shape))
-        design_vals = design['etas_min'].values
 
         #need to read in parameter ranges from file
         design_range = pd.read_csv(design_dir + '/design_ranges_main_PbPb-2760.dat')
@@ -234,11 +224,6 @@ class Emulator:
 
     @classmethod
     def build_emu(cls, system, retrain=False, **kwargs):
-        """
-        Load the emulator for `system` from the cache if available, otherwise
-        train and cache a new instance.
-
-        """
 
         emu = cls(system, **kwargs)
 
@@ -268,20 +253,6 @@ class Emulator:
         return {
             obs: Y[..., s] for obs, s in self._slices.items()
         }
-
-
-    #this version from J. Scott Moreland's code, doesn't use 'slices'
-    def predict_2(self, x):
-        #Predict y at location x using the emulator
-        Z = np.array([gp.sample_y(x, n_samples=10**3) for gp in self.gps]).T
-
-        size = Z.shape[:-1] + (self.nobs - self.npc,)
-        R = np.random.normal(size=size)
-
-        Z = np.concatenate((Z, R), axis=2)
-        Y = self.scaler.inverse_transform(self.pca.inverse_transform(Z))
-
-        return np.squeeze(Y.mean(axis=0)), np.squeeze(Y.std(axis=0))
 
     def predict(self, X, return_cov=False, extra_std=0):
         """

@@ -26,9 +26,6 @@ import os.path
 
 import numpy as np
 
-#from . import cachedir, parse_system
-#from __init__ import parse_system
-
 from configurations import *
 from design_write_module_inputs import write_module_inputs
 
@@ -111,6 +108,7 @@ class Design:
             #5020: (10., 25.),
         }[self.beam_energy]
 
+        #any keys which are uncommented will be sampled / part of the design matrix
         self.keys, labels, self.range = map(list, zip(*[
             #('norm',          r'{Norm}',                      (norm_range   )),
             #('trento_p',      r'p',                           ( -0.5,    0.5)),
@@ -176,8 +174,6 @@ class Design:
         #        lhsmin[self.keys.index(k)] = m
 
         #The seed is fixed here, which fixes the design points
-        #One should not rely on this seed for reproducibility, and
-        #should store the design points in a file instead
         if seed is None:
             seed = 751783496 if validation else 450829120
 
@@ -303,10 +299,8 @@ class Design:
             range_file.write( self.keys[i] + "," + str(self.range[i][0]) + "," + str(self.range[i][1]) + "\n")
         range_file.close()
 
-#if __name__ == '__main__':
 def main():
     import argparse
-    #from __init__ import systems
 
     parser = argparse.ArgumentParser(description='generate design input files')
     parser.add_argument('inputs_dir', type=Path, help='directory to place input files')
@@ -319,5 +313,5 @@ def main():
 
     logging.info('wrote all files to %s', args.inputs_dir)
 
-#run the design script
-main()
+if __name__ == '__main__':
+    main()
