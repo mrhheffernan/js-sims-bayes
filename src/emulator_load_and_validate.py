@@ -40,8 +40,11 @@ def main():
         print("Number of principal components : " + str(emu.npc) )
 
         #test emulator at a series of points in parameter space
-        test_pts = np.random.uniform(0.0, 0.2, size=15)
-        X = test_pts.reshape(-1,1)
+        #test_pts = np.random.uniform(0.0, 0.2, size=15)
+        X = np.linspace(0.01, 0.2, 100)
+        X = X.reshape(-1,1)
+
+        #print(X)
 
         mean, cov = emu.predict(X, return_cov=True)
 
@@ -53,7 +56,7 @@ def main():
 
         #get model calculations
         #for testing idf = 3
-        idf = 3
+        idf = 4
         model_file = 'model_calculations/obs.dat'
         print("Reading model calculated observables from " + model_file)
         model_data = np.fromfile(model_file, dtype=bayes_dtype)
@@ -73,15 +76,19 @@ def main():
                 Y.append( model_data[system_str][obs]['mean'][pt,idf] )
                 Y_err.append( model_data[system_str][obs]['stat_err'][pt,idf] )
 
-
             Y = np.array(Y)
             Y_err = np.array(Y_err)
 
+            print("Obs = " + str(obs))
+            print("stat_err = ")
+            print(Y_err)
+
             #take a particular centrality bin
-            y_emu_bin = y_emu[:, 2]
-            dy_emu_bin = dy_emu[:, 2, 2]
-            Y_bin = Y[:, 2]
-            Y_err_bin = Y_err[:,2]
+            bin = 0
+            y_emu_bin = y_emu[:, bin]
+            dy_emu_bin = dy_emu[:, bin, bin]
+            Y_bin = Y[:, bin]
+            Y_err_bin = Y_err[:, bin]
 
             #print("obs = " + str(obs))
             #print("dy_emu_bin = " +str(dy_emu_bin))
@@ -92,15 +99,19 @@ def main():
 
             axs[x,y].scatter(design_vals, Y_bin, label='model')
             axs[x,y].errorbar(design_vals, Y_bin, Y_err_bin, ls='none')
-            axs[x,y].scatter(test_pts, y_emu_bin, label='emulator', color='r')
-            axs[x,y].errorbar(test_pts, y_emu_bin, dy_emu_bin, color='r', ls='none')
+            axs[x,y].plot(X[:,0], y_emu_bin, label='emulator', color='r')
+            #axs[x,y].errorbar(test_pts, y_emu_bin, np.sqrt(dy_emu_bin), color='r', ls='none')
+            top_var = y_emu_bin + 1.96 * dy_emu_bin
+            bot_var = y_emu_bin - 1.96 * dy_emu_bin
+            axs[x,y].fill_between(X[:,0], bot_var, top_var, alpha=0.5, where = top_var >= bot_var, facecolor='lightgrey', interpolate=True)
             axs[x,y].set(xlabel=r'$(\eta / s)_{min}$')
             axs[x,y].set_title(obs)
 
-            if (obs == 'v22'):
-                axs[x,y].set_ylim(.05, 0.09)
-            if (obs == 'v32'):
-                axs[x,y].set_ylim(.02, 0.045)
+            #if (obs == 'v22'):
+            #    axs[x,y].set_ylim(.05, 0.075)
+            #if (obs == 'v32'):
+            #    axs[x,y].set_ylim(.01, 0.035)
+
             n +=1
 
         plt.legend()

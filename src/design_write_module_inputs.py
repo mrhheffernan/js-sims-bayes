@@ -15,35 +15,51 @@ def write_module_inputs(
     inel_nucleon_cross_section = 6.4,
     trento_normalization = 13.94,
     trento_reduced_thickness = 0.007,
-    trento_fluctuation_k = 0.3,
+    #trento_fluctuation_k = 0.3,
+    trento_fluctuation_k = 1.2,
     trento_nucleon_width = 0.956,
     trento_nucleon_min_dist = 1.27,
 
-    #freestreaming params
-    tau_fs = 1.16,
-
-    #hydro params
-    T_switch = 0.151,
+    #freestream-milne Parameters
+    tau_R = 1.16, # fm / c
+    alpha = 0.0,
 
     #shear viscosity p'zation
-    eta_over_s_min = 0.081,
-    eta_over_s_slope = 1.11,
-    eta_over_s_curv = -0.48,
+    eta_over_s_T_kink_in_GeV = 0.155,
+    eta_over_s_low_T_slope_in_GeV = 0.0,
+    eta_over_s_high_T_slope_in_GeV = 0.0,
+    eta_over_s_at_kink = 0.0,
+
     #bulk viscosity p'zation
-    bulk_viscosity_normalisation = 0.05,
-    bulk_viscosity_width_in_GeV = 0.02,
-    bulk_viscosity_peak_in_GeV = 0.183
+    zeta_over_s_max = 0.05,
+    zeta_over_s_width_in_GeV = 0.02,
+    zeta_over_s_T_peak_in_GeV = 0.18,
+    zeta_over_s_lambda_asymm = 0.0,
+
+    #relaxation times
+    shear_relax_time_factor = 1.0,
+    bulk_relax_time_factor = 1.0,
+
+    #hydro params
+    T_switch = 0.151
+
     ):
+
     #the jetscape seed sets the seed in smash, set to 0 for random (clocktime) seed
     js_seed = 0
 
+    #formula for Energy-dependent freestreaming time: tau_fs = tau_R * (e_T / e_R) ^ alpha
+    e_dep_fs_time = 1 # switch for energy dependent freestreaming time
+    e_R = 31.0 # GeV / fm^3
+    #this is just a dummy parameter that will be overridden by formula above
+    tau_fs = 1.16
 
     #iS3D Parameters
     #delta-f mode will be overwritten by the run-events script
     delta_f_mode = 4 # 1: 14 moment, 2: C.E., 3: McNelis feq_mod, 4: Bernhard feq_mod
     rap_max = 2.0    # dN/dY sampled is flat for y in (-rap_max, rap_max) and zero outside
     min_num_hadrons = 100000
-    max_num_samples = 5000
+    max_num_samples = 2000
     set_T_switch = 0 #if on, iS3D will use Tc read in iS3D_parameters.dat as temperature
 
     #SMASH Parameters
@@ -104,7 +120,11 @@ def write_module_inputs(
     fs_file.write("EOS_TYPE 1\n")
     dummy_e_c = 1.7   # used to compute energy density inside freeze-out surface
     fs_file.write("E_FREEZE " + str(dummy_e_c) + "\n")
-    fs_file.write("VISCOUS_MATCHING 1 ")
+    fs_file.write("VISCOUS_MATCHING 1 \n")
+    fs_file.write("E_DEP_FS " + str(e_dep_fs_time) + "\n")
+    fs_file.write("E_R " + str(e_R) + "\n")
+    fs_file.write("TAU_R " + str(tau_R) + "\n")
+    fs_file.write("ALPHA " + str(alpha))
 
     fs_file.close()
 
@@ -134,14 +154,21 @@ def write_module_inputs(
     music_file.write("Viscosity_Flag_Yes_1_No_0 1\n")    # turn on viscosity in the evolution
     music_file.write("Include_Shear_Visc_Yes_1_No_0 1\n")# include shear viscous effect
 
-    music_file.write("T_dependent_Shear_to_S_ratio  2\n")# flag to use temperature dep. \eta/s(T)
-    music_file.write("T_dependent_Bulk_to_S_ratio  2\n")# flag to use temperature dep. \zeta/s(T)
-    music_file.write("eta_over_s_min " + str(eta_over_s_min) + "\n")
-    music_file.write("eta_over_s_slope " + str(eta_over_s_slope) + "\n")
-    music_file.write("eta_over_s_curv " + str(eta_over_s_curv) + "\n")
-    music_file.write("bulk_viscosity_normalisation " + str(bulk_viscosity_normalisation) + "\n")
-    music_file.write("bulk_viscosity_width_in_GeV " + str(bulk_viscosity_width_in_GeV) + "\n")
-    music_file.write("bulk_viscosity_peak_in_GeV " + str(bulk_viscosity_peak_in_GeV) + "\n")
+    music_file.write("T_dependent_Shear_to_S_ratio  3\n")# flag to use temperature dep. \eta/s(T)
+    music_file.write("T_dependent_Bulk_to_S_ratio  3\n")# flag to use temperature dep. \zeta/s(T)
+
+    music_file.write("eta_over_s_T_kink_in_GeV " + str(eta_over_s_T_kink_in_GeV) + "\n")
+    music_file.write("eta_over_s_low_T_slope_in_GeV " + str(eta_over_s_low_T_slope_in_GeV) + "\n")
+    music_file.write("eta_over_s_high_T_slope_in_GeV " + str(eta_over_s_high_T_slope_in_GeV) + "\n")
+    music_file.write("eta_over_s_at_kink " + str(eta_over_s_at_kink) + "\n")
+
+    music_file.write("zeta_over_s_max " + str(zeta_over_s_max) + "\n")
+    music_file.write("zeta_over_s_width_in_GeV " + str(zeta_over_s_width_in_GeV) + "\n")
+    music_file.write("zeta_over_s_T_peak_in_GeV " + str(zeta_over_s_T_peak_in_GeV) + "\n")
+    music_file.write("zeta_over_s_lambda_asymm " + str(zeta_over_s_lambda_asymm) + "\n")
+
+    music_file.write("shear_relax_time_factor " + str(shear_relax_time_factor) + "\n")
+    music_file.write("bulk_relax_time_factor " + str(bulk_relax_time_factor) + "\n")
 
     music_file.write("Include_Bulk_Visc_Yes_1_No_0 1\n") # include bulk viscous effect
     music_file.write("Include_second_order_terms 1\n")   # include second order non-linear coupling terms

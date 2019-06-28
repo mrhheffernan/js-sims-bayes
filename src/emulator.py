@@ -113,7 +113,7 @@ class Emulator:
         print("Building array of observables to emulate")
 
         #for testing use fixed delta-f
-        idf = 3
+        idf = 4
 
         #build a matrix of dimension (num design pts) x (number of observables)
         for pt in range(n_design_pts): # loop over all design points
@@ -147,6 +147,19 @@ class Emulator:
         print("Standardizing and transforming via PCA")
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
+        #for validation, plotting PCs
+        plt.scatter(Z[:, 0], Z[:, 1])
+        plt.xlabel('$Z_0$', fontsize=15)
+        plt.ylabel('$Z_1$', fontsize=15)
+        plt.show()
+
+        for i, (comp, color) in enumerate(zip(self.pca.components_, 'rgb')):
+            plt.scatter(Y[0,:], comp, color = color, label='PC {}'.format(i+1))
+        plt.xlabel(r'$\eta/s$', fontsize=15)
+        plt.ylabel('$Features$', fontsize=15)
+        plt.legend()
+        plt.show()
+
         #read design points from file
         design_dir = 'design_pts'
         print("Reading design points from " + design_dir)
@@ -167,7 +180,8 @@ class Emulator:
         kernel = (
             1. * kernels.RBF(
                 length_scale=ptp,
-                length_scale_bounds=np.outer(ptp, (.1, 10))
+                #length_scale_bounds=np.outer(ptp, (.1, 10))
+                length_scale_bounds=np.outer(ptp, (.3, 10))
             ) +
             kernels.WhiteKernel(
                 noise_level=.1**2,
@@ -185,8 +199,12 @@ class Emulator:
             ).fit(design, z)
             for z in Z.T
         ]
-
+        n = 0
+        for z, gp in zip(Z.T, self.gps):
+            print("GP "+ str(n) + " score : " + str(gp.score(design, z)))
+            n += 1
         print("Constructing full linear transformation matrix")
+
         # Construct the full linear transformation matrix, which is just the PC
         # matrix with the first axis multiplied by the explained standard
         # deviation of each PC and the second axis multiplied by the
@@ -392,6 +410,7 @@ def main():
                 'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
                 .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
             )
+
 
         #dill the emulator to be loaded later
         system_str = s[0]+"-"+s[1]+"-"+str(s[2])

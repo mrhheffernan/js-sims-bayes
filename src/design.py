@@ -104,25 +104,40 @@ class Design:
         # 5.02 TeV has ~1.2x particle production as 2.76 TeV
         # [https://inspirehep.net/record/1410589]
         norm_range = {
-            2760: (8., 20.),
+            2760: (10., 18.),
             #5020: (10., 25.),
         }[self.beam_energy]
 
         #any keys which are uncommented will be sampled / part of the design matrix
         self.keys, labels, self.range = map(list, zip(*[
-            #('norm',          r'{Norm}',                      (norm_range   )),
+            #trento
+            ('norm',          r'{Norm}',                      (norm_range   )),
             #('trento_p',      r'p',                           ( -0.5,    0.5)),
-            #('fluct_std',     r'\sigma {fluct}',              (  0.0,    2.0)),
-            #('nucleon_width', r'w [{fm}]',                    (  0.4,    1.0)),
+            ('fluct_k',         r'k {fluct}',                  (  0.3,    3.0)),
+            ('nucleon_width',  r'w [{fm}]',                    ( 0.4,    1.5)),
             #('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
-            #('tau_fs',        r'\tau {fs} [{fm}/c]',          (  1e-2,    1.5)),
-            #('etas_hrg',      r'\eta/s {hrg}',                (  0.1,    0.5)),
-            ('etas_min',      r'\eta/s {min}',                (  0.0,    0.2)),
-            #('etas_slope',    r'\eta/s {slope} [{GeV}^{-1}]', (  0.0,    8.0)),
-            #('etas_crv',      r'\eta/s {crv}',                ( -1.0,    1.0)),
-            #('zetas_max',     r'\zeta/s {max}',               (  0.0,    0.1)),
-            #('zetas_width',   r'\zeta/s {width} [{GeV}]',     (  0.0,    0.1)),
-            #('zetas_t0',      r'\zeta/s T_0 [{GeV}]',         (0.150,  0.200)),
+
+            #freestreaming
+            ('tau_R',        r'\tau {R} [{fm}/c]',             (  0.2,    2.0)),
+            ('alpha',        r'\alpha',                        ( -0.5,    0.0)),
+
+            #shear visc
+            #('eta_over_s_T_kink_in_GeV',       r'\eta/s {T_kink}', (  0.0,    0.0)),
+            #('eta_over_s_low_T_slope_in_GeV',  r'\eta/s {low}'   , (  0.0,    0.0)),
+            #('eta_over_s_high_T_slope_in_GeV', r'\eta/s {high}'  , (  0.0,    0.0)),
+            ('eta_over_s_at_kink',             r'\eta/s {kink}'  , (  0.01,    0.25)),
+
+            #bulk visc
+            #('zeta_over_s_max',             r'\zeta/s {max}'   , (  0.0,    0.0)),
+            #('zeta_over_s_width_in_GeV',    r'\zeta/s {width}' , (  0.0,    0.0)),
+            #('zeta_over_s_T_peak_in_GeV',   r'\eta/s {Tpeak}'  , (  0.0,    0.0)),
+            #('zeta_over_s_lambda_asymm',    r'\eta/s {\lambda}', (  0.0,    0.0)),
+
+            #relaxation times
+            #('shear_relax_time_factor',  r'b_{\pi}' , (  0.0,    0.0)),
+            #('bulk_relax_time_factor',   r'b_{\Pi}' , (  0.0,    0.0)),
+
+            #particlization temp
             #('Tswitch',       r'T {switch} [{GeV}]',          (0.135,  0.165)),
         ]))
 
@@ -263,23 +278,40 @@ class Design:
             write_module_inputs(
                                 outdir = str(outdir),
                                 design_point_id = point,
+
+                                #trento
                                 projectile = self.projectiles,
                                 target = self.projectiles,
                                 sqrts = self.beam_energy,
                                 inel_nucleon_cross_section = kwargs['cross_section'],
-                                #trento_normalization = kwargs['norm'],
+                                trento_normalization = kwargs['norm'],
                                 #trento_reduced_thickness = kwargs['trento_p'],
-                                #trento_fluctuation_k = kwargs['fluct'],
-                                #trento_nucleon_width = kwargs['nucleon_width'],
+                                trento_fluctuation_k = kwargs['fluct_k'],
+                                trento_nucleon_width = kwargs['nucleon_width'],
                                 #trento_nucleon_min_dist  = kwargs['dmin'],
-                                #tau_fs = kwargs['tau_fs'],
-                                #T_switch = kwargs['Tswitch'],
-                                eta_over_s_min = kwargs['etas_min'],
-                                #eta_over_s_slope = kwargs['etas_slope'],
-                                #eta_over_s_curv = kwargs['etas_crv'],
-                                #bulk_viscosity_normalisation = kwargs['zetas_max'],
-                                #bulk_viscosity_width_in_GeV = kwargs['zetas_width'],
-                                #bulk_viscosity_peak_in_GeV = kwargs['zetas_t0']
+
+                                #freestreaming
+                                tau_R = kwargs['tau_R'],
+                                alpha = kwargs['alpha'],
+
+                                #shear
+                                #eta_over_s_T_kink_in_GeV = kwargs['eta_over_s_T_kink_in_GeV'],
+                                #eta_over_s_low_T_slope_in_GeV = kwargs['eta_over_s_low_T_slope_in_GeV'],
+                                #eta_over_s_high_T_slope_in_GeV = kwargs['eta_over_s_high_T_slope_in_GeV'],
+                                eta_over_s_at_kink = kwargs['eta_over_s_at_kink'],
+
+                                #bulk
+                                #zeta_over_s_max = kwargs['zeta_over_s_max'],
+                                #zeta_over_s_width_in_GeV = kwargs['zeta_over_s_width_in_GeV'],
+                                #zeta_over_s_T_peak_in_GeV = kwargs['zeta_over_s_T_peak_in_GeV'],
+                                #zeta_over_s_lambda_asymm = kwargs['zeta_over_s_lambda_asymm'],
+
+                                #relax times
+                                #shear_relax_time_factor = kwargs['shear_relax_time_factor'],
+                                #bulk_relax_time_factor = kwargs['bulk_relax_time_factor'],
+
+                                #particlization
+                                #T_switch = kwargs['Tswitch']
                                 )
 
             # Write parameters for current design point in the design-point-summary file
