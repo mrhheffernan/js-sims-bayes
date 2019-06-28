@@ -50,7 +50,7 @@ def write_module_inputs(
 
     #formula for Energy-dependent freestreaming time: tau_fs = tau_R * (e_T / e_R) ^ alpha
     e_dep_fs_time = 1 # switch for energy dependent freestreaming time
-    e_R = 31.0 # GeV / fm^3
+    e_R = 50.0 # GeV / fm^3
     #this is just a dummy parameter that will be overridden by formula above
     tau_fs = 1.16
 
@@ -72,13 +72,18 @@ def write_module_inputs(
     dtau = dx / 8.0
     #choose a grid size large enough to capture central events
     #Does [-15fm, 15fm] work even for events with very large norm?
-    L_x = 17.0 #[fm]
-    L_y = 17.0 #[fm]
+    L_x = 20.0 #[fm]
+    L_y = 20.0 #[fm]
     nx = 1.0 + (2.0 * L_x)/dx
     ny = 1.0 + (2.0 * L_y)/dy
-    #get nearest integer
+    #get nearest ODD integer (freestream needs odd number of points!)
     nx = int( math.ceil(nx) )
     ny = int( math.ceil(ny) )
+    if ( (nx % 2) == 0):
+        nx += 1
+    if ( (ny % 2) == 0):
+        ny += 1
+
     #recalculate grid size
     L_x = ( (nx-1) / 2.0) * dx
     L_y = ( (nx-1) / 2.0) * dx

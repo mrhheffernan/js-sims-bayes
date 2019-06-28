@@ -118,7 +118,7 @@ class Design:
             #('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
 
             #freestreaming
-            ('tau_R',        r'\tau {R} [{fm}/c]',             (  0.2,    2.0)),
+            ('tau_R',        r'\tau {R} [{fm}/c]',             (  0.5,    2.0)),
             ('alpha',        r'\alpha',                        ( -0.5,    0.0)),
 
             #shear visc
