@@ -9,10 +9,10 @@ Total_evolution_time_tau 30.
 Delta_Tau 0.027663639817968943
 Eta_grid_size 1.0
 Grid_size_in_eta 1
-X_grid_size_in_fm 30.208694681222084
-Y_grid_size_in_fm 30.208694681222084
-Grid_size_in_y 273
-Grid_size_in_x 273
+X_grid_size_in_fm 20.249784346753266
+Y_grid_size_in_fm 20.249784346753266
+Grid_size_in_y 183
+Grid_size_in_x 183
 EOS_to_use 9
 reconst_type  1
 Minmod_Theta 1.8

@@ -7,8 +7,8 @@
     <seed>0</seed>
   </Random>
   <IS>
-    <grid_max_x> 30.14259590631772 </grid_max_x>
-    <grid_max_y> 30.14259590631772 </grid_max_y>
+    <grid_max_x> 20.23500170869797 </grid_max_x>
+    <grid_max_y> 20.23500170869797 </grid_max_y>
     <grid_max_z> 0 </grid_max_z>
     <grid_step_x> 0.16792532538338562 </grid_step_x>
     <grid_step_y> 0.16792532538338562 </grid_step_y>
