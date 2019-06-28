@@ -30,7 +30,7 @@ vn_cents = [[0,100]]
 #TEMPORARY FOR SINGLE IC TESTS
 
 #TEMPORARY
-
+"""
 dNch_deta_cents = [[0,100],[50,100]]
 dET_deta_cent = [[0,100],[50,100]]
 dN_dy_cents = [[0,100],[50,100]]
@@ -38,7 +38,7 @@ dN_dy_strange_cents = [[0,100],[50,100]]
 mean_pt_cents = [[0,100],[50,100]]
 pT_fluct_cents = [[0,100],[50,100]]
 vn_cents = [[0,100],[50,100]]
-
+"""
 #TEMPORARY
 
 # Observable name, data type, centralities
