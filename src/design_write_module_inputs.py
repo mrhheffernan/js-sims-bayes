@@ -72,8 +72,8 @@ def write_module_inputs(
     dtau = dx / 8.0
     #choose a grid size large enough to capture central events
     #Does [-15fm, 15fm] work even for events with very large norm?
-    L_x = 15.0 #[fm]
-    L_y = 15.0 #[fm]
+    L_x = 17.0 #[fm]
+    L_y = 17.0 #[fm]
     nx = 1.0 + (2.0 * L_x)/dx
     ny = 1.0 + (2.0 * L_y)/dy
     #get nearest integer
