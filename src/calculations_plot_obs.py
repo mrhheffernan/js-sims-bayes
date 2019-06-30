@@ -68,26 +68,25 @@ for n, (key, value) in enumerate(obs_to_group.items()):
 def plot(calcs):
 
     #Loop over delta-f
-    #for idf in range(0,5):
+    for idf, line in zip([0,3], ['D--','o:']):
 
-    #Loop over observables
-    #for n, (obs, cent) in enumerate(obs_cent_list.items()):
-    for n, ((regex_id, obs_name), obs_list) in enumerate(final_obs_grouping.items()):
+        #Loop over observables
+        #for n, (obs, cent) in enumerate(obs_cent_list.items()):
+        for n, ((regex_id, obs_name), obs_list) in enumerate(final_obs_grouping.items()):
 
-        plt.subplot(nb_of_rows,nb_of_cols,n+1)
-        plt.xlabel(r'Centrality (%)', fontsize=7)
-        plt.ylabel(obs_name, fontsize=7)
-        
-        for obs in obs_list:
+            plt.subplot(nb_of_rows,nb_of_cols,n+1)
+            plt.xlabel(r'Centrality (%)', fontsize=10)
+            plt.ylabel(obs_name, fontsize=10)
+            
+            
+            for obs, color in zip(obs_list,'rgbrgbrgb'):
 
-            cent=obs_cent_list[obs]
-            mid_centrality=[(low+up)/2. for low,up in cent]
-            mean_values=calcs['Pb-Pb-2760'][obs]['mean'][:,0][0]
-            stat_uncert=calcs['Pb-Pb-2760'][obs]['stat_err'][:,0][0]
-
-
-            plt.errorbar(mid_centrality, mean_values, yerr=stat_uncert)
-
+                cent=obs_cent_list[obs]
+                mid_centrality=[(low+up)/2. for low,up in cent]
+                mean_values=calcs['Pb-Pb-2760'][obs]['mean'][:,idf][0]
+                stat_uncert=calcs['Pb-Pb-2760'][obs]['stat_err'][:,idf][0]
+                plt.errorbar(mid_centrality, mean_values, yerr=stat_uncert, fmt=line, color=color, markersize=4)
+            plt.ylim(ymin=0)
     plt.tight_layout(True)
     #plt.savefig("obs.pdf")
     plt.show()
