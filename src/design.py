@@ -128,10 +128,10 @@ class Design:
             ('eta_over_s_at_kink',             r'\eta/s {kink}'  , (  0.01,    0.25)),
 
             #bulk visc
-            #('zeta_over_s_max',             r'\zeta/s {max}'   , (  0.0,    0.0)),
-            #('zeta_over_s_width_in_GeV',    r'\zeta/s {width}' , (  0.0,    0.0)),
-            #('zeta_over_s_T_peak_in_GeV',   r'\eta/s {Tpeak}'  , (  0.0,    0.0)),
-            #('zeta_over_s_lambda_asymm',    r'\eta/s {\lambda}', (  0.0,    0.0)),
+            ('zeta_over_s_max',             r'\zeta/s {max}'   , (  0.0,    0.3)),
+            ('zeta_over_s_T_peak_in_GeV',   r'\eta/s {Tpeak}'  , (  0.1,    0.5)),
+            ('zeta_over_s_area_fourth',   r'\zeta/s {area} [{GeV^2}]', (  0.0002**.25, (0.2*0.3)**.25)),
+            ('zeta_over_s_lambda_asymm',    r'\eta/s {\lambda}', (  -0.8,    0.8)),
 
             #relaxation times
             #('shear_relax_time_factor',  r'b_{\pi}' , (  0.0,    0.0)),
@@ -261,6 +261,9 @@ class Design:
                     5020: 7.0,
                 }[self.beam_energy]
             )
+            kwargs.update(
+                zeta_over_s_width_in_GeV=2./3.141592*(kwargs.pop('zeta_over_s_area_fourth'))**4/kwargs['zeta_over_s_max']
+            )
 
             #########################################################
             # Transformation and processing on the input parameters #
@@ -301,10 +304,10 @@ class Design:
                                 eta_over_s_at_kink = kwargs['eta_over_s_at_kink'],
 
                                 #bulk
-                                #zeta_over_s_max = kwargs['zeta_over_s_max'],
-                                #zeta_over_s_width_in_GeV = kwargs['zeta_over_s_width_in_GeV'],
-                                #zeta_over_s_T_peak_in_GeV = kwargs['zeta_over_s_T_peak_in_GeV'],
-                                #zeta_over_s_lambda_asymm = kwargs['zeta_over_s_lambda_asymm'],
+                                zeta_over_s_max = kwargs['zeta_over_s_max'],
+                                zeta_over_s_width_in_GeV = kwargs['zeta_over_s_width_in_GeV'],
+                                zeta_over_s_T_peak_in_GeV = kwargs['zeta_over_s_T_peak_in_GeV'],
+                                zeta_over_s_lambda_asymm = kwargs['zeta_over_s_lambda_asymm'],
 
                                 #relax times
                                 #shear_relax_time_factor = kwargs['shear_relax_time_factor'],
@@ -316,7 +319,7 @@ class Design:
 
             # Write parameters for current design point in the design-point-summary file
             design_file.write(str(point))
-            for key in self.keys:
+            for key in kwargs.keys():
                 design_file.write("," + str(kwargs[key]))
             design_file.write("\n")
 
