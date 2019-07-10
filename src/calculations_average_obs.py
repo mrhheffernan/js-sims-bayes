@@ -140,7 +140,6 @@ def calculate_vn(ds, exp, cen, idf):
                         'obs': obs, 'err': obs_err}
 
 def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
-
         Ne = len(ds)
         pTbins = np.array(pTbins)
         cenbins = np.array(cenbins)
@@ -174,70 +173,72 @@ def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
                         'obs': vn, 'err': vn_err}
 
 def load_and_compute(inputfile):
-        entry = np.zeros(1, dtype=np.dtype(bayes_dtype))
+    entry = np.zeros(1, dtype=np.dtype(bayes_dtype))
 
-        res_unsort = np.fromfile(inputfile, dtype=result_dtype)
+    res_unsort = np.fromfile(inputfile, dtype=result_dtype)
 
-        for idf in range(0,number_of_models_per_run):
-                
-                print("Computing observables for idf = " + str(idf) )
-                res = np.array(sorted(res_unsort, key=lambda x: x['ALICE'][idf]['dNch_deta'], reverse=True))
+    for idf in [0,3]:
+        print("Computing observables for idf = " + str(idf) )
+        res = np.array(sorted(res_unsort, key=lambda x: x['ALICE'][idf]['dNch_deta'], reverse=True))
 
-                print("Result size is " + str(res.size))
-                print("Number of events with no charged particles : " + str( (res_unsort['ALICE']['dNch_deta'][:, idf] == 0).sum() ) )
+        print("Result size is " + str(res.size))
+        print("Number of events with no charged particles : " + str( (res_unsort['ALICE']['dNch_deta'][:, idf] < 0.1).sum() ) )
 
-                # dNdeta
-                tmp_obs='dNch_deta'
-                cenb=np.array(obs_cent_list[tmp_obs])
-                info = calculate_dNdeta(res, 'ALICE', cenb, idf)
-                entry['Pb-Pb-2760'][tmp_obs]['mean'][:, idf] = info['obs']
-                entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
+        # dNdeta
+        tmp_obs='dNch_deta'
+        cenb=np.array(obs_cent_list[tmp_obs])
+        info = calculate_dNdeta(res, 'ALICE', cenb, idf)
+        entry['Pb-Pb-2760'][tmp_obs]['mean'][:, idf] = info['obs']
+        entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
 
-                # dETdeta
-                tmp_obs='dET_deta'
-                cenb=np.array(obs_cent_list[tmp_obs])
-                info = calculate_dETdeta(res, 'ALICE', cenb, idf)
-                entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
-                entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
+        # dETdeta
+        tmp_obs='dET_deta'
+        cenb=np.array(obs_cent_list[tmp_obs])
+        info = calculate_dETdeta(res, 'ALICE', cenb, idf)
+        entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
+        entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
 
-                # dN(pid)/dy
-                for s in ['pion','kaon','proton','Lambda', 'Omega','Xi']:
-                    cenb=np.array(obs_cent_list['dN_dy_'+s])
-                    info = calculate_dNdy(res, 'ALICE', cenb, idf)
-                    entry['Pb-Pb-2760']['dN_dy_'+s]['mean'][:,idf] = info['obs'][s]
-                    entry['Pb-Pb-2760']['dN_dy_'+s]['stat_err'][:,idf] = info['err'][s]
-
-
-                # mean-pT
-                for s in ['pion','kaon','proton']:
-                    cenb=np.array(obs_cent_list['mean_pT_'+s])
-                    info = calculate_mean_pT(res, 'ALICE', cenb, idf)
-                    entry['Pb-Pb-2760']['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
-                    entry['Pb-Pb-2760']['dN_dy_'+s]['stat_err'][:,idf] = info['err'][s]
-
-                # mean-pT-fluct
-                
-                tmp_obs='pT_fluct'
-                cenb=np.array(obs_cent_list[tmp_obs])
-                info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
-                entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
-                entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
-                
-                # vn
-                for n in range(2,5):
-                    tmp_obs='v'+str(n)+'2'
-                    cenb=np.array(obs_cent_list[tmp_obs])
-                    info = calculate_vn(res, 'ALICE', cenb, idf)
-                    entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
-                    entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err'][:, n-1]
+        # dN(pid)/dy
+        for s in ['pion','kaon','proton','Lambda', 'Omega','Xi']:
+            cenb=np.array(obs_cent_list['dN_dy_'+s])
+            info = calculate_dNdy(res, 'ALICE', cenb, idf)
+            entry['Pb-Pb-2760']['dN_dy_'+s]['mean'][:,idf] = info['obs'][s]
+            entry['Pb-Pb-2760']['dN_dy_'+s]['stat_err'][:,idf] = info['err'][s]
 
 
-        return entry
+        # mean-pT
+        for s in ['pion','kaon','proton']:
+            cenb=np.array(obs_cent_list['mean_pT_'+s])
+            info = calculate_mean_pT(res, 'ALICE', cenb, idf)
+            entry['Pb-Pb-2760']['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
+            entry['Pb-Pb-2760']['dN_dy_'+s]['stat_err'][:,idf] = info['err'][s]
+
+        # mean-pT-fluct
+        
+        tmp_obs='pT_fluct'
+        cenb=np.array(obs_cent_list[tmp_obs])
+        info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
+        entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
+        entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
+        
+        # vn
+        for n in range(2,5):
+            tmp_obs='v'+str(n)+'2'
+            cenb=np.array(obs_cent_list[tmp_obs])
+            info = calculate_vn(res, 'ALICE', cenb, idf)
+            entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
+            entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err'][:, n-1]
+
+
+    return entry
 
 if __name__ == '__main__':
-        results = []
-        for file in glob.glob(sys.argv[1]):
-                entry = load_and_compute(file)
-                results.append(entry[0])
-        results = np.array(results, dtype=np.dtype(bayes_dtype))
-        results.tofile("obs.dat")
+    results = []
+    res_dir = sys.argv[1]
+    for i in range(100):
+        filename = res_dir+"/{:d}.dat".format(i)
+        print("-------working on " + filename+"-----------")
+        entry = load_and_compute(filename)
+        results.append(entry[0])
+    results = np.array(results, dtype=np.dtype(bayes_dtype))
+    results.tofile("obs.dat")

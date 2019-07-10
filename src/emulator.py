@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Trains Gaussian process emulators.
 
@@ -113,7 +114,7 @@ class Emulator:
         print("Building array of observables to emulate")
 
         #for testing use fixed delta-f
-        idf = 4
+        idf = 0
 
         #build a matrix of dimension (num design pts) x (number of observables)
         for pt in range(n_design_pts): # loop over all design points
@@ -121,12 +122,16 @@ class Emulator:
             for obs in self.observables:
                 #these are the values of 'obs' at ALL the centrality bins (as an array)
                 values = np.array( model_data[system_str][pt, idf][obs]['mean'] )
-                is_nan = np.isnan(values)
-                contains_nan = np.sum(is_nan)
+                
+                isnan = np.isnan(values)
+                contains_nan = np.sum(isnan)
                 if contains_nan:
-                    print("MODEL DATA CONTAINS NAN! EXITING!")
-                    exit()
-                    #values = np.nan_to_num(values)
+                    values[isnan] = 0.
+                    print(values)
+                    print("MODEL DATA CONTAINS NAN! replaced by 0")
+                if 'dN' in obs or 'dET' in obs  or 'fluct' in obs:
+                    print('ddd')
+                    values = values**.5
                 row = np.append(row, values)
             #each row in matrix is a different design point, and each column is an observable
             Y.append(row)
@@ -147,24 +152,10 @@ class Emulator:
         print("Standardizing and transforming via PCA")
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
-        #for validation, plotting PCs
-        plt.scatter(Z[:, 0], Z[:, 1])
-        plt.xlabel('$Z_0$', fontsize=15)
-        plt.ylabel('$Z_1$', fontsize=15)
-        plt.show()
-
-        for i, (comp, color) in enumerate(zip(self.pca.components_, 'rgb')):
-            plt.scatter(Y[0,:], comp, color = color, label='PC {}'.format(i+1))
-        plt.xlabel(r'$\eta/s$', fontsize=15)
-        plt.ylabel('$Features$', fontsize=15)
-        plt.legend()
-        plt.show()
-
         #read design points from file
         design_dir = 'design_pts'
         print("Reading design points from " + design_dir)
         design = pd.read_csv(design_dir + '/design_points_main_PbPb-2760.dat')
-
         design = design.drop("idx", axis=1)
         print("Design matrix shape design.shape = " + str(design.shape))
 
@@ -184,8 +175,8 @@ class Emulator:
                 length_scale_bounds=np.outer(ptp, (.3, 10))
             ) +
             kernels.WhiteKernel(
-                noise_level=.1**2,
-                noise_level_bounds=(.01**2, 1)
+                noise_level=.1,
+                noise_level_bounds=(.01, 1)
             )
         )
 
@@ -193,7 +184,7 @@ class Emulator:
         print("Fitting a GP to each PC")
         self.gps = [
             GPR(
-            kernel=kernel, alpha=0,
+            kernel=kernel, alpha=0.1,
             n_restarts_optimizer=nrestarts,
             copy_X_train=False
             ).fit(design, z)
@@ -242,7 +233,6 @@ class Emulator:
 
     @classmethod
     def build_emu(cls, system, retrain=False, **kwargs):
-
         emu = cls(system, **kwargs)
 
         return emu

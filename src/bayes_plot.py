@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Generates plots / figures when run as a script.
 Plot files are placed in the :file:`plots` directory.

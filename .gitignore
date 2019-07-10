@@ -5,3 +5,4 @@
 *.pkl
 *.pyc
 src/__pycache__
+plots/
