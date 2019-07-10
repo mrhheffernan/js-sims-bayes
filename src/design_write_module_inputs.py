@@ -37,8 +37,8 @@ def write_module_inputs(
     zeta_over_s_lambda_asymm = 0.0,
 
     #relaxation times
-    shear_relax_time_factor = 1.0,
-    bulk_relax_time_factor = 1.0,
+    shear_relax_time_factor = 5.0,
+    bulk_relax_time_factor = 1.0/14.55,
 
     #hydro params
     T_switch = 0.151
