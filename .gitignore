@@ -1,4 +1,4 @@
-*.dat
+model_calculations/Events
 *.hdf
 *.npy
 *.pdf

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Generates Latin-hypercube parameter designs.
 
@@ -245,6 +246,8 @@ class Design:
         design_file.write("idx")
         for key in self.keys:
             design_file.write("," + key)
+        design_file.write(",projectiles")
+        design_file.write(",cross_section")
         design_file.write("\n")
 
         # Loop over design points
@@ -253,6 +256,11 @@ class Design:
             # Add some missing parameters for the parameter dictionary
             kwargs = dict(
                 zip(self.keys, row),
+            )
+            kwargs.update(
+zeta_over_s_width_in_GeV=2./3.141592*(kwargs.pop('zeta_over_s_area_fourth'))**4/kwargs['zeta_over_s_max']
+            )
+            kwargs.update(
                 projectiles=self.projectiles,
                 cross_section={
                     # sqrt(s) [GeV] : sigma_NN [fm^2]
@@ -260,11 +268,7 @@ class Design:
                     2760: 6.4,
                     5020: 7.0,
                 }[self.beam_energy]
-            )
-            kwargs.update(
-                zeta_over_s_width_in_GeV=2./3.141592*(kwargs.pop('zeta_over_s_area_fourth'))**4/kwargs['zeta_over_s_max']
-            )
-
+            ) 
             #########################################################
             # Transformation and processing on the input parameters #
             #########################################################

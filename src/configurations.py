@@ -1,3 +1,4 @@
+
 # fully specify numeric data types, including endianness and size, to
 # ensure consistency across all machines
 float_t = '<f8'
@@ -16,3 +17,7 @@ n_design_pts = 100
 
 # Number of principal components to keep in the emulator
 npca=4
+f_model_calculations = 'model_calculations/Obs/main.dat'
+f_model_validations = 'model_calculations/Obs/validation.dat'
+design_dir = 'design_pts'
+

@@ -7,25 +7,25 @@
     <seed>0</seed>
   </Random>
   <IS>
-    <grid_max_x> 20.24600048762283 </grid_max_x>
-    <grid_max_y> 20.24600048762283 </grid_max_y>
+    <grid_max_x> 20.088030838006183 </grid_max_x>
+    <grid_max_y> 20.088030838006183 </grid_max_y>
     <grid_max_z> 0 </grid_max_z>
-    <grid_step_x> 0.19561353128137998 </grid_step_x>
-    <grid_step_y> 0.19561353128137998 </grid_step_y>
+    <grid_step_x> 0.11129102957344146 </grid_step_x>
+    <grid_step_y> 0.11129102957344146 </grid_step_y>
     <grid_step_z> 0.5 </grid_step_z>
     <Trento>
              <PhysicsInputs  projectile='Pb'
                                              target='Pb'
                                              sqrts='2760'
                                              cross-section='6.4'
-                                             normalization='17.218699505664407'>
+                                             normalization='10.459109346233308'>
              </PhysicsInputs>
              <CutInputs      centrality-low='0'
                                      centrality-high='100'>
              </CutInputs>
              <TransInputs    reduced-thickness='0.007'
-                                             fluctuation='0.3505899407202379'
-                                             nucleon-width='1.3040902085425332'
+                                             fluctuation='2.867520741287386'
+                                             nucleon-width='0.7419401971562765'
                                              nucleon-min-dist='1.27'>
              </TransInputs>
              <LongiInputs    mean-coeff='1.0'

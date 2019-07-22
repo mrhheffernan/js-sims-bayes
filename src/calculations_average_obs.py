@@ -36,6 +36,7 @@ def calculate_dNdeta(ds, exp, cen, idf):
         obs = np.zeros_like(cenM)
         obs_err = np.zeros_like(cenM)
         for i, (nl, nh) in enumerate(zip(index[:,0], index[:,1])):
+                nh = np.max([nh, nl+1])
                 obs[i], obs_err[i] = weighted_mean_std( ds[exp]['dNch_deta'][nl:nh, idf] )
         return {'Name': 'dNch_deta', 'cenM': cenM, 'pTM' : None,
                         'obs': obs, 'err': obs_err}
@@ -119,6 +120,8 @@ def calculate_vn(ds, exp, cen, idf):
         @list2array
         def obs_and_err(qn, m):
                 w = m*(m-1.) # is this P_{M,2} in notation of Jonah's Thesis
+                if w.sum() == 0.:
+                    return 0., 0.
                 cn2 = (np.abs(qn)**2 - m)/w # is this is <2> in Jonah's thesis (p.27)
                 avg_cn2, std_avg_cn2 = weighted_mean_std(cn2, w)
                 vn = np.sqrt(avg_cn2)
@@ -132,7 +135,7 @@ def calculate_vn(ds, exp, cen, idf):
         obs_err = np.zeros([len(cenM), Nharmonic])
 
         for i, (nl, nh) in enumerate(zip(index[:,0], index[:,1])):
-                M = ds[exp]['flow']['N'][nl:nh, idf]+1e-10
+                M = ds[exp]['flow']['N'][nl:nh, idf]
                 for n in range(Nharmonic):
                         Q = ds[exp]['flow']['Qn'][nl:nh, idf, n]
                         obs[i,n], obs_err[i,n] = obs_and_err(Q, M)

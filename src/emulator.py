@@ -15,6 +15,7 @@ and `Gaussian process regression
 """
 
 import logging
+logging.basicConfig(level=logging.DEBUG)
 import pickle
 import dill
 
@@ -95,75 +96,70 @@ class Emulator:
         _slices[obs] = slice(nobs, nobs + n)
         nobs += n
 
-    def __init__(self, system, npc=npca, nrestarts=0):
-        print("Training emulator for system   : " + str(system) )
-        print("Number of principal components : " + str(npc) )
-        print("Number of restarts             : " + str(nrestarts))
-
-        nobs = self.nobs
-        Y = []
-
-        system_str = system[0]+"-"+system[1]+"-"+str(system[2])
+    def __init__(self, system, npc=npca, nrestarts=2, idf=3):
+        self.idf = idf
+        system_str = "{:s}-{:s}-{:d}".format(*system)
+        logging.info("Emulators for system " + system_str)
+        logging.info("with delat-f type {:d}".format(self.idf))
+        logging.info("NPC: " + str(npc) )
+        logging.info("Nrestart: " + str(nrestarts))
+        
 
         #read in the model data from file
-        model_file = 'model_calculations/obs.dat'
-        print("Reading model calculated observables from " + model_file)
-        model_data = np.fromfile(model_file, dtype=bayes_dtype)
-
-        # Build an array of all observables to emulate.
-        print("Building array of observables to emulate")
-
-        #for testing use fixed delta-f
-        idf = 0
-
+        logging.info("Loading model calculations from " + f_model_calculations)
+        model_data = np.fromfile(f_model_calculations, dtype=bayes_dtype)
         #build a matrix of dimension (num design pts) x (number of observables)
+        Y = []
         for pt in range(n_design_pts): # loop over all design points
             row = np.array([])
             for obs in self.observables:
-                #these are the values of 'obs' at ALL the centrality bins (as an array)
+                # these are the values of 'obs' at ALL the centrality bins 
+                # (as an array)
                 values = np.array( model_data[system_str][pt, idf][obs]['mean'] )
-                
+                # replace NAN with numeric defaults
                 isnan = np.isnan(values)
-                contains_nan = np.sum(isnan)
-                if contains_nan:
+                if np.sum(isnan)>0:
                     values[isnan] = 0.
-                    print(values)
-                    print("MODEL DATA CONTAINS NAN! replaced by 0")
+                    logging.warning("Nan(s) in calculations #{:d} are".format(pt)
+                               +" replaced by 0")
+                    logging.warning("Proceed to tranining, but one should check")
                 if 'dN' in obs or 'dET' in obs  or 'fluct' in obs:
-                    print('ddd')
                     values = values**.5
                 row = np.append(row, values)
             #each row in matrix is a different design point, and each column is an observable
             Y.append(row)
-
         Y = np.array(Y)
-
-        print("Number of observables nobs    = " + str(nobs) )
-        print("Shape of Model Matrix Y.shape = " + str(Y.shape))
+        logging.info("Y_Obs shape[Ndesign, Nobs] = " + str(Y.shape))
 
         #Principal Components
         self.npc = npc
         self.scaler = StandardScaler(copy=False)
         #whiten to ensure uncorrelated outputs with unit variances
         self.pca = PCA(copy=False, whiten=True, svd_solver='full')
-
         # Standardize observables and transform through PCA.  Use the first
         # `npc` components but save the full PC transformation for later.
-        print("Standardizing and transforming via PCA")
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
         #read design points from file
-        design_dir = 'design_pts'
-        print("Reading design points from " + design_dir)
-        design = pd.read_csv(design_dir + '/design_points_main_PbPb-2760.dat')
+        design_file = design_dir + \
+               '/design_points_main_{:s}{:s}-{:d}.dat'.format(*system)
+        range_file = design_dir + \
+               '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*system)
+        logging.info("Loading design points from " + design_file)
+        logging.info("Loading design ranges from " + range_file)
+        # design
+        design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
-        print("Design matrix shape design.shape = " + str(design.shape))
-
-        #need to read in parameter ranges from file
-        design_range = pd.read_csv(design_dir + '/design_ranges_main_PbPb-2760.dat')
+        design = design.drop("projectiles", axis=1)
+        design = design.drop("cross_section", axis=1)
+        # range
+        design_range = pd.read_csv(range_file)
         design_max = design_range['max'].values
         design_min = design_range['min'].values
         ptp = design_max - design_min
+
+        logging.info("Design shape[Ndesign, Nparams] = " + str(design.shape))
+ 
 
         # Define kernel (covariance function):
         # Gaussian correlation (RBF) plus a noise term.
@@ -171,17 +167,16 @@ class Emulator:
         kernel = (
             1. * kernels.RBF(
                 length_scale=ptp,
-                #length_scale_bounds=np.outer(ptp, (.1, 10))
-                length_scale_bounds=np.outer(ptp, (.3, 10))
+                length_scale_bounds=np.outer(ptp, (3e-1, 1e1))
             ) +
             kernels.WhiteKernel(
                 noise_level=.1,
-                noise_level_bounds=(.01, 1)
+                noise_level_bounds=(1e-2, 1e2)
             )
         )
 
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
-        print("Fitting a GP to each PC")
+        logging.info("Fitting a GP to each PC")
         self.gps = [
             GPR(
             kernel=kernel, alpha=0.1,
@@ -190,12 +185,11 @@ class Emulator:
             ).fit(design, z)
             for z in Z.T
         ]
-        n = 0
-        for z, gp in zip(Z.T, self.gps):
-            print("GP "+ str(n) + " score : " + str(gp.score(design, z)))
-            n += 1
-        print("Constructing full linear transformation matrix")
 
+        for n, (z, gp) in enumerate(zip(Z.T, self.gps)):
+            print("GP "+ str(n) + " score : " + str(gp.score(design, z)))
+          
+        logging.info("Constructing full linear transformation matrix")
         # Construct the full linear transformation matrix, which is just the PC
         # matrix with the first axis multiplied by the explained standard
         # deviation of each PC and the second axis multiplied by the
@@ -216,11 +210,11 @@ class Emulator:
         # where A is the trans matrix and var_k is the variance of the kth PC.
         # https://en.wikipedia.org/wiki/Propagation_of_uncertainty
 
-        print("Computing partial transformation for first npc components")
+        logging.info("Computing partial transformation for first npc components")
         # Compute the partial transformation for the first `npc` components
         # that are actually emulated.
         A = self._trans_matrix[:npc]
-        self._var_trans = np.einsum('ki,kj->kij', A, A, optimize=False).reshape(npc, nobs**2)
+        self._var_trans = np.einsum('ki,kj->kij', A, A, optimize=False).reshape(npc, self.nobs**2)
 
         # Compute the covariance matrix for the remaining neglected PCs
         # (truncation error).  These components always have variance == 1.
@@ -228,7 +222,7 @@ class Emulator:
         self._cov_trunc = np.dot(B.T, B)
 
         # Add small term to diagonal for numerical stability.
-        self._cov_trunc.flat[::nobs + 1] += 1e-4 * self.scaler.var_
+        self._cov_trunc.flat[::self.nobs + 1] += 1e-4 * self.scaler.var_
 
 
     @classmethod
@@ -403,7 +397,7 @@ def main():
 
 
         #dill the emulator to be loaded later
-        system_str = s[0]+"-"+s[1]+"-"+str(s[2])
+        system_str = "{:s}-{:s}-{:d}".format(*s)
         with open('emulator/emu-' + system_str +'.dill', 'wb') as file:
             dill.dump(emu, file)
 

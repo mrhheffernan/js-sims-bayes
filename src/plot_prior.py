@@ -65,7 +65,7 @@ for n, (key, value) in enumerate(obs_to_group.items()):
 #### Plot ####
 ##############
 
-def plot(all_calcs, idf=0):
+def plot(all_calcs, idf=3):
     # Count how many observables to plot
     nb_obs=len(final_obs_grouping)
     # Decide how many columns we want the plot to have
@@ -84,13 +84,17 @@ def plot(all_calcs, idf=0):
         if ax.is_last_row():
             ax.set_xlabel(r'Centrality (%)', fontsize=10)
         ax.set_title(obs_name, fontsize=10)
-        for calcs in all_calcs:
+        for ipt, calcs in enumerate(all_calcs):
             for obs, color in zip(obs_list,'rgbrgbrgb'):
                 cent=obs_cent_list[obs]
                 mid_centrality=[(low+up)/2. for low,up in cent]
                 mean_values=calcs['Pb-Pb-2760'][obs]['mean'][idf,:]
                 ax.plot(mid_centrality, mean_values, 'k-', color=color, alpha=0.15)
+            if calcs['Pb-Pb-2760']['mean_pT_pion']['mean'][idf,-1] == 0:
+                print(ipt)
         ax.set_ylim(ymin=0)
+    axes[1,2].set_ylim(ymax=.15)
+    axes[1,0].set_ylim(ymax=2)
     plt.tight_layout(True)
     plt.savefig("plots/prior_df_{:d}.png".format(idf), dpi=400)
     plt.suptitle(r"Pb Pb 2760, $\delta-f = {:d}$".format(idf))
@@ -98,7 +102,6 @@ def plot(all_calcs, idf=0):
 
 def corr(all_calcs, obs1, obs2, idf=0):
     for calcs in all_calcs:
-        
         mean1=calcs['Pb-Pb-2760'][obs1]['mean'][idf,:]
         mean2=calcs['Pb-Pb-2760'][obs2]['mean'][idf,:]
         plt.scatter(mean1[:2], mean2[6:8]**.5, alpha=0.3, color='r')
@@ -113,5 +116,5 @@ if __name__ == '__main__':
     filepath = sys.argv[1]
     # Load calculations       
     calcs = np.fromfile(filepath, dtype=np.dtype(bayes_dtype))
-    corr(calcs, 'pT_fluct','dNch_deta')
+    #corr(calcs, 'pT_fluct','dNch_deta')
     plot(calcs)
