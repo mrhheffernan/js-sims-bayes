@@ -311,10 +311,14 @@ def _observables(posterior=False):
         for obs, ax in zip(active_obs_list[system], axes.flatten()):
             xbins = np.array(obs_cent_list[system][obs])
             x = (xbins[:,0]+xbins[:,1])/2.
-            Y = Ymodel[system][obs]
+            if posterior:
+                Y = Ymodel[system][obs]
+            else:
+                Y = Ymodel[system][obs]['mean'][:, idf]
 
             for y in Y:
-                y = y**2 if 'dN' in obs or 'dET' in obs else y
+                if posterior:
+                    y = y**2 if 'dN' in obs or 'dET' in obs else y
                 ax.plot(x, y, color=cr, alpha=.1, lw=.3)
             try:
                 Y0 = Yexp[system][obs]
@@ -342,13 +346,8 @@ def obs_validation():
     _observables(posterior=True)
 
 @plot
-def observables_design():
+def obs_prior():
     _observables(posterior=False)
-
-
-@plot
-def observables_posterior():
-    _observables(posterior=True)
 
 
 @plot

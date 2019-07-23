@@ -86,7 +86,7 @@ def plot(all_calcs, idf=3):
         ax.set_title(obs_name, fontsize=10)
         print(all_calcs.shape)
         for ipt, calcs in enumerate(all_calcs):
-            for obs, color in zip(obs_list,'rgbrgbrgb'):
+            for obs, color in zip(active_obs_list['Pb-Pb-2760'],'rgbrgbrgb'):
                 cent=obs_cent_list['Pb-Pb-2760'][obs]
                 mid_centrality=[(low+up)/2. for low,up in cent]
                 mean=calcs['Pb-Pb-2760'][obs]['mean'][idf,:]
