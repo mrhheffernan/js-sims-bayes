@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Markov chain Monte Carlo model calibration using the `affine-invariant ensemble
 sampler (emcee) <http://dfm.io/emcee>`_.
@@ -27,16 +28,16 @@ To restart the chain, delete (or rename) the chain HDF5 file.
 import argparse
 from contextlib import contextmanager
 import logging
+import pandas as pd
 
 import emcee
 import h5py
 import numpy as np
 from scipy.linalg import lapack
 
-from . import workdir, systems, expt
-from .design import Design
-from .emulator import emulators
-
+import matplotlib.pyplot as plt
+from configurations import *
+from emulator import *
 
 def mvn_loglike(y, cov):
     """
@@ -109,6 +110,11 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
 
         return result
 
+def compute_cov(system, obs1, obs2, dy1, dy2, y1, y2):
+    if obs1 == obs2:
+        return np.diag(dy1)**2
+    else:
+        return np.zeros([dy1.size, dy2.size])
 
 class Chain:
     """
@@ -119,88 +125,67 @@ class Chain:
     system designs have the same parameters and ranges (except for the norms).
 
     """
-    #: Observables to calibrate as a list of 2-tuples
-    #: ``(obs, [list of subobs])``.
-    #: Each observable is checked for each system
-    #: and silently ignored if not found
-    observables = [
-        ('dNch_deta', [None]),
-        ('dET_deta', [None]),
-        ('dN_dy', ['pion', 'kaon', 'proton']),
-        ('mean_pT', ['pion', 'kaon', 'proton']),
-        ('pT_fluct', [None]),
-        ('vnk', [(2, 2), (3, 2), (4, 2)]),
-    ]
-
-    def __init__(self, path=workdir / 'mcmc' / 'chain.hdf'):
+    def __init__(self, validation=-1, path=workdir / 'mcmc' / 'chain.hdf'):
         self.path = path
         self.path.parent.mkdir(exist_ok=True)
-
-        # parameter order:
-        #  - normalizations (one for each system)
-        #  - all other physical parameters (same for all systems)
-        #  - model sys error
-        def keys_labels_range():
-            for sys in systems:
-                d = Design(sys)
-                klr = zip(d.keys, d.labels, d.range)
-                k, l, r = next(klr)
-                assert k == 'norm'
-                yield (
-                    '{} {}'.format(k, sys),
-                    '{}\n{:.2f} TeV'.format(l, d.beam_energy/1000),
-                    r
-                )
-
-            yield from klr
-
-            yield 'model_sys_err', r'$\sigma\ \mathrm{model\ sys}$', (0., .4)
-
-        self.keys, self.labels, self.range = map(
-            list, zip(*keys_labels_range())
-        )
-
-        self.ndim = len(self.range)
-        self.min, self.max = map(np.array, zip(*self.range))
-
-        self._common_indices = list(range(len(systems), self.ndim - 1))
 
         self._slices = {}
         self._expt_y = {}
         self._expt_cov = {}
 
-        # pre-compute the experimental data vectors and covariance matrices
-        for sys, sysdata in expt.data.items():
+        if validation < 0:
+            Yexp = expdata
+        else:
+            #get model calculations at VALIDATION POINTS
+            logging.info("Load calculations from " + f_obs_validation)
+            model_data = np.fromfile(f_obs_validation, dtype=bayes_dtype)
+            Yexp = model_data[validation]
+
+        #get design range
+        range_file = design_dir + \
+               '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
+        # range
+        design_range = pd.read_csv(range_file)
+        self.max = design_range['max'].values
+        self.min = design_range['min'].values
+        self.ndim = len(self.max)
+        self.keys = design_range['param'].values
+        self.labels = design_range['param'].values
+        self.range = np.array([self.min, self.max]).T
+
+        # load the dill'ed emulator from emulator file
+        self.emulators = {}
+        for s in system_strs:
+            self.emulators[s] = dill.load(open('emulator/emu-' + s + '.dill', "rb"))
+
+        logging.info("Pre-compute experimental covariance matrix")
+        for s in system_strs:
             nobs = 0
-
-            self._slices[sys] = []
-
-            for obs, subobslist in self.observables:
+            self._slices[s] = []
+            for obs in active_obs_list[s]:
                 try:
-                    obsdata = sysdata[obs]
+                    obsdata = Yexp[s][obs]['mean'][idf,:]
                 except KeyError:
                     continue
 
-                for subobs in subobslist:
-                    try:
-                        dset = obsdata[subobs]
-                    except KeyError:
-                        continue
+                n = obsdata.size
+                self._slices[s].append(
+                        (obs, slice(nobs, nobs + n))
+                  )
+                nobs += n
 
-                    n = dset['y'].size
-                    self._slices[sys].append(
-                        (obs, subobs, slice(nobs, nobs + n))
-                    )
-                    nobs += n
+            self._expt_y[s] = np.empty(nobs)
+            self._expt_cov[s] = np.empty((nobs, nobs))
 
-            self._expt_y[sys] = np.empty(nobs)
-            self._expt_cov[sys] = np.empty((nobs, nobs))
-
-            for obs1, subobs1, slc1 in self._slices[sys]:
-                self._expt_y[sys][slc1] = expt.data[sys][obs1][subobs1]['y']
-                for obs2, subobs2, slc2 in self._slices[sys]:
-                    self._expt_cov[sys][slc1, slc2] = expt.cov(
-                        sys, obs1, subobs1, obs2, subobs2
+            for obs1, slc1 in self._slices[s]:
+                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf,:]
+                for obs2, slc2 in self._slices[s]:
+                    self._expt_cov[s][slc1, slc2] = compute_cov(
+                        s, obs1, obs2, 
+                        Yexp[s][obs1]['err'][idf,:],
+                        Yexp[s][obs2]['err'][idf,:],
+                        Yexp[s][obs1]['mean'][idf,:],
+                        Yexp[s][obs2]['mean'][idf,:]
                     )
 
     def _predict(self, X, **kwargs):
@@ -208,15 +193,11 @@ class Chain:
         Call each system emulator to predict model output at X.
 
         """
-        return {
-            sys: emulators[sys].predict(
-                X[:, [n] + self._common_indices],
-                **kwargs
-            )
-            for n, sys in enumerate(systems)
-        }
+        return { s: self.emulators[s].predict(X, **kwargs) \
+                 for s in system_strs
+               }
 
-    def log_posterior(self, X, extra_std_prior_scale=.05):
+    def log_posterior(self, X):
         """
         Evaluate the posterior at `X`.
 
@@ -236,28 +217,22 @@ class Chain:
         nsamples = np.count_nonzero(inside)
 
         if nsamples > 0:
-            extra_std = X[inside, -1]
             pred = self._predict(
-                X[inside], return_cov=True, extra_std=extra_std
+                X[inside], return_cov=True
             )
-
-            for sys in systems:
+            for sys in system_strs:
                 nobs = self._expt_y[sys].size
                 # allocate difference (model - expt) and covariance arrays
                 dY = np.empty((nsamples, nobs))
                 cov = np.empty((nsamples, nobs, nobs))
 
-                model_Y, model_cov = pred[sys]
+                Y_pred, cov_pred = pred[sys]
 
                 # copy predictive mean and covariance into allocated arrays
-                for obs1, subobs1, slc1 in self._slices[sys]:
-                    dY[:, slc1] = model_Y[obs1][subobs1]
-                    for obs2, subobs2, slc2 in self._slices[sys]:
-                        cov[:, slc1, slc2] = \
-                            model_cov[(obs1, subobs1), (obs2, subobs2)]
-
-                # subtract expt data from model data
-                dY -= self._expt_y[sys]
+                for obs1, slc1 in self._slices[sys]:
+                    dY[:, slc1] = Y_pred[obs1] - self._expt_y[sys][slc1]
+                    for obs2, slc2 in self._slices[sys]:
+                        cov[:, slc1, slc2] = cov_pred[obs1, obs2]
 
                 # add expt cov to model cov
                 cov += self._expt_cov[sys]
@@ -265,8 +240,6 @@ class Chain:
                 # compute log likelihood at each point
                 lp[inside] += list(map(mvn_loglike, dY, cov))
 
-            # add prior for extra_std (model sys error)
-            lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
 
         return lp
 
@@ -375,20 +348,14 @@ class Chain:
         with self.open(mode) as f:
             yield f[name]
 
-    def load(self, *keys, thin=1):
+    def load(self, thin=1):
         """
         Read the chain from file.  If `keys` are given, read only those
         parameters.  Read only every `thin`'th sample from the chain.
 
         """
-        if keys:
-            indices = [self.keys.index(k) for k in keys]
-            ndim = len(keys)
-            if ndim == 1:
-                indices = indices[0]
-        else:
-            ndim = self.ndim
-            indices = slice(None)
+        ndim = self.ndim
+        indices = slice(None)
 
         with self.dataset() as d:
             return np.array(d[:, ::thin, indices]).reshape(-1, ndim)
@@ -429,7 +396,7 @@ def credible_interval(samples, ci=.9):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Markov chain Monte Carlo')
+    parser = argparse.ArgumentParser(description='MCMC')
 
     parser.add_argument(
         'nsteps', type=int,
@@ -447,8 +414,20 @@ def main():
         '--status', type=int,
         help='number of steps between logging status'
     )
+    parser.add_argument(
+        '--validation', type=int, default=-1,
+        help='the set of validation point to beused as PSEUDO-DATA, default(-1)'
+    )
 
-    Chain().run_mcmc(**vars(parser.parse_args()))
+    args = parser.parse_args()
+    Chain(
+            validation=args.validation
+          ).run_mcmc(
+            nsteps=args.nsteps,
+            nwalkers=args.nwalkers,
+            nburnsteps=args.nburnsteps,
+            status=args.status
+          )
 
 
 if __name__ == '__main__':

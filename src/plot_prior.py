@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import sys, os, glob
 import re
 # Output data format
-from calculations_file_format_event_average import *
+from configurations import *
 
 
 #################################################################################
@@ -84,14 +84,14 @@ def plot(all_calcs, idf=3):
         if ax.is_last_row():
             ax.set_xlabel(r'Centrality (%)', fontsize=10)
         ax.set_title(obs_name, fontsize=10)
+        print(all_calcs.shape)
         for ipt, calcs in enumerate(all_calcs):
             for obs, color in zip(obs_list,'rgbrgbrgb'):
                 cent=obs_cent_list[obs]
                 mid_centrality=[(low+up)/2. for low,up in cent]
-                mean_values=calcs['Pb-Pb-2760'][obs]['mean'][idf,:]
-                ax.plot(mid_centrality, mean_values, 'k-', color=color, alpha=0.15)
-            if calcs['Pb-Pb-2760']['mean_pT_pion']['mean'][idf,-1] == 0:
-                print(ipt)
+                mean=calcs['Pb-Pb-2760'][obs]['mean'][idf,:]
+                std=calcs['Pb-Pb-2760'][obs]['err'][idf,:]
+                ax.errorbar(mid_centrality, mean, yerr=std, fmt='.-', color=color, alpha=0.15)
         ax.set_ylim(ymin=0)
     axes[1,2].set_ylim(ymax=.15)
     axes[1,0].set_ylim(ymax=2)

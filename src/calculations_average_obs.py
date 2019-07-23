@@ -6,7 +6,7 @@ import sys, os, glob
 # Input data format
 from calculations_file_format_single_event import *
 # Output data format
-from calculations_file_format_event_average import *
+from configurations import *
 
 def list2array(func):
         def func_wrapper(x, w):
@@ -105,12 +105,10 @@ def calculate_mean_pT_fluct(ds, exp, cen, idf):
                         # That is, the sum over pairs (a_i, a_j) may be re-expressed in terms of
                         # the sum of a_i and sum of squares a_i^2.  Applying this to Eq. (2) and
                         # collecting terms yields the following expression.
-                        C = (
-                                .5*(sum_pT**2 - sum_pTsq) - M*(N - 1)*sum_pT + M**2*Npairs
-                        ).sum() / Npairs.sum()
-
-                        obs[i] = np.sqrt(C)/M
-                        obs_err[i] = obs[i]*0.
+                        x = (.5*(sum_pT**2 - sum_pTsq) - M*(N - 1)*sum_pT + M**2*Npairs)/Npairs
+                        meanC, stdC = weighted_mean_std(x, Npairs)
+                        obs[i] = np.sqrt(meanC)/M
+                        obs_err[i] = stdC*.5/np.sqrt(meanC)/M
 
         return {'Name': 'dNch_deta', 'cenM': cenM, 'pTM' : None,
                         'obs': obs, 'err': obs_err}
@@ -192,21 +190,21 @@ def load_and_compute(inputfile):
         cenb=np.array(obs_cent_list[tmp_obs])
         info = calculate_dNdeta(res, 'ALICE', cenb, idf)
         entry['Pb-Pb-2760'][tmp_obs]['mean'][:, idf] = info['obs']
-        entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
+        entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
 
         # dETdeta
         tmp_obs='dET_deta'
         cenb=np.array(obs_cent_list[tmp_obs])
         info = calculate_dETdeta(res, 'ALICE', cenb, idf)
         entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
-        entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
+        entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
 
         # dN(pid)/dy
         for s in ['pion','kaon','proton','Lambda', 'Omega','Xi']:
             cenb=np.array(obs_cent_list['dN_dy_'+s])
             info = calculate_dNdy(res, 'ALICE', cenb, idf)
             entry['Pb-Pb-2760']['dN_dy_'+s]['mean'][:,idf] = info['obs'][s]
-            entry['Pb-Pb-2760']['dN_dy_'+s]['stat_err'][:,idf] = info['err'][s]
+            entry['Pb-Pb-2760']['dN_dy_'+s]['err'][:,idf] = info['err'][s]
 
 
         # mean-pT
@@ -214,7 +212,7 @@ def load_and_compute(inputfile):
             cenb=np.array(obs_cent_list['mean_pT_'+s])
             info = calculate_mean_pT(res, 'ALICE', cenb, idf)
             entry['Pb-Pb-2760']['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
-            entry['Pb-Pb-2760']['dN_dy_'+s]['stat_err'][:,idf] = info['err'][s]
+            entry['Pb-Pb-2760']['dN_dy_'+s]['err'][:,idf] = info['err'][s]
 
         # mean-pT-fluct
         
@@ -222,7 +220,7 @@ def load_and_compute(inputfile):
         cenb=np.array(obs_cent_list[tmp_obs])
         info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
         entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
-        entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err']
+        entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
         
         # vn
         for n in range(2,5):
@@ -230,18 +228,20 @@ def load_and_compute(inputfile):
             cenb=np.array(obs_cent_list[tmp_obs])
             info = calculate_vn(res, 'ALICE', cenb, idf)
             entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
-            entry['Pb-Pb-2760'][tmp_obs]['stat_err'][:,idf] = info['err'][:, n-1]
+            entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
 
 
     return entry
 
 if __name__ == '__main__':
-    results = []
-    res_dir = sys.argv[1]
-    for i in range(100):
-        filename = res_dir+"/{:d}.dat".format(i)
-        print("-------working on " + filename+"-----------")
-        entry = load_and_compute(filename)
-        results.append(entry[0])
-    results = np.array(results, dtype=np.dtype(bayes_dtype))
-    results.tofile("obs.dat")
+    
+    for folder_input, file_output in zip(
+              [f_events_main, f_events_validation],
+              [f_obs_main, f_obs_validation]
+           ):
+        results = []
+        for i in range(100):
+            filename = folder_input+"/{:d}.dat".format(i)
+            results.append(load_and_compute(filename)[0])
+        results = np.array(results)
+        results.tofile(file_output)

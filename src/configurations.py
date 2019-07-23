@@ -1,3 +1,7 @@
+import os
+from pathlib import Path
+
+workdir = Path(os.getenv('WORKDIR', '.'))
 
 # fully specify numeric data types, including endianness and size, to
 # ensure consistency across all machines
@@ -11,13 +15,72 @@ number_of_models_per_run = 5
 
 #the Collision systems
 systems = [('Pb', 'Pb', 2760)]
+system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
 
 #the number of design points
 n_design_pts = 100
 
 # Number of principal components to keep in the emulator
 npca=4
-f_model_calculations = 'model_calculations/Obs/main.dat'
-f_model_validations = 'model_calculations/Obs/validation.dat'
-design_dir = 'design_pts'
+
+f_events_main = str(workdir/'model_calculations/Events/main/')
+f_events_validation = str(workdir/'model_calculations/Events/validation/')
+f_obs_main = str(workdir/'model_calculations/Obs/main.dat')
+f_obs_validation = str(workdir/'model_calculations/Obs/validation.dat')
+design_dir =  str(workdir/'design_pts')
+
+idf = 3
+
+
+""" full bins
+dNch_deta_cents = [[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70]] #8 bins
+dET_deta_cent=[[0, 2.5], [2.5, 5], [5, 7.5], [7.5, 10], [10, 12.5], [12.5, 15], [15, 17.5], [17.5, 20], [20, 22.5], [22.5, 25], [25, 27.5], [27.5, 30], [30, 32.5], [32.5, 35], [35, 37.5], [37.5, 40], [40, 45], [45, 50], [50, 55], [55, 60], [60, 65], [65, 70]] # 22 bins
+dN_dy_cents = [[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70]] # 8 bins
+dN_dy_strange_cents=[[0,10],[10,20],[20,40],[40,60]] # 4 bins
+mean_pt_cents=[[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70]] # 8 bins
+pT_fluct_cents=[[0,5],[5,10],[10,15],[15,20],[20,25],[25,30],[30,35],[35,40],[40,45],[45,50],[50,55],[55,60]] #12 bins
+vn_cents=[[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70]] # 8 bins
+"""
+
+# more central bins
+dNch_deta_cents = [[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60]] #8 bins
+dET_deta_cent=[[0, 2.5], [2.5, 5], [5, 7.5], [7.5, 10], [10, 12.5], [12.5, 15], [15, 17.5], [17.5, 20], [20, 22.5], [22.5, 25], [25, 27.5], [27.5, 30], [30, 32.5], [32.5, 35], [35, 37.5], [37.5, 40], [40, 45], [45, 50], [50, 55], [55, 60]] # 22 bins
+dN_dy_cents = [[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60]] # 8 bins
+dN_dy_strange_cents=[[0,10],[10,20],[20,40],[40,60]] # 4 bins
+mean_pt_cents=[[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60]] # 8 bins
+pT_fluct_cents=[[0,5],[5,10],[10,15],[15,20],[20,25],[25,30],[30,35],[35,40],[40,45],[45,50],[50,55],[55,60]] #12 bins
+vn_cents=[[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60]] # 8 bins
+
+
+# Observable name, data type, centralities
+# totals 15 observable types
+obs_cent_list={
+'dNch_deta': dNch_deta_cents,
+'dET_deta': dET_deta_cent,
+'dN_dy_pion': dN_dy_cents,
+'dN_dy_kaon': dN_dy_cents,
+'dN_dy_proton': dN_dy_cents,
+'dN_dy_Lambda': dN_dy_strange_cents,
+'dN_dy_Omega': dN_dy_strange_cents,
+'dN_dy_Xi': dN_dy_strange_cents,
+'mean_pT_pion': mean_pt_cents,
+'mean_pT_kaon': mean_pt_cents,
+'mean_pT_proton': mean_pt_cents,
+'pT_fluct': pT_fluct_cents,
+'v22': vn_cents,
+'v32': vn_cents,
+'v42': vn_cents
+}
+
+
+element_dtype = [(obs, [("mean",float_t,len(cent_list)),
+                        ("err",float_t,len(cent_list))] 
+                 ) for obs, cent_list in obs_cent_list.items() ]
+bayes_dtype=[(sstr, element_dtype, number_of_models_per_run) \
+             for sstr in system_strs ]
+
+# The active ones used in Bayes analysis (MCMC)
+active_obs_list = {
+   'Pb-Pb-2760': list(obs_cent_list.keys()),
+}
 

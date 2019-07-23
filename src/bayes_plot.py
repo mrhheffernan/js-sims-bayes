@@ -35,13 +35,10 @@ from matplotlib import patches
 from matplotlib import ticker
 from scipy import special
 from scipy.interpolate import PchipInterpolator
-from sklearn.decomposition import PCA
-from sklearn.gaussian_process import GaussianProcessRegressor as GPR
-from sklearn.gaussian_process import kernels
+import pandas as pd
 
-from . import workdir, systems, parse_system, expt, model, mcmc
-from .design import Design
-from .emulator import emulators
+from bayes_mcmc import Chain, credible_interval
+from configurations import *
 
 fontsize = dict(
     large=11,
@@ -115,10 +112,9 @@ plt.rcParams.update({
     'image.interpolation': 'none',
 })
 
-
+from configurations import *
 plotdir = workdir / 'plots'
 plotdir.mkdir(exist_ok=True)
-
 plot_functions = {}
 
 
@@ -137,8 +133,8 @@ def plot(f):
         if not fig.get_tight_layout():
             set_tight(fig)
 
-        plotfile = plotdir / '{}.pdf'.format(f.__name__)
-        fig.savefig(str(plotfile))
+        plotfile = plotdir / '{}.png'.format(f.__name__)
+        fig.savefig(str(plotfile), dpi=300)
         logging.info('wrote %s', plotfile)
         plt.close(fig)
 
@@ -870,7 +866,7 @@ def format_ci(samples, ci=.9):
     return a TeX-formatted string.
 
     """
-    cil, cih = mcmc.credible_interval(samples, ci=ci)
+    cil, cih = credible_interval(samples, ci=ci)
     median = np.median(samples)
     ul = median - cil
     uh = cih - median
@@ -893,109 +889,77 @@ def format_ci(samples, ci=.9):
     ])
 
 
-def _posterior(
-        params=None, ignore=None,
-        scale=1, pad_subplots=-.1, rect_r=1, rect_t=.99,
-        cmap=None
-):
-    """
-    Triangle plot of posterior marginal and joint distributions.
+def _posterior():
+    chain = Chain(validation=0)
+    #get VALIDATION points
+    design_file = design_dir + \
+           '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*systems[0])
+    logging.info("Loading design points from " + design_file)
+    design = pd.read_csv(design_file)
+    design = design.drop("idx", axis=1)
+    design = design.drop("projectiles", axis=1)
+    design = design.drop("cross_section", axis=1)
+    truth = design.values[1]
 
-    """
-    chain = mcmc.Chain()
-
-    if params is None and ignore is None:
-        params = set(chain.keys)
-    elif params is not None:
-        params = set(params)
-    elif ignore is not None:
-        params = set(chain.keys) - set(ignore)
-
-    keys, labels, ranges = map(list, zip(*(
-        i for i in zip(chain.keys, chain.labels, chain.range)
-        if i[0] in params
-    )))
-    ndim = len(params)
-
-    data = chain.load(*keys).T
-
-    cmap = plt.get_cmap(cmap)
+    data = chain.load().T
+    ndims, nsamples = data.shape
+    print(data.shape)
+    cmap = plt.get_cmap('Blues')
     cmap.set_bad('white')
 
-    line_color = cmap(.8)
-    fill_color = cmap(.5, alpha=.1)
-
     fig, axes = plt.subplots(
-        nrows=ndim, ncols=ndim,
-        sharex='col', sharey='row',
-        figsize=figsize(.15*scale*ndim, aspect=1)
+        nrows=ndims, ncols=ndims,
+        figsize=(.4*ndims, .4*ndims)
     )
-
-    for samples, key, lim, ax in zip(data, keys, ranges, axes.diagonal()):
-        counts, edges = np.histogram(samples, bins=50, range=lim)
-        x = (edges[1:] + edges[:-1]) / 2
-        y = .85 * (lim[1] - lim[0]) * counts / counts.max() + lim[0]
-        # smooth histogram with monotonic cubic interpolation
-        interp = PchipInterpolator(x, y)
-        x = np.linspace(x[0], x[-1], 10*x.size)
-        y = interp(x)
-        ax.plot(x, y, linewidth=1, color=line_color)
-        ax.fill_between(x, lim[0], y, color=fill_color, zorder=-10)
-
-        ax.set_xlim(lim)
-        ax.set_ylim(lim)
-
-        if key == 'dmin3':
-            samples = samples**(1/3)
-
-        ax.annotate(
-            format_ci(samples), (.62, .92), xycoords='axes fraction',
-            ha='center', va='bottom', fontsize=fontsize['large']
-        )
-
-    for ny, nx in zip(*np.tril_indices_from(axes, k=-1)):
-        axes[ny][nx].hist2d(
-            data[nx], data[ny], bins=100,
-            range=(ranges[nx], ranges[ny]),
-            cmap=cmap, cmin=1
-        )
-        axes[nx][ny].set_axis_off()
-
-    for ax in axes.flat:
-        ax.tick_params(length=2/3*plt.rcParams['xtick.major.size'])
-
-    for key, label, axb, axl in zip(keys, labels, axes[-1], axes[:, 0]):
-        for axis in [axb.xaxis, axl.yaxis]:
-            axis.set_label_text(
-                label.replace(r'\ [', '$\n$['),
-            )
-            axis.set_tick_params(labelsize=fontsize['tiny'])
-            if key == 'dmin3':
-                ticks = [0., 1.2, 1.5, 1.7]
-                axis.set_ticklabels(list(map(str, ticks)))
-                axis.set_ticks([t**3 for t in ticks])
+    labels = [r'$N$[2760]',r'$k$', r'$w$ [fm]', r'$\tau_R$ [fm/c]',
+              r'$\alpha$', r'$\eta/s(T_1)$', r'$(\zeta/s)_{\max}$',
+              r'$T_{\zeta/s}^{\mathrm{peak}}$', r'$A^4_{\zeta/s}$', 
+              r'$\lambda^{asym}_{\zeta/s}$']
+    ranges = np.array([chain.min, chain.max]).T
+    for i, row in enumerate(axes):
+        for j, ax in enumerate(row):
+            x = data[j]
+            y = data[i]
+            xlabel = labels[j]
+            xlim = ranges[j]
+            ylabel = labels[i]
+            ylim = ranges[i]
+            if i==j:
+                H, _, _ = ax.hist(x, bins=40, histtype='step', normed=True)
+                stex = format_ci(x)
+                ax.annotate(stex, xy=(.5, .1), xycoords="axes fraction",
+                            ha='center', va='bottom', fontsize=4.5)
+                ax.set_xlim(*xlim)
+                ax.axvline(x=truth[i], color='r')
+                ax.set_ylim(0, H.max())
+            if i>j:
+                ax.hist2d(x, y, bins=40, cmap=cmap)
+                ax.set_xlim(*xlim)
+                ax.set_ylim(*ylim)
+            if i<j:
+                ax.axis('off')
+            if ax.is_first_col():
+                ax.set_ylabel(ylabel, fontsize=5)
+            if ax.is_first_col() and i!=0:
+                l = ylim[1]-ylim[0]
+                ax.set_yticks([ylim[0]+l*.1, ylim[1]-l*.1])
+                ax.set_yticklabels(["{:1.1f} ".format(ylim[0]), 
+                                    " {:1.1f}".format(ylim[1])], fontsize=5)
             else:
-                axis.set_major_locator(ticker.LinearLocator(3))
-                if axis.axis_name == 'x' and any(
-                        len(str(round(x, 5))) > 4 for x in axis.get_ticklocs()
-                ):
-                    for t in axis.get_ticklabels():
-                        t.set_rotation(30)
-
-        axb.get_xticklabels()[0].set_horizontalalignment('left')
-        axb.get_xticklabels()[-1].set_horizontalalignment('right')
-        axl.get_yticklabels()[0].set_verticalalignment('bottom')
-        axl.get_yticklabels()[-1].set_verticalalignment('top')
-
-    set_tight(
-        fig, pad=0, w_pad=pad_subplots, h_pad=pad_subplots,
-        rect=(0, 0, rect_r, rect_t)
-    )
-
+                ax.set_yticks([])
+            if ax.is_last_row():
+                ax.set_xlabel(xlabel, fontsize=5)
+                l = xlim[1]-xlim[0]
+                ax.set_xticks([xlim[0]+l*.1, xlim[1]-l*.1])
+                ax.set_xticklabels(["{:1.1f} ".format(xlim[0]), 
+                                    " {:1.1f}".format(xlim[1])], fontsize=5)
+            else:
+                ax.set_xticks([])
+    set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(.01, 0, 1, 1))
 
 @plot
 def posterior():
-    _posterior(ignore={'etas_hrg'})
+    _posterior()
 
 
 @plot

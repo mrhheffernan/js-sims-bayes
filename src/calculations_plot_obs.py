@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import sys, os, glob
 import re
 # Output data format
-from calculations_file_format_event_average import *
+from configurations import *
 
 
 #################################################################################

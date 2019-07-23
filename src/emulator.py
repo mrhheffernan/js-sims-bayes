@@ -30,9 +30,6 @@ from sklearn.preprocessing import StandardScaler
 
 from configurations import *
 
-# How to read the model calculations
-from calculations_file_format_event_average import *
-
 ###########################################################
 ############### Emulator and help functions ###############
 ###########################################################
@@ -106,8 +103,8 @@ class Emulator:
         
 
         #read in the model data from file
-        logging.info("Loading model calculations from " + f_model_calculations)
-        model_data = np.fromfile(f_model_calculations, dtype=bayes_dtype)
+        logging.info("Loading model calculations from " + f_obs_main)
+        model_data = np.fromfile(f_obs_main, dtype=bayes_dtype)
         #build a matrix of dimension (num design pts) x (number of observables)
         Y = []
         for pt in range(n_design_pts): # loop over all design points
@@ -123,10 +120,7 @@ class Emulator:
                     logging.warning("Nan(s) in calculations #{:d} are".format(pt)
                                +" replaced by 0")
                     logging.warning("Proceed to tranining, but one should check")
-                if 'dN' in obs or 'dET' in obs  or 'fluct' in obs:
-                    values = values**.5
                 row = np.append(row, values)
-            #each row in matrix is a different design point, and each column is an observable
             Y.append(row)
         Y = np.array(Y)
         logging.info("Y_Obs shape[Ndesign, Nobs] = " + str(Y.shape))
