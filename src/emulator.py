@@ -84,23 +84,23 @@ class Emulator:
 
     #list of observables is defined in calculations_file_format_event_average
     #here we get their names and sum all the centrality bins to find the total number of observables nobs
-    nobs = 0
-    observables = []
-    _slices = {}
-    for obs, cent_list in obs_cent_list.items():
-        observables.append(obs)
-        n = np.array(cent_list).shape[0]
-        _slices[obs] = slice(nobs, nobs + n)
-        nobs += n
 
-    def __init__(self, system, npc=npca, nrestarts=2, idf=3):
-        self.idf = idf
+    def __init__(self, system, npc=npca, nrestarts=2):
+
         system_str = "{:s}-{:s}-{:d}".format(*system)
         logging.info("Emulators for system " + system_str)
-        logging.info("with delat-f type {:d}".format(self.idf))
+        logging.info("with delat-f type {:d}".format(idf))
         logging.info("NPC: " + str(npc) )
         logging.info("Nrestart: " + str(nrestarts))
         
+        self.nobs = 0
+        self.observables = []
+        self._slices = {}
+        for obs, cent_list in obs_cent_list[system_str].items():
+            self.observables.append(obs)
+            n = np.array(cent_list).shape[0]
+            self._slices[obs] = slice(self.nobs, self.nobs + n)
+            self.nobs += n
 
         #read in the model data from file
         logging.info("Loading model calculations from " + f_obs_main)
@@ -120,6 +120,11 @@ class Emulator:
                     logging.warning("Nan(s) in calculations #{:d} are".format(pt)
                                +" replaced by 0")
                     logging.warning("Proceed to tranining, but one should check")
+                if 'dN' in obs or 'dET' in obs: 
+                    values = values ** .5
+                if 'mean_pT' in obs: 
+                    if values[-1] > values[-2]*1.2:
+                        values[-1] = 2*values[-2] - values[-3]
                 row = np.append(row, values)
             Y.append(row)
         Y = np.array(Y)
@@ -144,8 +149,6 @@ class Emulator:
         # design
         design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
-        design = design.drop("projectiles", axis=1)
-        design = design.drop("cross_section", axis=1)
         # range
         design_range = pd.read_csv(range_file)
         design_max = design_range['max'].values
@@ -158,26 +161,26 @@ class Emulator:
         # Define kernel (covariance function):
         # Gaussian correlation (RBF) plus a noise term.
         # noise term is necessary since model calculations contain statistical noise
-        kernel = (
-            1. * kernels.RBF(
-                length_scale=ptp,
-                length_scale_bounds=np.outer(ptp, (3e-1, 1e1))
-            ) +
-            kernels.WhiteKernel(
-                noise_level=.1,
-                noise_level_bounds=(1e-2, 1e2)
-            )
-        )
-
+        k0 = 1. * kernels.RBF(
+                      length_scale=ptp,
+                      length_scale_bounds=np.outer(ptp, (5e-1, 1e2))
+                   )
+        k1 = kernels.ConstantKernel()
+        k2 = kernels.WhiteKernel(
+                                 noise_level=.3,
+                                 noise_level_bounds=(1e-2, 1e2)
+                                 )
+        kernel = (k0 + k1 + k2)
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
         logging.info("Fitting a GP to each PC")
         self.gps = [
             GPR(
-            kernel=kernel, alpha=0.1,
+            kernel=kernel,
+            alpha=0.1,
             n_restarts_optimizer=nrestarts,
             copy_X_train=False
             ).fit(design, z)
-            for z in Z.T
+            for i, z in enumerate(Z.T)
         ]
 
         for n, (z, gp) in enumerate(zip(Z.T, self.gps)):
@@ -394,6 +397,10 @@ def main():
         system_str = "{:s}-{:s}-{:d}".format(*s)
         with open('emulator/emu-' + system_str +'.dill', 'wb') as file:
             dill.dump(emu, file)
+     
+Trained_Emulators = {}
+for s in system_strs:
+    Trained_Emulators[s] = dill.load(open('emulator/emu-' + s + '.dill', "rb"))
 
 if __name__ == "__main__":
     main()

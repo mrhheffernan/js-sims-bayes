@@ -87,7 +87,7 @@ def plot(all_calcs, idf=3):
         print(all_calcs.shape)
         for ipt, calcs in enumerate(all_calcs):
             for obs, color in zip(obs_list,'rgbrgbrgb'):
-                cent=obs_cent_list[obs]
+                cent=obs_cent_list['Pb-Pb-2760'][obs]
                 mid_centrality=[(low+up)/2. for low,up in cent]
                 mean=calcs['Pb-Pb-2760'][obs]['mean'][idf,:]
                 std=calcs['Pb-Pb-2760'][obs]['err'][idf,:]

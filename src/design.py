@@ -192,10 +192,10 @@ class Design:
         #The seed is fixed here, which fixes the design points
         if seed is None:
             seed = 751783496 if validation else 450829120
-
         self.array = lhsmin + (self.max - lhsmin)*generate_lhs(
             npoints=npoints, ndim=self.ndim, seed=seed
         )
+        print(self.array[:,-2])
 
     def __array__(self):
         return self.array
@@ -245,10 +245,25 @@ class Design:
         #design_file.write("#")
         design_file.write("idx")
         for key in self.keys:
-            design_file.write("," + key)
-        design_file.write(",projectiles")
-        design_file.write(",cross_section")
+            design_file.write(","+key)
         design_file.write("\n")
+        
+        for point, row in zip(self.points, self.array):
+            design_file.write(str(point))
+            for item in row:
+                design_file.write(",{:1.3f}".format(item))
+            design_file.write("\n")
+        design_file.close()
+
+        #write parameter ranges to file to be imported by emulator
+        range_file = open(os.path.join(basedir, 'design_ranges_'+str(self.type)+'_'+str(self.system)+'.dat'), 'w')
+        #write header
+        #range_file.write("# param min max \n")
+        range_file.write("param,min,max\n")
+        for i in range(0, len(self.keys)):
+            range_file.write( self.keys[i] + "," + str(self.range[i][0]) + "," + str(self.range[i][1]) + "\n")
+        range_file.close()
+
 
         # Loop over design points
         for point, row in zip(self.points, self.array):
@@ -321,22 +336,6 @@ zeta_over_s_width_in_GeV=2./3.141592*(kwargs.pop('zeta_over_s_area_fourth'))**4/
                                 #T_switch = kwargs['Tswitch']
                                 )
 
-            # Write parameters for current design point in the design-point-summary file
-            design_file.write(str(point))
-            for key in kwargs.keys():
-                design_file.write("," + str(kwargs[key]))
-            design_file.write("\n")
-
-        design_file.close()
-
-        #write parameter ranges to file to be imported by emulator
-        range_file = open(os.path.join(basedir, 'design_ranges_'+str(self.type)+'_'+str(self.system)+'.dat'), 'w')
-        #write header
-        #range_file.write("# param min max \n")
-        range_file.write("param,min,max\n")
-        for i in range(0, len(self.keys)):
-            range_file.write( self.keys[i] + "," + str(self.range[i][0]) + "," + str(self.range[i][1]) + "\n")
-        range_file.close()
 
 def main():
     import argparse

@@ -30,9 +30,10 @@ f_obs_validation = str(workdir/'model_calculations/Obs/validation.dat')
 design_dir =  str(workdir/'design_pts')
 
 idf = 3
+validation = 22
 
-
-""" full bins
+""" 
+# full bins
 dNch_deta_cents = [[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70]] #8 bins
 dET_deta_cent=[[0, 2.5], [2.5, 5], [5, 7.5], [7.5, 10], [10, 12.5], [12.5, 15], [15, 17.5], [17.5, 20], [20, 22.5], [22.5, 25], [25, 27.5], [27.5, 30], [30, 32.5], [32.5, 35], [35, 37.5], [37.5, 40], [40, 45], [45, 50], [50, 55], [55, 60], [60, 65], [65, 70]] # 22 bins
 dN_dy_cents = [[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70]] # 8 bins
@@ -55,32 +56,55 @@ vn_cents=[[0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60]] # 8 bins
 # Observable name, data type, centralities
 # totals 15 observable types
 obs_cent_list={
-'dNch_deta': dNch_deta_cents,
-'dET_deta': dET_deta_cent,
-'dN_dy_pion': dN_dy_cents,
-'dN_dy_kaon': dN_dy_cents,
-'dN_dy_proton': dN_dy_cents,
-'dN_dy_Lambda': dN_dy_strange_cents,
-'dN_dy_Omega': dN_dy_strange_cents,
-'dN_dy_Xi': dN_dy_strange_cents,
-'mean_pT_pion': mean_pt_cents,
-'mean_pT_kaon': mean_pt_cents,
-'mean_pT_proton': mean_pt_cents,
-'pT_fluct': pT_fluct_cents,
-'v22': vn_cents,
-'v32': vn_cents,
-'v42': vn_cents
+    'Pb-Pb-2760': {
+		'dNch_deta': dNch_deta_cents,
+		'dET_deta': dET_deta_cent,
+		'dN_dy_pion': dN_dy_cents,
+		'dN_dy_kaon': dN_dy_cents,
+		'dN_dy_proton': dN_dy_cents,
+		'dN_dy_Lambda': dN_dy_strange_cents,
+		'dN_dy_Omega': dN_dy_strange_cents,
+		'dN_dy_Xi': dN_dy_strange_cents,
+		'mean_pT_pion': mean_pt_cents,
+		'mean_pT_kaon': mean_pt_cents,
+		'mean_pT_proton': mean_pt_cents,
+		'pT_fluct': pT_fluct_cents,
+		'v22': vn_cents,
+		'v32': vn_cents,
+		'v42': vn_cents
+    },
 }
 
+obs_range_list={
+    'Pb-Pb-2760': {
+		'dNch_deta': [0,2000],
+		'dET_deta': [0,2200],
+		'dN_dy_pion': [0,1700],
+		'dN_dy_kaon': [0,400],
+		'dN_dy_proton': [0,120],
+		'dN_dy_Lambda': [0,40],
+		'dN_dy_Omega': [0,2],
+		'dN_dy_Xi': [0,10],
+		'mean_pT_pion': [0,1],
+		'mean_pT_kaon': [0,1.5],
+		'mean_pT_proton': [0,2],
+		'pT_fluct': [0,0.05],
+		'v22': [0,0.16],
+		'v32': [0,0.1],
+		'v42': [0,0.1]
+    },
+}
 
-element_dtype = [(obs, [("mean",float_t,len(cent_list)),
-                        ("err",float_t,len(cent_list))] 
-                 ) for obs, cent_list in obs_cent_list.items() ]
-bayes_dtype=[(sstr, element_dtype, number_of_models_per_run) \
-             for sstr in system_strs ]
+bayes_dtype=[    (sstr, 
+                  [(obs, [("mean",float_t,len(cent_list)), ("err",float_t,len(cent_list))])\
+                    for obs, cent_list in obs_cent_list[sstr].items() ],
+                  number_of_models_per_run
+                 ) \
+                 for sstr in system_strs 
+            ]
 
 # The active ones used in Bayes analysis (MCMC)
 active_obs_list = {
-   'Pb-Pb-2760': list(obs_cent_list.keys()),
+   sys: list(obs_cent_list[sys].keys()) for sys in system_strs
 }
 

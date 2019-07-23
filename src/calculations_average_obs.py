@@ -173,7 +173,7 @@ def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
         return {'Name': 'vn2', 'cenM': cenM, 'pTM' : pTM,
                         'obs': vn, 'err': vn_err}
 
-def load_and_compute(inputfile):
+def load_and_compute(inputfile, system):
     entry = np.zeros(1, dtype=np.dtype(bayes_dtype))
 
     res_unsort = np.fromfile(inputfile, dtype=result_dtype)
@@ -187,21 +187,21 @@ def load_and_compute(inputfile):
 
         # dNdeta
         tmp_obs='dNch_deta'
-        cenb=np.array(obs_cent_list[tmp_obs])
+        cenb=np.array(obs_cent_list[system][tmp_obs])
         info = calculate_dNdeta(res, 'ALICE', cenb, idf)
         entry['Pb-Pb-2760'][tmp_obs]['mean'][:, idf] = info['obs']
         entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
 
         # dETdeta
         tmp_obs='dET_deta'
-        cenb=np.array(obs_cent_list[tmp_obs])
+        cenb=np.array(obs_cent_list[system][tmp_obs])
         info = calculate_dETdeta(res, 'ALICE', cenb, idf)
         entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
         entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
 
         # dN(pid)/dy
         for s in ['pion','kaon','proton','Lambda', 'Omega','Xi']:
-            cenb=np.array(obs_cent_list['dN_dy_'+s])
+            cenb=np.array(obs_cent_list[system]['dN_dy_'+s])
             info = calculate_dNdy(res, 'ALICE', cenb, idf)
             entry['Pb-Pb-2760']['dN_dy_'+s]['mean'][:,idf] = info['obs'][s]
             entry['Pb-Pb-2760']['dN_dy_'+s]['err'][:,idf] = info['err'][s]
@@ -209,7 +209,7 @@ def load_and_compute(inputfile):
 
         # mean-pT
         for s in ['pion','kaon','proton']:
-            cenb=np.array(obs_cent_list['mean_pT_'+s])
+            cenb=np.array(obs_cent_list[system]['mean_pT_'+s])
             info = calculate_mean_pT(res, 'ALICE', cenb, idf)
             entry['Pb-Pb-2760']['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
             entry['Pb-Pb-2760']['dN_dy_'+s]['err'][:,idf] = info['err'][s]
@@ -217,7 +217,7 @@ def load_and_compute(inputfile):
         # mean-pT-fluct
         
         tmp_obs='pT_fluct'
-        cenb=np.array(obs_cent_list[tmp_obs])
+        cenb=np.array(obs_cent_list[system][tmp_obs])
         info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
         entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
         entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
@@ -225,16 +225,14 @@ def load_and_compute(inputfile):
         # vn
         for n in range(2,5):
             tmp_obs='v'+str(n)+'2'
-            cenb=np.array(obs_cent_list[tmp_obs])
+            cenb=np.array(obs_cent_list[system][tmp_obs])
             info = calculate_vn(res, 'ALICE', cenb, idf)
             entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
             entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
-
-
     return entry
 
 if __name__ == '__main__':
-    
+    system='Pb-Pb-2760'
     for folder_input, file_output in zip(
               [f_events_main, f_events_validation],
               [f_obs_main, f_obs_validation]
@@ -242,6 +240,6 @@ if __name__ == '__main__':
         results = []
         for i in range(100):
             filename = folder_input+"/{:d}.dat".format(i)
-            results.append(load_and_compute(filename)[0])
+            results.append(load_and_compute(filename, system)[0])
         results = np.array(results)
         results.tofile(file_output)

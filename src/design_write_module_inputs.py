@@ -50,7 +50,7 @@ def write_module_inputs(
 
     #formula for Energy-dependent freestreaming time: tau_fs = tau_R * (e_T / e_R) ^ alpha
     e_dep_fs_time = 1 # switch for energy dependent freestreaming time
-    e_R = 50.0 # GeV / fm^3
+    e_R = 4.0 # GeV / fm^3
     #this is just a dummy parameter that will be overridden by formula above
     tau_fs = 1.16
 

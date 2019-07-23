@@ -37,7 +37,8 @@ from scipy.linalg import lapack
 
 import matplotlib.pyplot as plt
 from configurations import *
-from emulator import *
+from emulator import Trained_Emulators, _Covariance
+from bayes_exp import Yexp_PseudoData
 
 def mvn_loglike(y, cov):
     """
@@ -112,7 +113,7 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
 
 def compute_cov(system, obs1, obs2, dy1, dy2, y1, y2):
     if obs1 == obs2:
-        return np.diag(dy1)**2
+        return np.diag(dy1**2)
     else:
         return np.zeros([dy1.size, dy2.size])
 
@@ -125,7 +126,7 @@ class Chain:
     system designs have the same parameters and ranges (except for the norms).
 
     """
-    def __init__(self, validation=-1, path=workdir / 'mcmc' / 'chain.hdf'):
+    def __init__(self, path=workdir / 'mcmc' / 'chain.hdf'):
         self.path = path
         self.path.parent.mkdir(exist_ok=True)
 
@@ -136,27 +137,20 @@ class Chain:
         if validation < 0:
             Yexp = expdata
         else:
-            #get model calculations at VALIDATION POINTS
-            logging.info("Load calculations from " + f_obs_validation)
-            model_data = np.fromfile(f_obs_validation, dtype=bayes_dtype)
-            Yexp = model_data[validation]
+            Yexp = Yexp_PseudoData[validation]
 
         #get design range
         range_file = design_dir + \
                '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
         # range
         design_range = pd.read_csv(range_file)
-        self.max = design_range['max'].values
-        self.min = design_range['min'].values
-        self.ndim = len(self.max)
-        self.keys = design_range['param'].values
-        self.labels = design_range['param'].values
+        # with an extra model uncertainty parameter (0, 0.4)
+        self.max = np.array(list(design_range['max'].values)+[.4])
+        self.min = np.array(list(design_range['min'].values)+[.0])
+        self.ndim = len(self.max) 
+        self.keys = list(design_range['param'].values) + ['sigmaM']
+        self.labels = list(design_range['param'].values) + ['sigmaM']
         self.range = np.array([self.min, self.max]).T
-
-        # load the dill'ed emulator from emulator file
-        self.emulators = {}
-        for s in system_strs:
-            self.emulators[s] = dill.load(open('emulator/emu-' + s + '.dill', "rb"))
 
         logging.info("Pre-compute experimental covariance matrix")
         for s in system_strs:
@@ -193,11 +187,11 @@ class Chain:
         Call each system emulator to predict model output at X.
 
         """
-        return { s: self.emulators[s].predict(X, **kwargs) \
+        return { s: Trained_Emulators[s].predict(X[:, :-1], **kwargs) \
                  for s in system_strs
                }
 
-    def log_posterior(self, X):
+    def log_posterior(self, X, extra_std_prior_scale=0.005):
         """
         Evaluate the posterior at `X`.
 
@@ -208,17 +202,18 @@ class Chain:
 
         """
         X = np.array(X, copy=False, ndmin=2)
-
+        
         lp = np.zeros(X.shape[0])
 
         inside = np.all((X > self.min) & (X < self.max), axis=1)
         lp[~inside] = -np.inf
+        
+        extra_std = X[inside, -1]
 
         nsamples = np.count_nonzero(inside)
-
         if nsamples > 0:
             pred = self._predict(
-                X[inside], return_cov=True
+                X[inside], return_cov=True, extra_std=extra_std
             )
             for sys in system_strs:
                 nobs = self._expt_y[sys].size
@@ -230,7 +225,10 @@ class Chain:
 
                 # copy predictive mean and covariance into allocated arrays
                 for obs1, slc1 in self._slices[sys]:
-                    dY[:, slc1] = Y_pred[obs1] - self._expt_y[sys][slc1]
+                    if 'dN' in obs1 or 'dET' in obs1:
+                        dY[:, slc1] = Y_pred[obs1] - self._expt_y[sys][slc1]**.5
+                    else:
+                        dY[:, slc1] = Y_pred[obs1] - self._expt_y[sys][slc1]
                     for obs2, slc2 in self._slices[sys]:
                         cov[:, slc1, slc2] = cov_pred[obs1, obs2]
 
@@ -239,6 +237,9 @@ class Chain:
 
                 # compute log likelihood at each point
                 lp[inside] += list(map(mvn_loglike, dY, cov))
+
+            # add prior for extra_std (model sys error)
+            lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
 
 
         return lp
@@ -414,15 +415,9 @@ def main():
         '--status', type=int,
         help='number of steps between logging status'
     )
-    parser.add_argument(
-        '--validation', type=int, default=-1,
-        help='the set of validation point to beused as PSEUDO-DATA, default(-1)'
-    )
 
     args = parser.parse_args()
-    Chain(
-            validation=args.validation
-          ).run_mcmc(
+    Chain().run_mcmc(
             nsteps=args.nsteps,
             nwalkers=args.nwalkers,
             nburnsteps=args.nburnsteps,

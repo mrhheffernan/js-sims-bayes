@@ -40,7 +40,7 @@ def main():
         logging.info("Loading emulators from emulator/emu-" + system_str + '.dill' )
         emu = dill.load(open('emulator/emu-' + system_str + '.dill', "rb"))
         logging.info("NPC = " + str(emu.npc))
-        logging.info("idf = " + str(emu.idf))
+        logging.info("idf = " + str(idf))
 
 
         #get VALIDATION points
@@ -49,8 +49,6 @@ def main():
         logging.info("Loading design points from " + design_file)
         design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
-        design = design.drop("projectiles", axis=1)
-        design = design.drop("cross_section", axis=1)
 
         #get model calculations at VALIDATION POINTS
         logging.info("Load calculations from " + f_obs_validation)
@@ -64,11 +62,13 @@ def main():
             Y_emu = []
             for ipt, pt in enumerate(design.values):
                 mean, cov = emu.predict(np.array([pt]), return_cov=True)
-                y_true = model_data[system_str][obs]['mean'][ipt,emu.idf]
+                y_true = model_data[system_str][obs]['mean'][ipt,idf]
                 y_emu = mean[obs][0]
                 dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
                 Y_true = np.concatenate([Y_true, y_true])               
                 Y_emu = np.concatenate([Y_emu, y_emu])
+            if 'dN' in obs or 'dET' in obs:
+                Y_emu = Y_emu**2
             ym, yM = np.min(Y_emu), np.max(Y_emu)
             ax.hist2d(Y_emu, Y_true, bins=31, 
                       cmap='coolwarm', range=[(ym, yM),(ym, yM)])
