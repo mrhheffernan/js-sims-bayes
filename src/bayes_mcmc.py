@@ -40,6 +40,11 @@ from configurations import *
 from emulator import Trained_Emulators, _Covariance
 from bayes_exp import Yexp_PseudoData
 
+from design import design, design_max, design_min, design_range, \
+                   design_massaged, design_massaged_max, design_massaged_min,\
+                   ptp, ptp_massaged
+
+
 def mvn_loglike(y, cov):
     """
     Evaluate the multivariate-normal log-likelihood for difference vector `y`
@@ -111,7 +116,7 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
 
         return result
 
-def compute_cov(system, obs1, obs2, dy1, dy2, y1, y2):
+def compute_cov(system, obs1, obs2, dy1, dy2):
     if obs1 == obs2:
         return np.diag(dy1**2)
     else:
@@ -139,26 +144,22 @@ class Chain:
         else:
             Yexp = Yexp_PseudoData[validation]
 
-        #get design range
-        range_file = design_dir + \
-               '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
-        # range
-        design_range = pd.read_csv(range_file)
         # with an extra model uncertainty parameter (0, 0.4)
-        self.max = np.array(list(design_range['max'].values)+[.4])
-        self.min = np.array(list(design_range['min'].values)+[.0])
+        self.max = np.array(list(design_massaged_max)+[.4])
+        self.min = np.array(list(design_massaged_min)+[.0])
         self.ndim = len(self.max) 
-        self.keys = list(design_range['param'].values) + ['sigmaM']
-        self.labels = list(design_range['param'].values) + ['sigmaM']
+        self.keys = list(design_range['param'].values[:-4]) + ['z1', 'z2', 'z3', 'z4','sigmaM']
+        self.labels = list(design_range['param'].values[:-4]) + ['z1', 'z2', 'z3', 'z4','sigmaM']
         self.range = np.array([self.min, self.max]).T
 
         logging.info("Pre-compute experimental covariance matrix")
         for s in system_strs:
+            idf1 = 0
             nobs = 0
             self._slices[s] = []
             for obs in active_obs_list[s]:
                 try:
-                    obsdata = Yexp[s][obs]['mean'][idf,:]
+                    obsdata = Yexp[s][obs]['mean'][idf1,:]
                 except KeyError:
                     continue
 
@@ -172,14 +173,23 @@ class Chain:
             self._expt_cov[s] = np.empty((nobs, nobs))
 
             for obs1, slc1 in self._slices[s]:
-                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf,:]
+                isMulti1 = 'dN' in obs1 or 'dET' in obs1
+                if isMulti1:
+                    self._expt_y[s][slc1] = np.log(1.+Yexp[s][obs1]['mean'][idf1,:])
+                    dy1 = Yexp[s][obs1]['err'][idf1,:]/(1.+Yexp[s][obs1]['mean'][idf1,:])
+                else:
+                    self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf1,:]
+                    dy1 = Yexp[s][obs1]['err'][idf1,:]
+
                 for obs2, slc2 in self._slices[s]:
+                    isMulti2 = 'dN' in obs2 or 'dET' in obs2
+                    if isMulti1:
+                        dy2 = Yexp[s][obs2]['err'][idf1,:]\
+                             /(1.+Yexp[s][obs2]['mean'][idf1,:])
+                    else:
+                        dy2 = Yexp[s][obs2]['err'][idf1,:]
                     self._expt_cov[s][slc1, slc2] = compute_cov(
-                        s, obs1, obs2, 
-                        Yexp[s][obs1]['err'][idf,:],
-                        Yexp[s][obs2]['err'][idf,:],
-                        Yexp[s][obs1]['mean'][idf,:],
-                        Yexp[s][obs2]['mean'][idf,:]
+                        s, obs1, obs2, dy1, dy2
                     )
 
     def _predict(self, X, **kwargs):
@@ -191,7 +201,7 @@ class Chain:
                  for s in system_strs
                }
 
-    def log_posterior(self, X, extra_std_prior_scale=0.005):
+    def log_posterior(self, X, extra_std_prior_scale=0.0005):
         """
         Evaluate the posterior at `X`.
 
@@ -225,10 +235,7 @@ class Chain:
 
                 # copy predictive mean and covariance into allocated arrays
                 for obs1, slc1 in self._slices[sys]:
-                    if 'dN' in obs1 or 'dET' in obs1:
-                        dY[:, slc1] = Y_pred[obs1] - self._expt_y[sys][slc1]**.5
-                    else:
-                        dY[:, slc1] = Y_pred[obs1] - self._expt_y[sys][slc1]
+                    dY[:, slc1] = Y_pred[obs1] - self._expt_y[sys][slc1]
                     for obs2, slc2 in self._slices[sys]:
                         cov[:, slc1, slc2] = cov_pred[obs1, obs2]
 

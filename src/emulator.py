@@ -29,6 +29,7 @@ from sklearn.gaussian_process import kernels
 from sklearn.preprocessing import StandardScaler
 
 from configurations import *
+from design import design, design_max, design_min, ptp
 
 ###########################################################
 ############### Emulator and help functions ###############
@@ -116,15 +117,15 @@ class Emulator:
                 # replace NAN with numeric defaults
                 isnan = np.isnan(values)
                 if np.sum(isnan)>0:
-                    values[isnan] = 0.
+                    values[isnan] = np.mean(values[np.logical_not(isnan)])
                     logging.warning("Nan(s) in calculations #{:d} are".format(pt)
                                +" replaced by 0")
                     logging.warning("Proceed to tranining, but one should check")
-                if 'dN' in obs or 'dET' in obs: 
-                    values = values ** .5
                 if 'mean_pT' in obs: 
                     if values[-1] > values[-2]*1.2:
                         values[-1] = 2*values[-2] - values[-3]
+                if 'dN' in obs or 'dET' in obs: 
+                    values = np.log(1.+values)
                 row = np.append(row, values)
             Y.append(row)
         Y = np.array(Y)
@@ -139,21 +140,6 @@ class Emulator:
         # `npc` components but save the full PC transformation for later.
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
-        #read design points from file
-        design_file = design_dir + \
-               '/design_points_main_{:s}{:s}-{:d}.dat'.format(*system)
-        range_file = design_dir + \
-               '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*system)
-        logging.info("Loading design points from " + design_file)
-        logging.info("Loading design ranges from " + range_file)
-        # design
-        design = pd.read_csv(design_file)
-        design = design.drop("idx", axis=1)
-        # range
-        design_range = pd.read_csv(range_file)
-        design_max = design_range['max'].values
-        design_min = design_range['min'].values
-        ptp = design_max - design_min
 
         logging.info("Design shape[Ndesign, Nparams] = " + str(design.shape))
  
@@ -161,9 +147,9 @@ class Emulator:
         # Define kernel (covariance function):
         # Gaussian correlation (RBF) plus a noise term.
         # noise term is necessary since model calculations contain statistical noise
-        k0 = 1. * kernels.RBF(
+        k0 = 1. * kernels.Matern(
                       length_scale=ptp,
-                      length_scale_bounds=np.outer(ptp, (5e-1, 1e2))
+                      length_scale_bounds=np.outer(ptp, (2e-1, 1e2))
                    )
         k1 = kernels.ConstantKernel()
         k2 = kernels.WhiteKernel(
@@ -179,7 +165,7 @@ class Emulator:
             alpha=0.1,
             n_restarts_optimizer=nrestarts,
             copy_X_train=False
-            ).fit(design, z)
+            ).fit(design.values, z)
             for i, z in enumerate(Z.T)
         ]
 

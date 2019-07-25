@@ -24,6 +24,7 @@ from pathlib import Path
 import re
 import subprocess
 import os.path
+import pandas as pd
 
 import numpy as np
 
@@ -337,6 +338,9 @@ zeta_over_s_width_in_GeV=2./3.141592*(kwargs.pop('zeta_over_s_area_fourth'))**4/
                                 )
 
 
+
+
+
 def main():
     import argparse
 
@@ -353,3 +357,21 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+#read design points from file
+design_file = design_dir + \
+       '/design_points_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
+range_file = design_dir + \
+       '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
+logging.info("Loading design points from " + design_file)
+logging.info("Loading design ranges from " + range_file)
+# design
+design = pd.read_csv(design_file)
+design = design.drop("idx", axis=1)
+# range
+design_range = pd.read_csv(range_file)
+design_max = design_range['max'].values
+design_min = design_range['min'].values
+ptp = design_max - design_min
+

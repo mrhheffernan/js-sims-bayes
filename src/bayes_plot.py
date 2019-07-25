@@ -125,7 +125,6 @@ plotdir = workdir / 'plots'
 plotdir.mkdir(exist_ok=True)
 plot_functions = {}
 
-
 def plot(f):
     """
     Plot function decorator.  Calls the function, does several generic tasks,
@@ -289,6 +288,12 @@ def obs_label(obs, subobs, differentials=False, full_cumulants=False):
         )
 
 
+def zetas(T, zmax, width, T0, asym):
+    DeltaT = T - T0
+    sign = 1 if DeltaT>0 else -1
+    x = DeltaT/(width*(1.+asym*sign))
+    return zmax/(1.+x**2) 
+zetas = np.vectorize(zetas)
 
 def _observables(posterior=False):
     """
@@ -304,7 +309,18 @@ def _observables(posterior=False):
     if validation < 0:
         Yexp = ...
     else:
+        #get VALIDATION points
+        design_file = design_dir + \
+               '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*systems[0])
+        logging.info("Loading design points from " + design_file)
+        design = pd.read_csv(design_file)
+        design = design.drop("idx", axis=1)
+        truth = design.values[validation]
+        print(validation, truth)
         Yexp = Yexp_PseudoData[validation]
+        Ypred = {s: Trained_Emulators[s].predict(np.array([truth])) \
+                 for s in system_strs}
+
     
     fig, axes = plt.subplots(nrows=3, ncols=5, figsize=(10,4), sharex=True)
     for system in system_strs:
@@ -318,15 +334,20 @@ def _observables(posterior=False):
 
             for y in Y:
                 if posterior:
-                    y = y**2 if 'dN' in obs or 'dET' in obs else y
-                ax.plot(x, y, color=cr, alpha=.1, lw=.3)
+                    ax.plot(x, np.exp(y)-1 if 'dN' in obs or 'dET' in obs else y, color=cr, alpha=.1, lw=.3)
+                else:
+                    ax.plot(x, y, color=cr, alpha=.1, lw=.3)
             try:
                 Y0 = Yexp[system][obs]
+                Y1 = Ypred[system][obs]
             except KeyError:
                 continue
 
             ax.errorbar(
                 x, Y0['mean'][idf], yerr=Y0['err'][idf], fmt='o'
+            )
+            ax.plot(
+                x, np.exp(Y1[0])-1 if 'dN' in obs or 'dET' in obs else Y1[0], 'k--'
             )
 
        
@@ -624,6 +645,151 @@ def observables_expt_only():
         )
 
     set_tight(fig)
+
+@plot
+def zetas_prior():
+    def zetas(T, zmax, width, T0, asym):
+        width = np.max([width, .05])
+        DeltaT = T -  T0*.7
+        sign = 1 if DeltaT>0 else -1
+        x = DeltaT/(width*(1.+asym*sign))
+        return zmax/(1.+x**2) 
+    zetas = np.vectorize(zetas)
+    # prior
+    design_file = design_dir + \
+           '/design_points_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
+    logging.info("Loading design points from " + design_file)
+    design = pd.read_csv(design_file)
+    design = design.drop("idx", axis=1)
+    T = np.linspace(0.15, 0.5, 100)
+    fig, ax = plt.subplots(
+        nrows=1, ncols=1,
+        figsize=(2,2), sharex=True, sharey=True
+    )
+    for truth in design.values:
+        y = zetas(T, truth[-4], 2./np.pi*truth[-2]**4/truth[-4], truth[-3], truth[-1])
+        ax.plot(T, y, 'b-', alpha=0.3)
+    ax.set_xlabel(r"$T$ [GeV]")
+    ax.set_ylabel(r"$\zeta/s$")
+            
+    set_tight(fig, rect=[0, 0, 1, 1])
+
+
+@plot
+def zetas_validation():
+
+    # prior
+    design_file = design_dir + \
+           '/design_points_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
+    logging.info("Loading design points from " + design_file)
+    design = pd.read_csv(design_file)
+    design = design.drop("idx", axis=1)
+    T = np.linspace(0.15, 0.4, 100)
+    prior = np.array([zetas(T, truth[-4], 2./np.pi*truth[-2]**4/truth[-4], truth[-3], truth[-1]) for truth in design.values])
+
+    
+    fig, axes = plt.subplots(
+        nrows=5, ncols=5,
+        figsize=(6,6), sharex=True, sharey=True
+    ) 
+
+    # validation
+    design_file = design_dir + \
+           '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*systems[0])
+    logging.info("Loading design points from " + design_file)
+    design = pd.read_csv(design_file)
+    design = design.drop("idx", axis=1)
+    for iv, ax in zip(np.random.choice(range(90),25), axes.flatten()):
+        f = "./validate_E3-O3/{:d}.dat".format(iv)
+        t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
+        
+        truth = design.values[iv]
+        width=2./np.pi*truth[-2]**4/truth[-4]
+        true = zetas(T, truth[-4], width, truth[-3], truth[-1])
+        ax.plot(T, true, ls="--", c=".3")
+        Ttest = [.155, .175, .2, .25, .35]
+        ax.errorbar(Ttest, m[10:], yerr=[m[10:]-l2[10:],h2[10:]-m[10:]], color=cr,fmt='o', linewidth=.5)
+        #ax.plot(Ttest, M[10:], 'o',color=cr)
+        for iT, im, iy1, iy2 in zip(Ttest, m[10:],l1[10:],h1[10:]):
+            ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
+
+        ax.fill_between(T, np.min(prior, axis=0), np.max(prior, axis=0), color='gray', alpha=.3)
+        if ax.is_last_row():
+            ax.set_xlabel(r"$T$ [GeV]")
+        if ax.is_first_col():
+            ax.set_ylabel(r"$\zeta/s$")
+            
+    set_tight(fig, rect=[0, 0, 1, 1])
+
+@plot
+def validate_extraction():
+    import glob
+    true = []
+    mid = []
+    maxi = []
+    L1 = []
+    L2 = []
+    H1 = []
+    H2 = []
+    #for f in glob.glob("./validate_/*"):
+    for f in glob.glob("./validate/*"):
+        t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
+        true.append(t)
+        mid.append(m)
+        maxi.append(M)
+        L1.append(l1)
+        L2.append(l2)
+        H1.append(h1)
+        H2.append(h2)
+    true = np.array(true)
+    mid = np.array(mid)
+    maxi = np.array(maxi)
+    L1 = np.array(L1)
+    L2 = np.array(L2)
+    H1 = np.array(H1)
+    H2 = np.array(H2)
+    labels = [r'$N_{2.76\mathrm{TeV}}$',r'$k$', r'$w$ [fm]', r'$\tau_R$ [fm/$c$]',
+              r'$\alpha$', r'$\eta/s$', r'$(\zeta/s)_{\max}$',
+              r'$T_{\zeta/s}^{\mathrm{peak}}$ [GeV]', r'$A^{1/4}_{\zeta/s}$', 
+              r'$\lambda^{asym}_{\zeta/s}$']
+    # get range
+    range_file = design_dir + \
+               '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
+    design_range = pd.read_csv(range_file)
+    design_max = design_range['max'].values
+    design_min = design_range['min'].values
+
+    fig, axes = plt.subplots(
+        nrows=3, ncols=5,
+        figsize=(8,5),
+    ) 
+
+    for i, (label, ax) in enumerate(zip(labels, axes.flatten())):
+        ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L2[:,i],H2[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.1)
+        ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L1[:,i],H1[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.5)
+        #ax.scatter(true[:,i], maxi[:,i], color=cb)
+        cov = np.cov(np.stack((true[:,i], mid[:,i]), axis=0))
+        #label = label+r", $r = {:1.2f}$".format(cov[1,0]/np.sqrt(cov[0,0]*cov[1,1]))
+        ax.set_title(label)
+        if ax.is_last_row():
+            ax.set_xlabel("Truth")
+        if ax.is_first_col():
+            ax.set_ylabel("Extracted")
+        ax.plot([design_min[i],design_max[i]], [design_min[i],design_max[i]], ls="--", c=".3")
+        ax.set_aspect('equal')
+
+
+
+    for ax, Ttest, i in zip(axes[2], [.155, .175, .2, .25, .35], [10,11,12,13,14]):
+        ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L2[:,i],H2[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.1)
+        ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L1[:,i],H1[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.5)
+        ax.set_title(r"$\zeta/s$"+r"$(T={:1.3f})$".format(Ttest))
+        if ax.is_last_row():
+            ax.set_xlabel("Truth")
+        if ax.is_first_col():
+            ax.set_ylabel("Extracted")
+        ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", c=".3")
+    set_tight(fig, rect=[0, 0, 1, 1])
 
 
 @plot

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import numpy as np
 
 workdir = Path(os.getenv('WORKDIR', '.'))
 
@@ -30,7 +31,7 @@ f_obs_validation = str(workdir/'model_calculations/Obs/validation.dat')
 design_dir =  str(workdir/'design_pts')
 
 idf = 3
-validation = 22
+validation=5
 
 """ 
 # full bins
@@ -107,4 +108,11 @@ bayes_dtype=[    (sstr,
 active_obs_list = {
    sys: list(obs_cent_list[sys].keys()) for sys in system_strs
 }
+
+def zetas(T, zmax, width, T0, asym):
+    DeltaT = T - T0
+    sign = 1 if DeltaT>0 else -1
+    x = DeltaT/(width*(1.+asym*sign))
+    return zmax/(1.+x**2) 
+zetas = np.vectorize(zetas)
 

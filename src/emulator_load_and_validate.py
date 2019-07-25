@@ -68,9 +68,9 @@ def main():
                 Y_true = np.concatenate([Y_true, y_true])               
                 Y_emu = np.concatenate([Y_emu, y_emu])
             if 'dN' in obs or 'dET' in obs:
-                Y_emu = Y_emu**2
+                Y_emu = np.exp(Y_emu) - 1.
             ym, yM = np.min(Y_emu), np.max(Y_emu)
-            ax.hist2d(Y_emu, Y_true, bins=31, 
+            ax.hist2d(Y_emu, Y_true, bins=51, 
                       cmap='coolwarm', range=[(ym, yM),(ym, yM)])
             ym, yM = ym-(yM-ym)*.05, yM+(yM-ym)*.05
             ax.plot([ym,yM],[ym,yM],'k--', zorder=100)

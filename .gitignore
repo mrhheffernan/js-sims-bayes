@@ -6,3 +6,4 @@ model_calculations/Events
 *.pyc
 src/__pycache__
 plots/
+design*/
