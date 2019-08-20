@@ -39,9 +39,10 @@ def write_module_inputs(
     #relaxation times
     shear_relax_time_factor = 5.0,
     bulk_relax_time_factor = 1.0/14.55,
+    bulk_relax_time_power = 2.,
 
     #hydro params
-    T_switch = 0.151
+    T_switch = 0.151,
 
     ):
 
@@ -50,7 +51,7 @@ def write_module_inputs(
 
     #formula for Energy-dependent freestreaming time: tau_fs = tau_R * (e_T / e_R) ^ alpha
     e_dep_fs_time = 1 # switch for energy dependent freestreaming time
-    e_R = 4.0 # GeV / fm^3
+    e_R = 1.0 # GeV / fm^3
     #this is just a dummy parameter that will be overridden by formula above
     tau_fs = 1.16
 
@@ -174,7 +175,8 @@ def write_module_inputs(
 
     music_file.write("shear_relax_time_factor " + str(shear_relax_time_factor) + "\n")
     music_file.write("bulk_relax_time_factor " + str(bulk_relax_time_factor) + "\n")
-
+    music_file.write("bulk_relax_time_power " + str(bulk_relax_time_power) + "\n")
+    
     music_file.write("Include_Bulk_Visc_Yes_1_No_0 1\n") # include bulk viscous effect
     music_file.write("Include_second_order_terms 1\n")   # include second order non-linear coupling terms
     music_file.write("store_hydro_info_in_memory 0\n")   # flag to store hydro info in memory

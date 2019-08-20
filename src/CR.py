@@ -60,10 +60,6 @@ with open("validate/{:d}.dat".format(validation),'w') as f:
         width=2./np.pi*truth[-2]**4/truth[-4]
         tt = zetas(Ttest, truth[-4], width, truth[-3], truth[-1])
 
-        #plt.hist(samples,100, normed=True)
-        #plt.plot([tt,tt],[0,1])
-        #plt.show()
-
         f.write("{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\n".format(
                  tt, m, M, l1, l2, h1, h2
                  )

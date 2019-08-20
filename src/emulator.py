@@ -15,7 +15,6 @@ and `Gaussian process regression
 """
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
 import pickle
 import dill
 
@@ -29,7 +28,7 @@ from sklearn.gaussian_process import kernels
 from sklearn.preprocessing import StandardScaler
 
 from configurations import *
-from design import design, design_max, design_min, ptp
+from bayes_model import trimed_model_data, delete_sets
 
 ###########################################################
 ############### Emulator and help functions ###############
@@ -86,7 +85,7 @@ class Emulator:
     #list of observables is defined in calculations_file_format_event_average
     #here we get their names and sum all the centrality bins to find the total number of observables nobs
 
-    def __init__(self, system, npc=npca, nrestarts=2):
+    def __init__(self, system, npc, nrestarts=2):
 
         system_str = "{:s}-{:s}-{:d}".format(*system)
         logging.info("Emulators for system " + system_str)
@@ -105,27 +104,18 @@ class Emulator:
 
         #read in the model data from file
         logging.info("Loading model calculations from " + f_obs_main)
-        model_data = np.fromfile(f_obs_main, dtype=bayes_dtype)
-        #build a matrix of dimension (num design pts) x (number of observables)
+
+        # things to drop
+        delete = []
+        # build a matrix of dimension (num design pts) x (number of observables)
         Y = []
-        for pt in range(n_design_pts): # loop over all design points
+        for pt in range(n_design_pts_main-len(delete_sets)): 
             row = np.array([])
             for obs in self.observables:
-                # these are the values of 'obs' at ALL the centrality bins 
-                # (as an array)
-                values = np.array( model_data[system_str][pt, idf][obs]['mean'] )
-                # replace NAN with numeric defaults
-                isnan = np.isnan(values)
-                if np.sum(isnan)>0:
-                    values[isnan] = np.mean(values[np.logical_not(isnan)])
-                    logging.warning("Nan(s) in calculations #{:d} are".format(pt)
-                               +" replaced by 0")
-                    logging.warning("Proceed to tranining, but one should check")
-                if 'mean_pT' in obs: 
-                    if values[-1] > values[-2]*1.2:
-                        values[-1] = 2*values[-2] - values[-3]
-                if 'dN' in obs or 'dET' in obs: 
-                    values = np.log(1.+values)
+                values = np.array(
+                        trimed_model_data[system_str][pt, idf][obs]['mean'] )
+                if np.isnan(values).sum() > 0:
+                    print(pt, obs, values)
                 row = np.append(row, values)
             Y.append(row)
         Y = np.array(Y)
@@ -140,16 +130,18 @@ class Emulator:
         # `npc` components but save the full PC transformation for later.
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
+        design, design_max, design_min, labels = prepare_emu_design()
+        design = np.delete(design, list(delete_sets), 0)
 
+        ptp = design_max - design_min
         logging.info("Design shape[Ndesign, Nparams] = " + str(design.shape))
- 
-
         # Define kernel (covariance function):
         # Gaussian correlation (RBF) plus a noise term.
         # noise term is necessary since model calculations contain statistical noise
-        k0 = 1. * kernels.Matern(
+        k0 = 1. * kernels.RBF(
                       length_scale=ptp,
-                      length_scale_bounds=np.outer(ptp, (2e-1, 1e2))
+                      length_scale_bounds=np.outer(ptp, (4e-1, 1e2)),
+                      #nu = 3.5
                    )
         k1 = kernels.ConstantKernel()
         k2 = kernels.WhiteKernel(
@@ -165,7 +157,7 @@ class Emulator:
             alpha=0.1,
             n_restarts_optimizer=nrestarts,
             copy_X_train=False
-            ).fit(design.values, z)
+            ).fit(design, z)
             for i, z in enumerate(Z.T)
         ]
 
@@ -277,6 +269,8 @@ class Emulator:
         may either be a scalar or an array-like of length nsamples.
 
         """
+        X = transform_design(X)
+
         gp_mean = [gp.predict(X, return_cov=return_cov) for gp in self.gps]
 
         if return_cov:

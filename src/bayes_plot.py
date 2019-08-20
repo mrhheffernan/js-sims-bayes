@@ -40,6 +40,7 @@ import pandas as pd
 from bayes_mcmc import Chain, credible_interval
 from configurations import *
 from emulator import Trained_Emulators
+from bayes_model import trimed_model_data
 
 fontsize = dict(
     large=11,
@@ -85,7 +86,7 @@ plt.rcParams.update({
     'axes.titlesize': fontsize['large'],
     'xtick.labelsize': fontsize['small'],
     'ytick.labelsize': fontsize['small'],
-    'font.weight': 400,
+    #'font.weight': 400,
     'axes.labelweight': 400,
     'axes.titleweight': 400,
     'axes.prop_cycle': plt.cycler('color', list(colors.values())),
@@ -287,14 +288,6 @@ def obs_label(obs, subobs, differentials=False, full_cumulants=False):
             (r'\{' + str(k) + r'\}') if full_cumulants else ''
         )
 
-
-def zetas(T, zmax, width, T0, asym):
-    DeltaT = T - T0
-    sign = 1 if DeltaT>0 else -1
-    x = DeltaT/(width*(1.+asym*sign))
-    return zmax/(1.+x**2) 
-zetas = np.vectorize(zetas)
-
 def _observables(posterior=False):
     """
     Model observables at all design points or drawn from the posterior with
@@ -304,7 +297,7 @@ def _observables(posterior=False):
     if posterior:
         Ymodel = Chain().samples(100)
     else:
-        Ymodel = model_data
+        Ymodel = trimed_model_data
 
     if validation < 0:
         Yexp = ...
@@ -316,7 +309,6 @@ def _observables(posterior=False):
         design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
         truth = design.values[validation]
-        print(validation, truth)
         Yexp = Yexp_PseudoData[validation]
         Ypred = {s: Trained_Emulators[s].predict(np.array([truth])) \
                  for s in system_strs}
@@ -334,7 +326,7 @@ def _observables(posterior=False):
 
             for y in Y:
                 if posterior:
-                    ax.plot(x, np.exp(y)-1 if 'dN' in obs or 'dET' in obs else y, color=cr, alpha=.1, lw=.3)
+                    ax.plot(x, y, color=cr, alpha=.1, lw=.3)
                 else:
                     ax.plot(x, y, color=cr, alpha=.1, lw=.3)
             try:
@@ -347,7 +339,7 @@ def _observables(posterior=False):
                 x, Y0['mean'][idf], yerr=Y0['err'][idf], fmt='o'
             )
             ax.plot(
-                x, np.exp(Y1[0])-1 if 'dN' in obs or 'dET' in obs else Y1[0], 'k--'
+                x, Y1[0], 'k--'
             )
 
        
@@ -646,46 +638,344 @@ def observables_expt_only():
 
     set_tight(fig)
 
+
+
+def corner(data, axes, ranges, labels, ptype='hist'):
+    cmap = plt.get_cmap('Blues')
+    cmap.set_bad('white')
+    for i, row in enumerate(axes):
+        for j, ax in enumerate(row):
+            x = data[j]
+            y = data[i]
+            xlabel = labels[j]
+            xlim = ranges[j]
+            ylabel = labels[i]
+            ylim = ranges[i]
+            if i==j:
+                H, _, _ = ax.hist(x, bins=20, histtype='step', normed=True)
+                ax.set_xlim(*xlim)
+                ax.set_ylim(0, H.max())
+            if i>j:
+                if ptype=='hist':
+                    ax.hist2d(x, y, bins=20, cmap=cmap)
+                if ptype=='scatter':
+                    ax.scatter(x, y, s=.4, color=cb)
+                ax.set_xlim(*xlim)
+                ax.set_ylim(*ylim)
+            if i<j:
+                ax.axis('off')
+            if ax.is_first_col():
+                ax.set_ylabel(ylabel, fontsize=5)
+            if ax.is_first_col() and i!=0:
+                l = ylim[1]-ylim[0]
+                ax.set_yticks([ylim[0]+l*.1, ylim[1]-l*.1])
+                ax.set_yticklabels(["{:1.1f} ".format(ylim[0]), 
+                                    " {:1.1f}".format(ylim[1])], fontsize=7)
+            else:
+                ax.set_yticks([])
+            if ax.is_last_row():
+                ax.set_xlabel(xlabel, fontsize=5)
+                l = xlim[1]-xlim[0]
+                ax.set_xticks([xlim[0]+l*.1, xlim[1]-l*.1])
+                ax.set_xticklabels(["{:1.1f} ".format(xlim[0]), 
+                                    " {:1.1f}".format(xlim[1])], fontsize=7)
+            else:
+                ax.set_xticks([])
+    plt.subplots_adjust(wspace=0., hspace=0.)
+
 @plot
-def zetas_prior():
-    def zetas(T, zmax, width, T0, asym):
-        width = np.max([width, .05])
-        DeltaT = T -  T0*.7
-        sign = 1 if DeltaT>0 else -1
-        x = DeltaT/(width*(1.+asym*sign))
-        return zmax/(1.+x**2) 
-    zetas = np.vectorize(zetas)
-    # prior
-    design_file = design_dir + \
-           '/design_points_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
-    logging.info("Loading design points from " + design_file)
-    design = pd.read_csv(design_file)
-    design = design.drop("idx", axis=1)
-    T = np.linspace(0.15, 0.5, 100)
+def param_prior():
+    design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
+    ranges = np.array([dmin, dmax]).T
+
+    nsamples, ndims = design.values.shape
+    fig, axes = plt.subplots(nrows=ndims, ncols=ndims, figsize=(10,10))
+    corner(design.values.T, axes, ranges, labels, ptype='scatter')
+    set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(.0, 0, 1, 1))
+
+@plot
+def etas_prior():
+    design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
+    
+    fig, (ax, axt) = plt.subplots(
+        nrows=2, ncols=1,
+        figsize=(2.8,3), sharex=True, sharey=False
+    )
+    T = np.linspace(0.0, 0.5, 400)
+    for (Tk, al, ah, ek, bpi) in zip(
+				design['eta_over_s_T_kink_in_GeV'],
+				design['eta_over_s_low_T_slope_in_GeV'],
+				design['eta_over_s_high_T_slope_in_GeV'],
+				design['eta_over_s_at_kink'],
+                design['shear_relax_time_factor']):
+        y = etas(T, Tk, al, ah, ek)
+        ax.plot(T, y, 'b-', alpha=0.3)
+        axt.plot(T, T*taupi(T, bpi, Tk, al, ah, ek), 'b-', alpha=0.3)
+    ax.set_ylabel(r"$\eta/s$")
+    ax.set_xticks([0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
+    
+
+    axt.set_xlabel(r"$T$ [GeV]")
+    axt.set_ylabel(r"$ T \tau_\pi$")
+    axt.set_xticks([0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
+    axt.set_ylim(0,15)
+    axt.set_xlim(0.1, 0.45)
+    axt.annotate(r'$T\tau_\pi = b_\pi \frac{\eta}{s} \frac{T s}{e+p}$', xy=(.5, .7), xycoords="axes fraction", va='center', ha='center')
+    
+    ax.annotate(r'$\frac{\eta}{s} = (\eta/s)_{\mathrm{kink}} + a_{\eta,\mathrm{low}}(T-T_{\eta,\mathrm{kink}}), T<T_{\eta,\mathrm{kink}}$', xy=(.5, .9),
+ xycoords="axes fraction", va='center', ha='center', fontsize=7)
+    ax.annotate(r'$\frac{\eta}{s} = (\eta/s)_{\mathrm{kink}} + a_{\eta,\mathrm{high}}(T-T_{\eta,\mathrm{kink}}), T>T_{\eta,\mathrm{kink}}$', xy=(.5, .75),
+ xycoords="axes fraction", va='center', ha='center', fontsize=7)  
+        
+    set_tight(fig, rect=[0, 0, 1, 1])
+
+@plot 
+def freestream_prior():
+    design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
+    
     fig, ax = plt.subplots(
         nrows=1, ncols=1,
-        figsize=(2,2), sharex=True, sharey=True
+        figsize=(2.8,2), sharex=True, sharey=False
     )
-    for truth in design.values:
-        y = zetas(T, truth[-4], 2./np.pi*truth[-2]**4/truth[-4], truth[-3], truth[-1])
+    e = np.linspace(.2, 25, 100)
+    for (t0, a) in zip(
+				design['tau_R'],
+				design['alpha'],
+           ):
+        y = tau_fs(e, t0, a)
+        ax.plot(e, y, 'b-', alpha=0.3)
+    ax.set_xlabel(r"$e/e_0$")
+    ax.set_ylabel(r"$\tau_{\mathrm{fs}}$ [fm/$c$]")
+    ax.set_xticks([1,5,10,15,20,25])
+    ax.set_ylim(0,4)
+    ax.set_xlim(0, 25)
+  
+    set_tight(fig, rect=[0, 0, 1, 1])
+
+
+
+@plot
+def zetas_prior():
+    design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
+    
+    fig, (ax, axt) = plt.subplots(
+        nrows=2, ncols=1,
+        figsize=(2.8,3), sharex=True, sharey=False
+    )
+    T = np.linspace(0.0, 0.5, 100)
+    for (zm, T0, w, asym, bPi, q) in zip(
+				design['zeta_over_s_max'],
+				design['zeta_over_s_T_peak_in_GeV'],
+				design['zeta_over_s_width_in_GeV'],
+				design['zeta_over_s_lambda_asymm'],
+                design['bulk_relax_time_factor'], 
+                design['bulk_relax_time_power']):
+        y = zetas(T, zm, T0, w, asym)
         ax.plot(T, y, 'b-', alpha=0.3)
-    ax.set_xlabel(r"$T$ [GeV]")
+        axt.plot(T, tauPi(T, bPi, zm, T0, w, asym, q)/5.026, 'b-', alpha=0.3)
     ax.set_ylabel(r"$\zeta/s$")
-            
+    ax.set_xticks([0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
+    ax.set_ylim(0,.5)
+
+    axt.set_xlabel(r"$T$ [GeV]")
+    axt.set_ylabel(r"$\tau_\Pi$ [fm/$c$]")
+    axt.set_xticks([0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
+    axt.set_ylim(0,20)
+    axt.set_xlim(0.1, 0.45)
+    set_tight(fig, rect=[0, 0, 1, 1])
+
+@plot
+def viscous_check():
+    
+    index = [
+106,
+109,
+114,
+119,
+134,
+144,
+152,
+165,
+167,
+170,
+179,
+190,
+196,
+28,
+35,
+72,
+82,
+87,
+90,
+67,
+148,
+176,
+]
+
+    design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
+    samples = design.values[index]
+    fig, axes = plt.subplots(
+        nrows=2, ncols=2,
+        figsize=(5,5), sharex=True, sharey=False
+    )
+    T = np.linspace(0.12, 0.4, 20)
+
+    print((samples[:, 3]<0.6).sum(), (samples[:, 3]>0).sum())
+
+    posterior_tauPi = []
+    posterior_zetas = []
+    for (zm, T0, w, asym, bPi, q) in zip(
+				samples[:,11],
+				samples[:,12],
+				samples[:,13],
+				samples[:,14],
+				samples[:,16],
+				samples[:,17],
+               ):
+        posterior_zetas.append(zetas(T, zm, T0, w, asym))
+        posterior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
+    axes[0,0].plot(T, np.array(posterior_zetas).T, color=cr)  
+    axes[0,1].plot(T, np.array(posterior_tauPi).T, color=cr) 
+
+    ##########################
+    posterior_taupi = []
+    posterior_etas = []
+    for d in samples:
+        posterior_etas.append(etas(T, *d[7:11]))
+        posterior_taupi.append(taupi(T, d[15], *d[7:11])) 
+    axes[1,0].plot(T, np.array(posterior_etas).T, color=cr)  
+    axes[1,1].plot(T, np.array(posterior_taupi).T, color=cr) 
+
+
+    set_tight(fig, rect=[0, 0, 1, 1])
+
+
+@plot
+def viscous_posterior():
+    chain = Chain()
+    data = chain.load()
+    
+    index = np.random.choice(np.arange(data.shape[0]), 2000)
+    
+    design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
+    samples = data[index]
+    fig, axes = plt.subplots(
+        nrows=2, ncols=2,
+        figsize=(5,5), sharex=True, sharey=False
+    )
+    T = np.linspace(0.12, 0.4, 20)
+
+
+    prior_zetas = []
+    prior_tauPi = []
+    for (zm, T0, w, asym, bPi, q) in zip(
+				design['zeta_over_s_max'],
+				design['zeta_over_s_T_peak_in_GeV'],
+				design['zeta_over_s_width_in_GeV'],
+				design['zeta_over_s_lambda_asymm'],
+                design['bulk_relax_time_factor'], 
+                design['bulk_relax_time_power']):
+        prior_zetas.append(zetas(T, zm, T0, w, asym))
+        prior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
+    axes[0,0].fill_between(T, np.min(prior_zetas, axis=0), 
+                   np.max(prior_zetas, axis=0), color='k', alpha=0.3)
+
+    axes[0,1].fill_between(T, np.min(prior_tauPi, axis=0), 
+                   np.max(prior_tauPi, axis=0), color='k', alpha=0.3)
+
+    posterior_tauPi = []
+    posterior_zetas = []
+    for (zm, T0, w, asym, bPi, q) in zip(
+				samples[:,11],
+				samples[:,12],
+				samples[:,13],
+				samples[:,14],
+				samples[:,16],
+				samples[:,17],
+               ):
+        posterior_zetas.append(zetas(T, zm, T0, w, asym))
+        posterior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
+    axes[0,0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0), 
+                       np.percentile(posterior_zetas, 95, axis=0), 
+                    color=cr, alpha=0.3)  
+    axes[0,0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0), 
+                       np.percentile(posterior_zetas, 80, axis=0), 
+                    color=cr, alpha=0.3)  
+    axes[0,0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)  
+    axes[0,1].fill_between(T, np.percentile(posterior_tauPi, 5, axis=0), 
+                       np.percentile(posterior_tauPi, 95, axis=0), 
+                    color=cr, alpha=0.3)  
+    axes[0,1].fill_between(T, np.percentile(posterior_tauPi, 20, axis=0), 
+                       np.percentile(posterior_tauPi, 80, axis=0), 
+                    color=cr, alpha=0.3)  
+    axes[0,1].plot(T, np.percentile(posterior_tauPi, 50, axis=0), color=cr) 
+
+
+    ##########################
+    prior_etas = []
+    prior_taupi = []
+    for d in design.values:
+        prior_etas.append(etas(T, *d[7:11]))
+        prior_taupi.append(taupi(T, d[15], *d[7:11]))
+    axes[1,0].fill_between(T, np.min(prior_etas, axis=0), 
+                   np.max(prior_etas, axis=0), color='k', alpha=0.3)
+    axes[1,1].fill_between(T, np.min(prior_taupi, axis=0), 
+                   np.max(prior_taupi, axis=0), color='k', alpha=0.3)
+    posterior_taupi = []
+    posterior_etas = []
+    for d in samples:
+        posterior_etas.append(etas(T, *d[7:11]))
+        posterior_taupi.append(taupi(T, d[15], *d[7:11]))
+    axes[1,0].fill_between(T, np.percentile(posterior_etas, 5, axis=0), 
+                       np.percentile(posterior_etas, 95, axis=0), 
+                    color=cr, alpha=0.3)  
+    axes[1,0].fill_between(T, np.percentile(posterior_etas, 20, axis=0), 
+                       np.percentile(posterior_etas, 80, axis=0), 
+                    color=cr, alpha=0.3)  
+    axes[1,0].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)  
+    axes[1,1].fill_between(T, np.percentile(posterior_taupi, 5, axis=0), 
+                       np.percentile(posterior_taupi, 95, axis=0), 
+                    color=cr, alpha=0.3)  
+    axes[1,1].fill_between(T, np.percentile(posterior_taupi, 20, axis=0), 
+                       np.percentile(posterior_taupi, 80, axis=0), 
+                    color=cr, alpha=0.3) 
+    axes[1,1].plot(T, np.percentile(posterior_taupi, 50, axis=0), color=cr) 
+
+
+    A, _, _, _ = load_design(system=('Pb','Pb',2760), pset='validation')
+    truth = A.values[validation]
+    zetas_truth = zetas(T, *truth[11:15])
+    tauPi_truth = tauPi(T, truth[16], *truth[11:15], truth[17])
+    axes[0,0].plot(T, zetas_truth, 'k--')
+    axes[0,1].plot(T, tauPi_truth, 'k--')
+
+    etas_truth = etas(T, *truth[7:11])
+    taupi_truth = taupi(T, truth[15], *truth[7:11])
+    axes[1,0].plot(T, etas_truth, 'k--')
+    axes[1,1].plot(T, taupi_truth, 'k--')
+    
+    axes[0,0].set_ylabel(r"$\zeta/s$")
+    axes[0,0].set_xticks([0.1, 0.2, 0.3, 0.4])
+    axes[0,0].set_ylim(0,.35)
+    axes[0,1].set_ylabel(r"$\tau_{\Pi}$ [GeV${}^{-1}$]")
+    axes[0,1].set_xticks([0.1, 0.2, 0.3, 0.4])
+    axes[0,1].set_ylim(0,40)
+    axes[1,0].set_ylabel(r"$\eta/s$")
+    axes[1,0].set_xticks([0.1, 0.2, 0.3, 0.4])
+    axes[1,0].set_ylim(0,.7)
+    axes[1,1].set_ylabel(r"$\tau_{\pi}$ [GeV${}^{-1}$]")
+    axes[1,1].set_xticks([0.1, 0.2, 0.3, 0.4])
+    axes[1,1].set_ylim(0,40)
+
     set_tight(fig, rect=[0, 0, 1, 1])
 
 
 @plot
 def zetas_validation():
-
     # prior
-    design_file = design_dir + \
-           '/design_points_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
-    logging.info("Loading design points from " + design_file)
-    design = pd.read_csv(design_file)
-    design = design.drop("idx", axis=1)
-    T = np.linspace(0.15, 0.4, 100)
-    prior = np.array([zetas(T, truth[-4], 2./np.pi*truth[-2]**4/truth[-4], truth[-3], truth[-1]) for truth in design.values])
+    design, _, _, _ = prepare_design()
+    T = np.linspace(0.15, 0.37, 100)
+    prior = np.array([zetas(T, *truth) for truth in design.values])
 
     
     fig, axes = plt.subplots(
@@ -694,18 +984,12 @@ def zetas_validation():
     ) 
 
     # validation
-    design_file = design_dir + \
-           '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*systems[0])
-    logging.info("Loading design points from " + design_file)
-    design = pd.read_csv(design_file)
-    design = design.drop("idx", axis=1)
-    for iv, ax in zip(np.random.choice(range(90),25), axes.flatten()):
-        f = "./validate_E3-O3/{:d}.dat".format(iv)
+    design, _, _, _ = prepare_design_validation()
+    for iv, ax in zip(np.random.choice(range(93),25), axes.flatten()):
+        f = "./validate/{:d}.dat".format(iv)
         t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
-        
-        truth = design.values[iv]
-        width=2./np.pi*truth[-2]**4/truth[-4]
-        true = zetas(T, truth[-4], width, truth[-3], truth[-1])
+
+        true = zetas(T, *design[iv])
         ax.plot(T, true, ls="--", c=".3")
         Ttest = [.155, .175, .2, .25, .35]
         ax.errorbar(Ttest, m[10:], yerr=[m[10:]-l2[10:],h2[10:]-m[10:]], color=cr,fmt='o', linewidth=.5)
@@ -719,6 +1003,8 @@ def zetas_validation():
         if ax.is_first_col():
             ax.set_ylabel(r"$\zeta/s$")
             
+    ax.set_xticks([0.15, 0.25,  0.35])
+    ax.set_xticklabels([0.15, 0.25, 0.35])
     set_tight(fig, rect=[0, 0, 1, 1])
 
 @plot
@@ -731,7 +1017,6 @@ def validate_extraction():
     L2 = []
     H1 = []
     H2 = []
-    #for f in glob.glob("./validate_/*"):
     for f in glob.glob("./validate/*"):
         t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
         true.append(t)
@@ -767,7 +1052,7 @@ def validate_extraction():
     for i, (label, ax) in enumerate(zip(labels, axes.flatten())):
         ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L2[:,i],H2[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.1)
         ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L1[:,i],H1[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.5)
-        #ax.scatter(true[:,i], maxi[:,i], color=cb)
+        ax.scatter(true[:,i], maxi[:,i], color=cb)
         cov = np.cov(np.stack((true[:,i], mid[:,i]), axis=0))
         #label = label+r", $r = {:1.2f}$".format(cov[1,0]/np.sqrt(cov[0,0]*cov[1,1]))
         ax.set_title(label)
@@ -783,12 +1068,13 @@ def validate_extraction():
     for ax, Ttest, i in zip(axes[2], [.155, .175, .2, .25, .35], [10,11,12,13,14]):
         ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L2[:,i],H2[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.1)
         ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L1[:,i],H1[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.5)
+        ax.scatter(true[:,i], maxi[:,i], color=cb)
         ax.set_title(r"$\zeta/s$"+r"$(T={:1.3f})$".format(Ttest))
         if ax.is_last_row():
             ax.set_xlabel("Truth")
         if ax.is_first_col():
             ax.set_ylabel("Extracted")
-        ax.plot(ax.get_xlim(), ax.get_xlim(), ls="--", c=".3")
+        ax.plot([0,0.25], [0,0.25], ls="--", c=".3")
     set_tight(fig, rect=[0, 0, 1, 1])
 
 
@@ -972,17 +1258,17 @@ def format_ci(samples, ci=.9):
 def _posterior():
     chain = Chain()
     #get VALIDATION points
-    design_file = design_dir + \
-           '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*systems[0])
-    logging.info("Loading design points from " + design_file)
-    design = pd.read_csv(design_file)
-    design = design.drop("idx", axis=1)
-    truth = design.values[validation]
-    print(truth)
+    design, _, _, _ = load_design(system=('Pb','Pb',2760), pset='validation')
+    labels = chain.labels
+    ranges = chain.range    
 
     data = chain.load().T
     ndims, nsamples = data.shape
-    print(data.shape)
+
+    truth = design.values[validation]
+    print(truth)
+    ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
+    
     cmap = plt.get_cmap('Blues')
     cmap.set_bad('white')
 
@@ -990,11 +1276,7 @@ def _posterior():
         nrows=ndims, ncols=ndims,
         figsize=(.4*ndims, .4*ndims)
     )
-    labels = [r'$N$[2760]',r'$k$', r'$w$ [fm]', r'$\tau_R$ [fm/c]',
-              r'$\alpha$', r'$\eta/s(T_1)$', r'$(\zeta/s)_{\max}$',
-              r'$T_{\zeta/s}^{\mathrm{peak}}$', r'$A^4_{\zeta/s}$', 
-              r'$\lambda^{asym}_{\zeta/s}$',r'$\sigma_{\mathrm{model}}$']
-    ranges = np.array([chain.min, chain.max]).T
+
     for i, row in enumerate(axes):
         for j, ax in enumerate(row):
             x = data[j]
@@ -1035,11 +1317,63 @@ def _posterior():
                                     " {:1.1f}".format(xlim[1])], fontsize=5)
             else:
                 ax.set_xticks([])
+            plt.subplots_adjust(wspace=0., hspace=0.)
     set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(.01, 0, 1, 1))
+
+def _posterior_diag():
+    chain = Chain()
+    #get VALIDATION points
+    design, _, _, _ = load_design(system=('Pb','Pb',2760), pset='validation')
+    labels = chain.labels
+    ranges = chain.range    
+
+    data = chain.load().T
+    ndims, nsamples = data.shape
+
+    truths = list(design.values[validation])+[0.0]
+    ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
+    
+    cmap = plt.get_cmap('Blues')
+    cmap.set_bad('white')
+
+    fig, axes = plt.subplots(
+        nrows=4, ncols=5,
+        figsize=(6, 4.5)
+    )
+
+    for ax, x, xlabel, xlim, truth in \
+          zip(axes.flatten(), data, labels, ranges, truths):
+            
+            H, _, _ = ax.hist(x, bins=21, histtype='step', density=True)
+            
+            stex = format_ci(x)
+            ax.annotate(stex, xy=(.75, .8), xycoords="axes fraction",
+                        ha='center', va='bottom', fontsize=6)
+            
+            ax.set_xlim(*xlim)
+            ax.axvline(x=truth, color='r')
+            ax.set_ylim(0, H.max()*1.25)
+            ax.set_yticks([])
+ 
+            ax.annotate(xlabel, xy=(.25, .8), xycoords="axes fraction",
+                        ha='center', va='bottom',  fontsize=6)
+            l = xlim[1]-xlim[0]
+            ax.set_xticks([xlim[0]+l*.05, (xlim[0]+xlim[1])/2., xlim[1]-l*.05])
+            ax.set_xticklabels(["{:1.2f} ".format(xlim[0]), 
+                                "{:1.2f} ".format((xlim[0]+xlim[1])/2.),
+                                " {:1.2f}".format(xlim[1])], fontsize=6)
+
+            plt.subplots_adjust(wspace=0.05, hspace=0.1)
+    set_tight(pad=.0, h_pad=.1, w_pad=.05, rect=(.01, 0, 1, 1))
+
 
 @plot
 def posterior():
     _posterior()
+
+@plot
+def diag_posterior():
+    _posterior_diag()
 
 
 @plot

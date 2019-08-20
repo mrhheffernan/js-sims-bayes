@@ -233,12 +233,13 @@ def load_and_compute(inputfile, system):
 
 if __name__ == '__main__':
     system='Pb-Pb-2760'
-    for folder_input, file_output in zip(
+    for folder_input, file_output, nset in zip(
               [f_events_main, f_events_validation],
-              [f_obs_main, f_obs_validation]
+              [f_obs_main, f_obs_validation], 
+              [n_design_pts_main, n_design_pts_validation],
            ):
         results = []
-        for i in range(100):
+        for i in range(nset):
             filename = folder_input+"/{:d}.dat".format(i)
             results.append(load_and_compute(filename, system)[0])
         results = np.array(results)

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import logging
-logging.basicConfig(level=logging.DEBUG)
 import dill
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,11 +43,8 @@ def main():
 
 
         #get VALIDATION points
-        design_file = design_dir + \
-               '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*s)
-        logging.info("Loading design points from " + design_file)
-        design = pd.read_csv(design_file)
-        design = design.drop("idx", axis=1)
+        design, design_max, design_min, labels = \
+               load_design(system=('Pb','Pb',2760), pset='validation')
 
         #get model calculations at VALIDATION POINTS
         logging.info("Load calculations from " + f_obs_validation)
@@ -56,7 +52,7 @@ def main():
   
         #make a plot
         fig, axes = plt.subplots(figsize=(10,6), ncols=5, nrows=3)
-
+        print("Validating: ", design.shape)
         for obs, ax in zip(observables, axes.flatten()):
             Y_true = []
             Y_emu = []
@@ -67,10 +63,8 @@ def main():
                 dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
                 Y_true = np.concatenate([Y_true, y_true])               
                 Y_emu = np.concatenate([Y_emu, y_emu])
-            if 'dN' in obs or 'dET' in obs:
-                Y_emu = np.exp(Y_emu) - 1.
             ym, yM = np.min(Y_emu), np.max(Y_emu)
-            ax.hist2d(Y_emu, Y_true, bins=51, 
+            ax.hist2d(Y_emu, Y_true, bins=31, 
                       cmap='coolwarm', range=[(ym, yM),(ym, yM)])
             ym, yM = ym-(yM-ym)*.05, yM+(yM-ym)*.05
             ax.plot([ym,yM],[ym,yM],'k--', zorder=100)

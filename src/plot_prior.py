@@ -73,7 +73,7 @@ def plot(all_calcs, idf=3):
     # COunt how many rows needed
     nb_of_rows=int(np.ceil(nb_obs/nb_of_cols))
     # Prepare figure
-    fig, axes = plt.subplots(figsize=(2*nb_of_cols,2*nb_of_rows), 
+    fig, axes = plt.subplots(figsize=(2*nb_of_cols, 2*nb_of_rows), 
                              ncols=nb_of_cols, nrows=nb_of_rows,
                              sharex=True)
 

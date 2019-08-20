@@ -21,11 +21,8 @@ Run ``python design.py --help`` for usage information.
 import itertools
 import logging
 from pathlib import Path
-import re
 import subprocess
 import os.path
-import pandas as pd
-
 import numpy as np
 
 from configurations import *
@@ -93,141 +90,65 @@ class Design:
     project, if not completely rewritten.
 
     """
-    def __init__(self, system, npoints=n_design_pts, validation=False, seed=None):
-        #self.system = system
+    def __init__(self, system, validation, seed=None):
+        npoints = n_design_pts_validation if validation else n_design_pts_main
         self.system = system[0]+system[1]+"-"+str(system[2])
-        #self.projectiles, self.beam_energy = parse_system(system)
         self.projectiles, self.target, self.beam_energy = system
         self.type = 'validation' if validation else 'main'
-
-        print("self.system = ")
-        print(self.system)
+        print("system = ", self.system)
 
         # 5.02 TeV has ~1.2x particle production as 2.76 TeV
         # [https://inspirehep.net/record/1410589]
         norm_range = {
-            2760: (10., 18.),
-            #5020: (10., 25.),
+            2760: (8., 20.),
+            5020: (10., 25.),
         }[self.beam_energy]
 
         #any keys which are uncommented will be sampled / part of the design matrix
-        self.keys, labels, self.range = map(list, zip(*[
-            #trento
-            ('norm',          r'{Norm}',                      (norm_range   )),
-            #('trento_p',      r'p',                           ( -0.5,    0.5)),
-            ('fluct_k',         r'k {fluct}',                  (  0.3,    3.0)),
-            ('nucleon_width',  r'w [{fm}]',                    ( 0.4,    1.5)),
-            #('dmin3',         r'd {min} [{fm}]',              (  0.0, 1.7**3)),
-
-            #freestreaming
-            ('tau_R',        r'\tau {R} [{fm}/c]',             (  0.5,    2.0)),
-            ('alpha',        r'\alpha',                        ( -0.5,    0.0)),
-
-            #shear visc
-            #('eta_over_s_T_kink_in_GeV',       r'\eta/s {T_kink}', (  0.0,    0.0)),
-            #('eta_over_s_low_T_slope_in_GeV',  r'\eta/s {low}'   , (  0.0,    0.0)),
-            #('eta_over_s_high_T_slope_in_GeV', r'\eta/s {high}'  , (  0.0,    0.0)),
-            ('eta_over_s_at_kink',             r'\eta/s {kink}'  , (  0.01,    0.25)),
-
-            #bulk visc
-            ('zeta_over_s_max',             r'\zeta/s {max}'   , (  0.0,    0.3)),
-            ('zeta_over_s_T_peak_in_GeV',   r'\eta/s {Tpeak}'  , (  0.1,    0.5)),
-            ('zeta_over_s_area_fourth',   r'\zeta/s {area} [{GeV^2}]', (  0.0002**.25, (0.2*0.3)**.25)),
-            ('zeta_over_s_lambda_asymm',    r'\eta/s {\lambda}', (  -0.8,    0.8)),
-
-            #relaxation times
-            #('shear_relax_time_factor',  r'b_{\pi}' , (  0.0,    0.0)),
-            #('bulk_relax_time_factor',   r'b_{\Pi}' , (  0.0,    0.0)),
-
-            #particlization temp
-            #('Tswitch',       r'T {switch} [{GeV}]',          (0.135,  0.165)),
+        self.keys, self.labels, self.range = map(list, zip(*[
+        #trento
+        ('norm', r'$N$[${:1.2f}$TeV]'.format(self.beam_energy/1000), (norm_range)),
+        ('trento_p', r'$p$',  ( -0.5,    0.5)),
+        ('sigma_k', r'$\sigma_k$',   (  0.3,    2.0)),
+        ('nucleon_width', r'$w$ [fm]',  ( 0.35,    1.5)),
+        ('dmin3', r'$d_{\mathrm{min}}$ [fm]', (  0.0, 1.7**3)),
+        #freestreaming
+        ('tau_R', r'$\tau_R$ [fm/$c$]',  (  0.4,    2.0)),
+        ('alpha',  r'$\alpha$',   ( -0.5,    0.0)),
+        #shear visc
+        ('eta_over_s_T_kink_in_GeV', 
+           r'$T_{\eta,\mathrm{kink}}$ [GeV]', (0.13, 0.3)),
+        ('eta_over_s_low_T_slope_in_GeV', 
+           r'$a_{\eta,\mathrm{low}}$ [GeV${}^{-1}$]', (-3., 1.)),
+        ('eta_over_s_high_T_slope_in_GeV', 
+           r'$a_{\eta,\mathrm{high}}$ [GeV${}^{-1}$]', (-1., 2.)),
+        ('eta_over_s_at_kink', r'$(\eta/s)_{\mathrm{kink}}$', (0.01, 0.25)),
+        #bulk visc
+        ('zeta_over_s_max',             r'$(\zeta/s)_{\max}$'   , (  0.0,    0.3)),
+        ('zeta_over_s_T_peak_in_GeV',   r'$T_{\zeta,c}$ [GeV]'  , (  0.1,    0.3)),
+        ('zeta_over_s_width_in_GeV',   r'$w_{\zeta}$ [GeV]', (.01, .15)),
+        ('zeta_over_s_lambda_asymm',    r'$\lambda_{\zeta}$', (  -0.8,    0.8)),
+        #relaxation times
+        ('shear_relax_time_factor',  r'$b_{\pi}$' , (2.,    20.)),
+        ('bulk_relax_time_factor',   r'$b_{\Pi}$' , (1.5, 10.)),
+        ('bulk_relax_time_power',   r'$q_{\Pi}$' , (0., 2.5)),
+        #particlization temp
+        ('Tswitch',  r'$T_{\mathrm{sw}}$ [GeV]', (0.125,  0.165)),
         ]))
-
-        # convert labels into TeX:
-        #   - wrap normal text with \mathrm{}
-        #   - escape spaces
-        #   - surround with $$
-        '''self.labels = [
-            re.sub(r'({[A-Za-z]+})', r'\mathrm\1', i)
-            .replace(' ', r'\ ')
-            .join('$$')
-            for i in labels
-        ]'''
-
+        
         self.ndim = len(self.range)
         self.min, self.max = map(np.array, zip(*self.range))
-
-        # use padded numbers for design point names
-        #fmt = '{:0' + str(len(str(npoints - 1))) + 'd}'
-        #self.points = [fmt.format(i) for i in range(npoints)]
         self.points = [str(i) for i in range(npoints)]
-
-
-        # The original design transformed etas_slope to arctangent space, i.e.,
-        # atan(slope) was sampled uniformly in (0, pi/2).  This was intended to
-        # help place an upper bound on the slope, but it backfired, instead
-        # making it almost impossible to train the GPs, since the model changed
-        # so rapidly as atan(slope) approach pi/2.  It also turned out that
-        # slope >~ 8 is clearly excluded, since this suppresses flow far too
-        # much, regardless of the other parameters.
-        #
-        # As a result, I decided to re-run with the slope uniform in (0, 8),
-        # and use the old design for validation.
-
-        # While working with the original design data, I noticed that very
-        # small tau_fs values were problematic, presumably due to numerical
-        # issues (dividing by a small number, large initial energy densities,
-        # etc).  I also realized that similar things could happen for other
-        # parameters.  Thus, for the new design, I have set small but nonzero
-        # minima for several parameters (and the emulators can extrapolate to
-        # zero).
-        lhsmin = self.min.copy()
-        #if not validation:
-        #    for k, m in [
-        #            ('fluct_std', 1e-3),
-        #            ('tau_fs', 1e-3),
-        #            ('zetas_width', 1e-4),
-        #    ]:
-        #        lhsmin[self.keys.index(k)] = m
 
         #The seed is fixed here, which fixes the design points
         if seed is None:
             seed = 751783496 if validation else 450829120
-        self.array = lhsmin + (self.max - lhsmin)*generate_lhs(
+        self.array = self.min + (self.max - self.min)*generate_lhs(
             npoints=npoints, ndim=self.ndim, seed=seed
         )
-        print(self.array[:,-2])
 
     def __array__(self):
         return self.array
-
-    _template = ''.join(
-        '{} = {}\n'.format(key, ' '.join(args)) for (key, *args) in
-        [[
-            'trento-args',
-            '{projectiles[0]} {projectiles[1]}',
-            '--cross-section {cross_section}',
-            '--normalization {norm}',
-            '--reduced-thickness {trento_p}',
-            '--fluctuation {fluct}',
-            '--nucleon-min-dist {dmin}',
-        ], [
-            'nucleon-width', '{nucleon_width}'
-        ], [
-            'tau-fs', '{tau_fs}'
-        ], [
-            'hydro-args',
-            'etas_hrg={etas_hrg}',
-            'etas_min={etas_min}',
-            'etas_slope={etas_slope}',
-            'etas_curv={etas_crv}',
-            'zetas_max={zetas_max}',
-            'zetas_width={zetas_width}',
-            'zetas_t0={zetas_t0}',
-        ], [
-            'Tswitch', '{Tswitch}'
-        ]]
-    )
 
     def write_files(self, basedir):
         """
@@ -240,138 +161,85 @@ class Design:
         outdir.mkdir(parents=True, exist_ok=True)
 
         # File where a summary of the design points will be saved
-        # (to be imported later by the emulator)
-        design_file = open(os.path.join(basedir, 'design_points_'+str(self.type)+'_'+str(self.system)+'.dat'), 'w')
-        #write header
-        #design_file.write("#")
-        design_file.write("idx")
-        for key in self.keys:
-            design_file.write(","+key)
-        design_file.write("\n")
-        
+        with open(os.path.join(basedir, 'design_points_'+str(self.type)\
+                   +'_'+str(self.system)+'.dat'), 'w') as f:
+            #write header
+            f.write("idx")
+            for key in self.keys:
+                f.write(","+key)
+            f.write("\n")
+            for point, row in zip(self.points, self.array):
+                f.write(str(point))
+                for item in row:
+                    f.write(",{:1.5f}".format(item))
+                f.write("\n")
+        # write parameter ranges to file to be imported by emulator
+        with open(os.path.join(basedir, 'design_ranges_'+str(self.type)\
+                    +'_'+str(self.system)+'.dat'), 'w') as f:
+            # write header
+            f.write("param,min,max\n")
+            for key, minmax in zip(self.keys, self.range):
+                f.write('{:s},{:1.5f},{:1.5f}\n'.format(key,*minmax))
+        # write latex labels
+        with open(os.path.join(basedir, 'design_labels_'+str(self.system)\
+                       +'.dat'), 'w') as f:
+            for item in self.labels:
+                f.write(item+"\n")
+
+
+        # Write the module input files for JETSCAPE-SIMS
         for point, row in zip(self.points, self.array):
-            design_file.write(str(point))
-            for item in row:
-                design_file.write(",{:1.3f}".format(item))
-            design_file.write("\n")
-        design_file.close()
-
-        #write parameter ranges to file to be imported by emulator
-        range_file = open(os.path.join(basedir, 'design_ranges_'+str(self.type)+'_'+str(self.system)+'.dat'), 'w')
-        #write header
-        #range_file.write("# param min max \n")
-        range_file.write("param,min,max\n")
-        for i in range(0, len(self.keys)):
-            range_file.write( self.keys[i] + "," + str(self.range[i][0]) + "," + str(self.range[i][1]) + "\n")
-        range_file.close()
-
-
-        # Loop over design points
-        for point, row in zip(self.points, self.array):
-
-            # Add some missing parameters for the parameter dictionary
             kwargs = dict(
                 zip(self.keys, row),
             )
-            kwargs.update(
-zeta_over_s_width_in_GeV=2./3.141592*(kwargs.pop('zeta_over_s_area_fourth'))**4/kwargs['zeta_over_s_max']
-            )
-            kwargs.update(
-                projectiles=self.projectiles,
-                cross_section={
-                    # sqrt(s) [GeV] : sigma_NN [fm^2]
-                    200: 4.2,
-                    2760: 6.4,
-                    5020: 7.0,
-                }[self.beam_energy]
-            ) 
-            #########################################################
-            # Transformation and processing on the input parameters #
-            #########################################################
-            #kwargs.update(
-            #    fluct=1/kwargs.pop('fluct_std')**2,
-            #    dmin=kwargs.pop('dmin3')**(1/3),
-            #)
-            #filepath = outdir / point
-            #with filepath.open('w') as f:
-            #    f.write(self._template.format(**kwargs))
-            #    logging.debug('wrote %s', filepath)
-
-            # Write the module input files for JETSCAPE-SIMS
             write_module_inputs(
-                                outdir = str(outdir),
-                                design_point_id = point,
-
-                                #trento
-                                projectile = self.projectiles,
-                                target = self.projectiles,
-                                sqrts = self.beam_energy,
-                                inel_nucleon_cross_section = kwargs['cross_section'],
-                                trento_normalization = kwargs['norm'],
-                                #trento_reduced_thickness = kwargs['trento_p'],
-                                trento_fluctuation_k = kwargs['fluct_k'],
-                                trento_nucleon_width = kwargs['nucleon_width'],
-                                #trento_nucleon_min_dist  = kwargs['dmin'],
-
-                                #freestreaming
-                                tau_R = kwargs['tau_R'],
-                                alpha = kwargs['alpha'],
-
-                                #shear
-                                #eta_over_s_T_kink_in_GeV = kwargs['eta_over_s_T_kink_in_GeV'],
-                                #eta_over_s_low_T_slope_in_GeV = kwargs['eta_over_s_low_T_slope_in_GeV'],
-                                #eta_over_s_high_T_slope_in_GeV = kwargs['eta_over_s_high_T_slope_in_GeV'],
-                                eta_over_s_at_kink = kwargs['eta_over_s_at_kink'],
-
-                                #bulk
-                                zeta_over_s_max = kwargs['zeta_over_s_max'],
-                                zeta_over_s_width_in_GeV = kwargs['zeta_over_s_width_in_GeV'],
-                                zeta_over_s_T_peak_in_GeV = kwargs['zeta_over_s_T_peak_in_GeV'],
-                                zeta_over_s_lambda_asymm = kwargs['zeta_over_s_lambda_asymm'],
-
-                                #relax times
-                                #shear_relax_time_factor = kwargs['shear_relax_time_factor'],
-                                #bulk_relax_time_factor = kwargs['bulk_relax_time_factor'],
-
-                                #particlization
-                                #T_switch = kwargs['Tswitch']
-                                )
-
-
-
-
+                outdir = str(outdir),
+                design_point_id = point,
+                #trento
+                projectile = self.projectiles,
+                target = self.projectiles,
+                sqrts = self.beam_energy,
+                inel_nucleon_cross_section = { # sqrt(s) [GeV] : sigma_NN [fm^2]
+                                            200: 4.2,  2760: 6.4,  5020: 7.0,
+                                             }[self.beam_energy],
+                trento_normalization = kwargs['norm'],
+                trento_reduced_thickness = kwargs['trento_p'],
+                trento_fluctuation_k = 1./kwargs['sigma_k']**2.,
+                trento_nucleon_width = kwargs['nucleon_width'],
+                trento_nucleon_min_dist  = kwargs['dmin3']**(1./3.),
+                #freestreaming
+                tau_R = kwargs['tau_R'],
+                alpha = kwargs['alpha'],
+                #shear
+                eta_over_s_T_kink_in_GeV = kwargs['eta_over_s_T_kink_in_GeV'],
+                eta_over_s_low_T_slope_in_GeV = \
+                                   kwargs['eta_over_s_low_T_slope_in_GeV'],
+                eta_over_s_high_T_slope_in_GeV = \
+                                   kwargs['eta_over_s_high_T_slope_in_GeV'],
+                eta_over_s_at_kink = kwargs['eta_over_s_at_kink'],
+                #bulk
+                zeta_over_s_max = kwargs['zeta_over_s_max'],
+                zeta_over_s_width_in_GeV = kwargs['zeta_over_s_width_in_GeV'],
+                zeta_over_s_T_peak_in_GeV = kwargs['zeta_over_s_T_peak_in_GeV'],
+                zeta_over_s_lambda_asymm = kwargs['zeta_over_s_lambda_asymm'],
+                #relax times
+                shear_relax_time_factor = kwargs['shear_relax_time_factor'],
+                bulk_relax_time_factor = kwargs['bulk_relax_time_factor'],
+                bulk_relax_time_power = kwargs['bulk_relax_time_power'],
+                #particlization
+                T_switch = kwargs['Tswitch'],
+            )
 
 def main():
     import argparse
-
     parser = argparse.ArgumentParser(description='generate design input files')
     parser.add_argument('inputs_dir', type=Path, help='directory to place input files')
     args = parser.parse_args()
 
-    #systems = [('Pb', 'Pb', 2760)]
-
     for system, validation in itertools.product(systems, [False, True]):
         Design(system, validation=validation).write_files(args.inputs_dir)
-
     logging.info('wrote all files to %s', args.inputs_dir)
 
 if __name__ == '__main__':
     main()
-
-
-#read design points from file
-design_file = design_dir + \
-       '/design_points_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
-range_file = design_dir + \
-       '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*systems[0])
-logging.info("Loading design points from " + design_file)
-logging.info("Loading design ranges from " + range_file)
-# design
-design = pd.read_csv(design_file)
-design = design.drop("idx", axis=1)
-# range
-design_range = pd.read_csv(range_file)
-design_max = design_range['max'].values
-design_min = design_range['min'].values
-ptp = design_max - design_min
 
