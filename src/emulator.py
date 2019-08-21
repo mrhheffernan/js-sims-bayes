@@ -378,9 +378,11 @@ def main():
         with open('emulator/emu-' + system_str +'.dill', 'wb') as file:
             dill.dump(emu, file)
      
+
+if __name__ == "__main__":
+    main()
+
 Trained_Emulators = {}
 for s in system_strs:
     Trained_Emulators[s] = dill.load(open('emulator/emu-' + s + '.dill', "rb"))
 
-if __name__ == "__main__":
-    main()
