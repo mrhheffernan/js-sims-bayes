@@ -27,14 +27,14 @@ number_of_models_per_run = 5
 
 # number of minimum-bias events for each design points 
 # (be consistent with submit file)
-number_of_events_per_design = 100
+number_of_events_per_design = 65
 
 # folder of ebe information at each design points for main and validation
 f_events_main = '/home/yingru/Documents/Research/Important/4195354'
 f_events_validation = None
 
 # output file to save the average obs results
-f_obs_main = 'main_4195354.dat'
+f_obs_main = 'main_4195354.pkl'
 f_obs_validation = None
 
 # experimental/pre-defined centrality cuts for all observables in different experiments

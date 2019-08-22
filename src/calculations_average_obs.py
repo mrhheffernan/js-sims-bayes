@@ -280,9 +280,6 @@ def load_and_print_single_event(filename):
                 print(tmp_struct[0],data[tmp_struct[0]])
 
 
-
-
-
 def load_and_compute_single_design(inputfile, system):
     print('Now analysis for system: ', system)
     entry = np.zeros(1, dtype=np.dtype(bayes_dtype))
@@ -344,7 +341,83 @@ def load_and_compute_single_design(inputfile, system):
             info = calculate_vn(res, 'ALICE', cenb, idf)
             entry[system][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
             entry[system][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
+
     return entry
+
+
+
+def load_and_compute_single_design_pandas(inputfile, system):
+    print('Now analysis for system: ', system)
+    res_unsort = []
+    for _ in range(number_of_events_per_design):
+        try:
+            dum = np.fromfile('{}/{}.dat'.format(inputfile, _), dtype=result_dtype)
+            if len(dum) != 0:
+                res_unsort.append(dum)
+        except:
+            continue
+
+    print('read in total events: ', len(res_unsort))
+
+    entries = []
+    for idf in [0,3]:
+        entry = {'system': system, 'idf': idf}
+
+        res = np.array(sorted(res_unsort, key=lambda x: x['ALICE'][idf]['dNch_deta'], reverse=True))
+
+        # dNdeta
+        tmp_obs='dNch_deta'
+        cenb=np.array(obs_cent_list[system][tmp_obs])
+        info = calculate_dNdeta(res, 'ALICE', cenb, idf)
+        entry['{}-cenb'.format(tmp_obs)] = cenb
+        entry['{}-mean'.format(tmp_obs)] = info['obs']
+        entry['{}-err'.format(tmp_obs)] = info['err']
+
+        # dETdeta
+        tmp_obs='dET_deta'
+        cenb=np.array(obs_cent_list[system][tmp_obs])
+        info = calculate_dETdeta(res, 'ALICE', cenb, idf)
+        entry['{}-cenb'.format(tmp_obs)] = cenb
+        entry['{}-mean'.format(tmp_obs)] = info['obs']
+        entry['{}-err'.format(tmp_obs)] = info['err']
+
+        # dN(pid)/dy
+        for s in ['pion','kaon','proton','Lambda', 'Omega','Xi']:
+            cenb=np.array(obs_cent_list[system]['dN_dy_'+s])
+            info = calculate_dNdy(res, 'ALICE', cenb, idf)
+            entry['dN_dy_{}-cen'.format(s)] = cenb
+            entry['dN_dy_{}-mean'.format(s)] = info['obs'][s]
+            entry['dN_dy_{}-err'.format(s)] = info['err'][s]
+
+
+        # mean-pT
+        for s in ['pion','kaon','proton']:
+            cenb=np.array(obs_cent_list[system]['mean_pT_'+s])
+            info = calculate_mean_pT(res, 'ALICE', cenb, idf)
+            entry['mean_pT_{}-cen'.format(s)] = cenb
+            entry['mean_pT_{}-mean'.format(s)] = info['obs'][s]
+            entry['mean_pT_{}-err'.format(s)] = info['err'][s]
+
+
+        # mean-pT-fluct
+        tmp_obs='pT_fluct'
+        cenb=np.array(obs_cent_list[system][tmp_obs])
+        info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
+        entry['{}-cenb'.format(tmp_obs)] = cenb
+        entry['{}-mean'.format(tmp_obs)] = info['obs']
+        entry['{}-err'.format(tmp_obs)] = info['err']
+
+        # vn
+        for n in range(2,5):
+            tmp_obs='v'+str(n)+'2'
+            cenb=np.array(obs_cent_list[system][tmp_obs])
+            info = calculate_vn(res, 'ALICE', cenb, idf)
+            entry['{}-cenb'.format(tmp_obs)] = cenb
+            entry['{}-mean'.format(tmp_obs)] = info['obs'][:,n-1]
+            entry['{}-err'.format(tmp_obs)] = info['err'][:,n-1]
+
+        entries.append(pd.Series(entry))
+    return entries
 
 
 
@@ -352,12 +425,12 @@ if __name__ == '__main__':
     system='Pb-Pb-2760'
 
     #### reading in main design output
-    results = []
+    results = pd.DataFrame()
     for i in range(n_design_pts_main):
         filename = f_events_main + '/{:d}'.format(i)
-        results.append(load_and_compute_single_design(filename, system)[0])
-    results = np.array(results)
-    results.tofile(f_obs_main)
+        results = results.append(load_and_compute_single_design_pandas(filename, system)[0], ignore_index=True)
+
+    results.to_pickle(f_obs_main)
 
 
 
