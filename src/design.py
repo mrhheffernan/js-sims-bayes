@@ -230,6 +230,7 @@ class Design:
                 T_switch = kwargs['Tswitch'],
             )
 
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='generate design input files')
