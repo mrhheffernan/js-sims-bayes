@@ -44,16 +44,6 @@ class _Covariance:
         self.array = array
         self._slices = slices
 
-    """
-    def __getitem__(self, key):
-        (obs1, subobs1), (obs2, subobs2) = key
-        return self.array[
-            ...,
-            self._slices[obs1][subobs1],
-            self._slices[obs2][subobs2]
-        ]
-    """
-
     def __getitem__(self, key):
         (obs1), (obs2) = key
         return self.array[
@@ -82,17 +72,16 @@ class Emulator:
 
     """
 
-    #list of observables is defined in calculations_file_format_event_average
-    #here we get their names and sum all the centrality bins to find the total number of observables nobs
-
     def __init__(self, system, npc, nrestarts=2):
 
         system_str = "{:s}-{:s}-{:d}".format(*system)
         logging.info("Emulators for system " + system_str)
-        logging.info("with delat-f type {:d}".format(idf))
-        logging.info("NPC: " + str(npc) )
-        logging.info("Nrestart: " + str(nrestarts))
-        
+        logging.info("with viscous correction type {:d}".format(idf))
+        logging.info("NPC : " + str(npc) )
+        logging.info("Nrestart : " + str(nrestarts))
+
+        #list of observables is defined in calculations_file_format_event_average
+        #here we get their names and sum all the centrality bins to find the total number of observables nobs
         self.nobs = 0
         self.observables = []
         self._slices = {}
@@ -109,12 +98,13 @@ class Emulator:
         delete = []
         # build a matrix of dimension (num design pts) x (number of observables)
         Y = []
-        for pt in range(n_design_pts_main-len(delete_sets)): 
+        for pt in range(n_design_pts_main - len(delete_sets)):
             row = np.array([])
             for obs in self.observables:
                 values = np.array(
                         trimed_model_data[system_str][pt, idf][obs]['mean'] )
                 if np.isnan(values).sum() > 0:
+                    print("Warning! found nan in model data!")
                     print(pt, obs, values)
                 row = np.append(row, values)
             Y.append(row)
@@ -131,6 +121,10 @@ class Emulator:
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
         design, design_max, design_min, labels = prepare_emu_design()
+
+        #delete undesirable data
+        if len(delete_sets) > 0:
+            print("Warning! Deleting " + str(len(delete_sets)) + " points from data")
         design = np.delete(design, list(delete_sets), 0)
 
         ptp = design_max - design_min
@@ -162,8 +156,8 @@ class Emulator:
         ]
 
         for n, (z, gp) in enumerate(zip(Z.T, self.gps)):
-            print("GP "+ str(n) + " score : " + str(gp.score(design, z)))
-          
+            print("GP " + str(n) + " score : " + str(gp.score(design, z)))
+
         logging.info("Constructing full linear transformation matrix")
         # Construct the full linear transformation matrix, which is just the PC
         # matrix with the first axis multiplied by the explained standard
@@ -346,11 +340,6 @@ def main():
         '--retrain', action='store_true',
         help='retrain even if emulator is cached'
     )
-    #parser.add_argument(
-    #    'systems', nargs='*', type=arg_to_system,
-    #    default=systems, metavar='SYSTEM',
-    #    help='system(s) to train'
-    #)
 
     args = parser.parse_args()
     kwargs = vars(args)
@@ -372,12 +361,11 @@ def main():
                 .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
             )
 
-
         #dill the emulator to be loaded later
         system_str = "{:s}-{:s}-{:d}".format(*s)
         with open('emulator/emu-' + system_str +'.dill', 'wb') as file:
             dill.dump(emu, file)
-     
+
 
 if __name__ == "__main__":
     main()
@@ -385,4 +373,3 @@ if __name__ == "__main__":
 Trained_Emulators = {}
 for s in system_strs:
     Trained_Emulators[s] = dill.load(open('emulator/emu-' + s + '.dill', "rb"))
-
