@@ -10,6 +10,26 @@ import re
 from configurations import *
 
 
+obs_range_list = {
+    'Pb-Pb-2760': {
+        'dNch_deta': [0,2000],
+        'dET_deta': [0,2200],
+        'dN_dy_pion': [0,1700],
+        'dN_dy_kaon': [0,400],
+        'dN_dy_proton': [0,120],
+        'dN_dy_Lambda': [0,40],
+        'dN_dy_Omega': [0,2],
+        'dN_dy_Xi': [0,10],
+        'mean_pT_pion': [0,1],
+        'mean_pT_kaon': [0,1.5],
+        'mean_pT_proton': [0,2],
+        'pT_fluct': [0,0.05],
+        'v22': [0,0.16],
+        'v32': [0,0.1],
+        'v42': [0,0.1]
+    },
+}
+
 #################################################################################
 #### Try to figure out semi-automatically what observables to group together ####
 #################################################################################

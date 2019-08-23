@@ -34,8 +34,10 @@ f_events_main = '/home/yingru/Documents/Research/Important/4195354'
 f_events_validation = None
 
 # output file to save the average obs results
-f_obs_main = 'main_4195354.pkl'
-f_obs_validation = None
+#f_obs_main = 'main_4195354.pkl'
+f_obs_main = 'main_4195354.dat'
+f_obs_validation = 'main_415354.dat'
+#f_obs_validation = None
 
 # experimental/pre-defined centrality cuts for all observables in different experiments
 obs_cent_list = {

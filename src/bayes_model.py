@@ -4,6 +4,17 @@ from configurations import *
 import logging
 import numpy as np
 
+bayes_dtype=[    (s, 
+                  [(obs, [("mean",float_t,len(cent_list)),
+                          ("err",float_t,len(cent_list))]) \
+                    for obs, cent_list in obs_cent_list[s].items() ],
+                  number_of_models_per_run                                                                     
+                 ) \
+                 for s in system_strs
+            ]
+
+
+
 logging.info("Loading model calculations from " + f_obs_main)
 model_data = np.fromfile(f_obs_main, dtype=bayes_dtype)
 
