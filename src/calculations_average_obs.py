@@ -179,11 +179,11 @@ def load_and_compute(inputfile, system):
     res_unsort = np.fromfile(inputfile, dtype=result_dtype)
 
     for idf in [0,3]:
-        print("Computing observables for idf = " + str(idf) )
+        print("----------------------")
+        print("idf : " + str(idf) )
         res = np.array(sorted(res_unsort, key=lambda x: x['ALICE'][idf]['dNch_deta'], reverse=True))
-
-        print("Result size is " + str(res.size))
-        print("Number of events with no charged particles : " + str( (res_unsort['ALICE']['dNch_deta'][:, idf] < 0.1).sum() ) )
+        print("Result size : " + str(res.size))
+        print("Number events w/o charged particles : " + str( (res_unsort['ALICE']['dNch_deta'][:, idf] == 0).sum() ) )
 
         # dNdeta
         tmp_obs='dNch_deta'
@@ -215,13 +215,13 @@ def load_and_compute(inputfile, system):
             entry['Pb-Pb-2760']['dN_dy_'+s]['err'][:,idf] = info['err'][s]
 
         # mean-pT-fluct
-        
+
         tmp_obs='pT_fluct'
         cenb=np.array(obs_cent_list[system][tmp_obs])
         info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
         entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
         entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
-        
+
         # vn
         for n in range(2,5):
             tmp_obs='v'+str(n)+'2'
@@ -232,15 +232,19 @@ def load_and_compute(inputfile, system):
     return entry
 
 if __name__ == '__main__':
-    system='Pb-Pb-2760'
+    system = 'Pb-Pb-2760'
+
+    print("Computing observables for all design points")
     for folder_input, file_output, nset in zip(
               [f_events_main, f_events_validation],
-              [f_obs_main, f_obs_validation], 
+              [f_obs_main, f_obs_validation],
               [n_design_pts_main, n_design_pts_validation],
            ):
         results = []
         for i in range(nset):
+            print("design pt : " + str(i))
             filename = folder_input+"/{:d}.dat".format(i)
             results.append(load_and_compute(filename, system)[0])
+            print("\n")
         results = np.array(results)
         results.tofile(file_output)
