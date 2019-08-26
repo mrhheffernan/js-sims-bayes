@@ -109,7 +109,7 @@ class Emulator:
                 row = np.append(row, values)
             Y.append(row)
         Y = np.array(Y)
-        logging.info("Y_Obs shape[Ndesign, Nobs] = " + str(Y.shape))
+        print("Y_Obs shape[Ndesign, Nobs] = " + str(Y.shape))
 
         #Principal Components
         self.npc = npc
@@ -128,7 +128,7 @@ class Emulator:
         design = np.delete(design, list(delete_sets), 0)
 
         ptp = design_max - design_min
-        logging.info("Design shape[Ndesign, Nparams] = " + str(design.shape))
+        print("Design shape[Ndesign, Nparams] = " + str(design.shape))
         # Define kernel (covariance function):
         # Gaussian correlation (RBF) plus a noise term.
         # noise term is necessary since model calculations contain statistical noise
@@ -144,7 +144,7 @@ class Emulator:
                                  )
         kernel = (k0 + k1 + k2)
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
-        logging.info("Fitting a GP to each PC")
+        print("Fitting a GP to each PC")
         self.gps = [
             GPR(
             kernel=kernel,
@@ -158,7 +158,7 @@ class Emulator:
         for n, (z, gp) in enumerate(zip(Z.T, self.gps)):
             print("GP " + str(n) + " score : " + str(gp.score(design, z)))
 
-        logging.info("Constructing full linear transformation matrix")
+        print("Constructing full linear transformation matrix")
         # Construct the full linear transformation matrix, which is just the PC
         # matrix with the first axis multiplied by the explained standard
         # deviation of each PC and the second axis multiplied by the
@@ -179,7 +179,7 @@ class Emulator:
         # where A is the trans matrix and var_k is the variance of the kth PC.
         # https://en.wikipedia.org/wiki/Propagation_of_uncertainty
 
-        logging.info("Computing partial transformation for first npc components")
+        print("Computing partial transformation for first npc components")
         # Compute the partial transformation for the first `npc` components
         # that are actually emulated.
         A = self._trans_matrix[:npc]

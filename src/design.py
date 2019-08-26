@@ -34,13 +34,13 @@ def generate_lhs(npoints, ndim, seed):
     points, dimensions, and random seed.
 
     """
-    logging.debug(
+    print(
         'generating maximin LHS: '
         'npoints = %d, ndim = %d, seed = %d',
         npoints, ndim, seed
     )
 
-    logging.debug('generating using R')
+    print('generating using R')
     proc = subprocess.run(
         ['R', '--slave'],
         input="""
@@ -239,7 +239,7 @@ def main():
 
     for system, validation in itertools.product(systems, [False, True]):
         Design(system, validation=validation).write_files(args.inputs_dir)
-    logging.info('wrote all files to %s', args.inputs_dir)
+    print('wrote all files to %s', args.inputs_dir)
 
 if __name__ == '__main__':
     main()
