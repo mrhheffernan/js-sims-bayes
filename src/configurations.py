@@ -25,10 +25,11 @@ systems = [('Pb', 'Pb', 2760)]
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
 
 #the number of design points
-n_design_pts_main = 200
+n_design_pts_main = 50
 n_design_pts_validation = 50
 
-runid="run-19p-200d"
+#runid = "run-19p-200d"
+runid = "check_prior_3"
 
 f_events_main = str(
     workdir/'model_calculations/{:s}/Events/main/'.format(runid))
@@ -38,18 +39,20 @@ f_obs_main = str(
     workdir/'model_calculations/{:s}/Obs/main.dat'.format(runid))
 f_obs_validation = str(
     workdir/'model_calculations/{:s}/Obs/validation.dat'.format(runid))
-design_dir =  str(workdir/'design_pts')
 
-idf = 3
-validation = 5
+design_dir =  str(workdir/'design_pts') #folder containing design points
 
-bayes_dtype=[    (s, 
+idf = 0 # the choice of viscous correction
+
+validation = 0
+
+bayes_dtype=[    (s,
                   [(obs, [("mean",float_t,len(cent_list)),
                           ("err",float_t,len(cent_list))]) \
                     for obs, cent_list in obs_cent_list[s].items() ],
                   number_of_models_per_run
                  ) \
-                 for s in system_strs 
+                 for s in system_strs
             ]
 
 # The active ones used in Bayes analysis (MCMC)
@@ -57,6 +60,9 @@ active_obs_list = {
    sys: list(obs_cent_list[sys].keys()) for sys in system_strs
 }
 
+
+#the EOS is useful if we want a transformed design on zeta/s, tau_Pi etc...
+"""
 def compute_cs2_soverh():
     e, p, s, t = np.fromfile('EOS/hrg_hotqcd_eos_binary.dat').reshape(-1,4).T
     cs2 = interp1d((t[1:]+t[:-1])/2., (p[1:]-p[:-1])/(e[1:]-e[:-1]), fill_value=0., bounds_error=False)
@@ -69,7 +75,7 @@ def zetas(T, zmax, T0, width, asym):
     DeltaT = T - T0
     sign = 1 if DeltaT>0 else -1
     x = DeltaT/(width*(1.+asym*sign))
-    return zmax/(1.+x**2) 
+    return zmax/(1.+x**2)
 zetas = np.vectorize(zetas)
 
 def etas(T, T_k, alow, ahigh, etas_k):
@@ -91,10 +97,13 @@ def taupi(T, bpi, Tk, alow, ahigh, etas_k):
     return bpi * etas(T, Tk, alow, ahigh, etas_k) * soverh(T)
 taupi = np.vectorize(taupi)
 
+"""
+"""
 def tau_fs(e, tauR, alpha):
     e0 = 1.
     return tauR * (e/e0)**alpha
 tau_fs = np.vectorize(tau_fs)
+"""
 
 # load design for other module
 def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
@@ -116,8 +125,8 @@ def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
     return design, design_min, design_max, labels
 
 # A spectially transformed design for the emulators
-# 0    1        2       3             4     
-# norm trento_p sigma_k nucleon_width dmin3 
+# 0    1        2       3             4
+# norm trento_p sigma_k nucleon_width dmin3
 #
 # 5     6     7
 # tau_R alpha eta_over_s_T_kink_in_GeV
@@ -125,15 +134,17 @@ def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
 # 8                             9                              10
 # eta_over_s_low_T_slope_in_GeV eta_over_s_high_T_slope_in_GeV eta_over_s_at_kink,
 #
-# 11              12                        13                     
-# zeta_over_s_max zeta_over_s_T_peak_in_GeV zeta_over_s_width_in_GeV 
+# 11              12                        13
+# zeta_over_s_max zeta_over_s_T_peak_in_GeV zeta_over_s_width_in_GeV
 #
-# 14                       15                      16 
+# 14                       15                      16
 # zeta_over_s_lambda_asymm shear_relax_time_factor bulk_relax_time_factor
 #
 # 17                    18
 # bulk_relax_time_power Tswitch
 
+
+"""
 def transform_design(X):
     t0 = tau_fs(20, X[:, 5], X[:, 6])
     t1 = tau_fs(4, X[:, 5], X[:, 6])
@@ -141,32 +152,33 @@ def transform_design(X):
     X[:,5] = t0
     X[:,6] = t1
 
-    tPi = tauPi(0.3, 
-                X[:, 16], 
-                X[:, 11], X[:, 12], X[:, 13], X[:, 14], 
+
+    tPi = tauPi(0.3,
+                X[:, 16],
+                X[:, 11], X[:, 12], X[:, 13], X[:, 14],
                 X[:, 17])
 
-    tpi = taupi(0.3, 
-                X[:, 15], 
+    tpi = taupi(0.3,
+                X[:, 15],
                 X[:, 7], X[:, 8], X[:, 9], X[:, 10])
 
 
-    e1 = etas(.15, 
+    e1 = etas(.15,
               X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e2 = etas(.2, 
+    e2 = etas(.2,
               X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e3 = etas(.3, 
+    e3 = etas(.3,
               X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e4 = etas(.4, 
+    e4 = etas(.4,
               X[:, 7], X[:, 8], X[:, 9], X[:, 10])
 
-    z1 = zetas(.15, 
+    z1 = zetas(.15,
                X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z2 = zetas(.2, 
+    z2 = zetas(.2,
                X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z3 = zetas(.3, 
+    z3 = zetas(.3,
                X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z4 = zetas(.4, 
+    z4 = zetas(.4,
                X[:, 11], X[:, 12], X[:, 13], X[:, 14])
 
     X[:, 16] = tPi
@@ -181,12 +193,16 @@ def transform_design(X):
     X[:, 14] = z4
 
     return X
+"""
+
 
 def prepare_emu_design():
     design, design_max, design_min, labels = \
           load_design(system=('Pb','Pb',2760), pset='main')
-    design = transform_design(design.values)
+
+    #not transforming design of any parameters right now
+    #design = transform_design(design.values)
+
     design_max = np.max(design, axis=0)
     design_min = np.min(design, axis=0)
     return design, design_max, design_min, labels
-

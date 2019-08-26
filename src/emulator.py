@@ -28,7 +28,7 @@ from sklearn.gaussian_process import kernels
 from sklearn.preprocessing import StandardScaler
 
 from configurations import *
-from bayes_model import trimed_model_data, delete_sets
+from bayes_model import trimmed_model_data, delete_sets
 
 ###########################################################
 ############### Emulator and help functions ###############
@@ -75,10 +75,10 @@ class Emulator:
     def __init__(self, system, npc, nrestarts=2):
 
         system_str = "{:s}-{:s}-{:d}".format(*system)
-        logging.info("Emulators for system " + system_str)
-        logging.info("with viscous correction type {:d}".format(idf))
-        logging.info("NPC : " + str(npc) )
-        logging.info("Nrestart : " + str(nrestarts))
+        print("Emulators for system " + system_str)
+        print("with viscous correction type {:d}".format(idf))
+        print("NPC : " + str(npc) )
+        print("Nrestart : " + str(nrestarts))
 
         #list of observables is defined in calculations_file_format_event_average
         #here we get their names and sum all the centrality bins to find the total number of observables nobs
@@ -92,7 +92,7 @@ class Emulator:
             self.nobs += n
 
         #read in the model data from file
-        logging.info("Loading model calculations from " + f_obs_main)
+        print("Loading model calculations from " + f_obs_main)
 
         # things to drop
         delete = []
@@ -102,10 +102,10 @@ class Emulator:
             row = np.array([])
             for obs in self.observables:
                 values = np.array(
-                        trimed_model_data[system_str][pt, idf][obs]['mean'] )
+                        trimmed_model_data[system_str][pt, idf][obs]['mean'] )
                 if np.isnan(values).sum() > 0:
                     print("Warning! found nan in model data!")
-                    print(pt, obs, values)
+                    print("Design pt = " + str(pt) + "; Obs = " + obs)
                 row = np.append(row, values)
             Y.append(row)
         Y = np.array(Y)

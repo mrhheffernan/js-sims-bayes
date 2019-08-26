@@ -27,18 +27,18 @@ def write_module_inputs(
     #shear viscosity p'zation
     eta_over_s_T_kink_in_GeV = 0.155,
     eta_over_s_low_T_slope_in_GeV = 0.0,
-    eta_over_s_high_T_slope_in_GeV = 0.0,
-    eta_over_s_at_kink = 0.0,
+    eta_over_s_high_T_slope_in_GeV = 1.11,
+    eta_over_s_at_kink = 0.081,
 
     #bulk viscosity p'zation
-    zeta_over_s_max = 0.05,
-    zeta_over_s_width_in_GeV = 0.02,
-    zeta_over_s_T_peak_in_GeV = 0.18,
+    zeta_over_s_max = 0.052,
+    zeta_over_s_width_in_GeV = 0.022,
+    zeta_over_s_T_peak_in_GeV = 0.183,
     zeta_over_s_lambda_asymm = 0.0,
 
     #relaxation times
     shear_relax_time_factor = 5.0,
-    bulk_relax_time_factor = 1.0/14.55,
+    bulk_relax_time_factor = 1.0 / 14.55,
     bulk_relax_time_power = 2.,
 
     #hydro params
@@ -69,12 +69,14 @@ def write_module_inputs(
     #this chooses grid spacing based on nucleon width
     dx = 0.15 * trento_nucleon_width #[fm]
     dy = 0.15 * trento_nucleon_width #[fm]
+
     #set hydro time step based on grid spacing for convergence
     dtau = dx / 8.0
+
     #choose a grid size large enough to capture central events
     #Does [-15fm, 15fm] work even for events with very large norm?
-    L_x = 20.0 #[fm]
-    L_y = 20.0 #[fm]
+    L_x = 15.0 #[fm]
+    L_y = 15.0 #[fm]
     nx = 1.0 + (2.0 * L_x)/dx
     ny = 1.0 + (2.0 * L_y)/dy
     #get nearest ODD integer (freestream needs odd number of points!)
@@ -157,6 +159,7 @@ def write_module_inputs(
     music_file.write("reconst_type  1\n")                # 0: solve energy density for hydro eqns. 1: solve flow velocity for hydro eqns.
     music_file.write("Minmod_Theta 1.8\n")               # theta parameter in the min-mod like limiter
     music_file.write("Runge_Kutta_order 2\n")            # order of Runge_Kutta for temporal evolution
+
     music_file.write("Viscosity_Flag_Yes_1_No_0 1\n")    # turn on viscosity in the evolution
     music_file.write("Include_Shear_Visc_Yes_1_No_0 1\n")# include shear viscous effect
 
@@ -175,8 +178,8 @@ def write_module_inputs(
 
     music_file.write("shear_relax_time_factor " + str(shear_relax_time_factor) + "\n")
     music_file.write("bulk_relax_time_factor " + str(bulk_relax_time_factor) + "\n")
-    music_file.write("bulk_relax_time_power " + str(bulk_relax_time_power) + "\n")
-    
+    #music_file.write("bulk_relax_time_power " + str(bulk_relax_time_power) + "\n")
+
     music_file.write("Include_Bulk_Visc_Yes_1_No_0 1\n") # include bulk viscous effect
     music_file.write("Include_second_order_terms 1\n")   # include second order non-linear coupling terms
     music_file.write("store_hydro_info_in_memory 0\n")   # flag to store hydro info in memory

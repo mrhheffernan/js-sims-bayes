@@ -100,42 +100,45 @@ class Design:
         # 5.02 TeV has ~1.2x particle production as 2.76 TeV
         # [https://inspirehep.net/record/1410589]
         norm_range = {
-            2760: (8., 20.),
+            2760: (10., 19.),
             5020: (10., 25.),
         }[self.beam_energy]
 
         #any keys which are uncommented will be sampled / part of the design matrix
         self.keys, self.labels, self.range = map(list, zip(*[
+
         #trento
         ('norm', r'$N$[${:1.2f}$TeV]'.format(self.beam_energy/1000), (norm_range)),
-        ('trento_p', r'$p$',  ( -0.5,    0.5)),
-        ('sigma_k', r'$\sigma_k$',   (  0.3,    2.0)),
-        ('nucleon_width', r'$w$ [fm]',  ( 0.35,    1.5)),
-        ('dmin3', r'$d_{\mathrm{min}}$ [fm]', (  0.0, 1.7**3)),
+        ('trento_p', r'$p$',                  ( -0.7,   0.7 )),
+        ('sigma_k', r'$\sigma_k$',            ( 0.3,    2.0 )),
+        ('nucleon_width', r'$w$ [fm]',        ( 0.5,    1.5 )),
+        ('dmin3', r'$d_{\mathrm{min}}$ [fm]', ( 0.0, 1.7**3 )),
+
         #freestreaming
-        ('tau_R', r'$\tau_R$ [fm/$c$]',  (  0.4,    2.0)),
-        ('alpha',  r'$\alpha$',   ( -0.5,    0.0)),
+        ('tau_R', r'$\tau_R$ [fm/$c$]', (  0.3, 2.0 )),
+        ('alpha',  r'$\alpha$',         ( -0.5, 0.0 )),
+
         #shear visc
-        ('eta_over_s_T_kink_in_GeV', 
-           r'$T_{\eta,\mathrm{kink}}$ [GeV]', (0.13, 0.3)),
-        ('eta_over_s_low_T_slope_in_GeV', 
-           r'$a_{\eta,\mathrm{low}}$ [GeV${}^{-1}$]', (-3., 1.)),
-        ('eta_over_s_high_T_slope_in_GeV', 
-           r'$a_{\eta,\mathrm{high}}$ [GeV${}^{-1}$]', (-1., 2.)),
-        ('eta_over_s_at_kink', r'$(\eta/s)_{\mathrm{kink}}$', (0.01, 0.25)),
+        ('eta_over_s_T_kink_in_GeV', r'$T_{\eta,\mathrm{kink}}$ [GeV]',              ( 0.13, 0.3 )),
+        ('eta_over_s_low_T_slope_in_GeV', r'$a_{\eta,\mathrm{low}}$ [GeV${}^{-1}$]', ( -2.0, 1.0 )),
+        ('eta_over_s_high_T_slope_in_GeV',r'$a_{\eta,\mathrm{high}}$ [GeV${}^{-1}$]',( -1.0, 2.0 )),
+        ('eta_over_s_at_kink', r'$(\eta/s)_{\mathrm{kink}}$',                        ( .01, 0.2 )),
+
         #bulk visc
-        ('zeta_over_s_max',             r'$(\zeta/s)_{\max}$'   , (  0.0,    0.3)),
-        ('zeta_over_s_T_peak_in_GeV',   r'$T_{\zeta,c}$ [GeV]'  , (  0.1,    0.3)),
-        ('zeta_over_s_width_in_GeV',   r'$w_{\zeta}$ [GeV]', (.01, .15)),
-        ('zeta_over_s_lambda_asymm',    r'$\lambda_{\zeta}$', (  -0.8,    0.8)),
+        ('zeta_over_s_max',             r'$(\zeta/s)_{\max}$' , (0.01,  0.25)),
+        ('zeta_over_s_T_peak_in_GeV',   r'$T_{\zeta,c}$ [GeV]', (0.12,  0.3)),
+        ('zeta_over_s_width_in_GeV',   r'$w_{\zeta}$ [GeV]'   , (0.025 ,  0.15)),
+        ('zeta_over_s_lambda_asymm',    r'$\lambda_{\zeta}$'  , (-0.8,  0.8)),
+
         #relaxation times
-        ('shear_relax_time_factor',  r'$b_{\pi}$' , (2.,    20.)),
-        ('bulk_relax_time_factor',   r'$b_{\Pi}$' , (1.5, 10.)),
-        ('bulk_relax_time_power',   r'$q_{\Pi}$' , (0., 2.5)),
+        ('shear_relax_time_factor',  r'$b_{\pi}$' ,  ( 2.0, 8.0 )),
+        #('bulk_relax_time_factor',   r'$b_{\Pi}$' , ( 1.5, 10. )),
+        #('bulk_relax_time_power',   r'$q_{\Pi}$' ,  ( 0.0, 2.5 )),
+
         #particlization temp
-        ('Tswitch',  r'$T_{\mathrm{sw}}$ [GeV]', (0.125,  0.165)),
+        ('Tswitch',  r'$T_{\mathrm{sw}}$ [GeV]', (0.13,  0.165)),
         ]))
-        
+
         self.ndim = len(self.range)
         self.min, self.max = map(np.array, zip(*self.range))
         self.points = [str(i) for i in range(npoints)]
@@ -204,28 +207,26 @@ class Design:
                                              }[self.beam_energy],
                 trento_normalization = kwargs['norm'],
                 trento_reduced_thickness = kwargs['trento_p'],
-                trento_fluctuation_k = 1./kwargs['sigma_k']**2.,
+                trento_fluctuation_k = 1.0 / kwargs['sigma_k']**2.0,
                 trento_nucleon_width = kwargs['nucleon_width'],
-                trento_nucleon_min_dist  = kwargs['dmin3']**(1./3.),
+                trento_nucleon_min_dist  = kwargs['dmin3']**(1.0/3.0),
                 #freestreaming
                 tau_R = kwargs['tau_R'],
                 alpha = kwargs['alpha'],
                 #shear
-                eta_over_s_T_kink_in_GeV = kwargs['eta_over_s_T_kink_in_GeV'],
-                eta_over_s_low_T_slope_in_GeV = \
-                                   kwargs['eta_over_s_low_T_slope_in_GeV'],
-                eta_over_s_high_T_slope_in_GeV = \
-                                   kwargs['eta_over_s_high_T_slope_in_GeV'],
-                eta_over_s_at_kink = kwargs['eta_over_s_at_kink'],
+                eta_over_s_T_kink_in_GeV =       kwargs['eta_over_s_T_kink_in_GeV'],
+                eta_over_s_low_T_slope_in_GeV =  kwargs['eta_over_s_low_T_slope_in_GeV'],
+                eta_over_s_high_T_slope_in_GeV = kwargs['eta_over_s_high_T_slope_in_GeV'],
+                eta_over_s_at_kink =             kwargs['eta_over_s_at_kink'],
                 #bulk
-                zeta_over_s_max = kwargs['zeta_over_s_max'],
-                zeta_over_s_width_in_GeV = kwargs['zeta_over_s_width_in_GeV'],
+                zeta_over_s_max =           kwargs['zeta_over_s_max'],
+                zeta_over_s_width_in_GeV =  kwargs['zeta_over_s_width_in_GeV'],
                 zeta_over_s_T_peak_in_GeV = kwargs['zeta_over_s_T_peak_in_GeV'],
-                zeta_over_s_lambda_asymm = kwargs['zeta_over_s_lambda_asymm'],
-                #relax times
+                zeta_over_s_lambda_asymm =  kwargs['zeta_over_s_lambda_asymm'],
+                #relaxation times
                 shear_relax_time_factor = kwargs['shear_relax_time_factor'],
-                bulk_relax_time_factor = kwargs['bulk_relax_time_factor'],
-                bulk_relax_time_power = kwargs['bulk_relax_time_power'],
+                #bulk_relax_time_factor = kwargs['bulk_relax_time_factor'],
+                #bulk_relax_time_power = kwargs['bulk_relax_time_power'],
                 #particlization
                 T_switch = kwargs['Tswitch'],
             )
@@ -242,4 +243,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
