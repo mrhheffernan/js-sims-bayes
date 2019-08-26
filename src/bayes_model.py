@@ -12,7 +12,7 @@ delete_sets = set()
 for pt in range(n_design_pts_main): # loop over all design points
     system_str = 'Pb-Pb-2760'
     for obs in active_obs_list[system_str]:
-        print(model_data[system_str][:,:][obs]['mean'].shape)
+        #print(model_data[system_str][:,:][obs]['mean'].shape)
         values = np.array( model_data[system_str][pt, idf][obs]['mean'] )
         # delete Nan dataset
         isnan = np.isnan(values)

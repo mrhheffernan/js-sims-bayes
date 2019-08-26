@@ -60,17 +60,6 @@ active_obs_list = {
    sys: list(obs_cent_list[sys].keys()) for sys in system_strs
 }
 
-
-#the EOS is useful if we want a transformed design on zeta/s, tau_Pi etc...
-"""
-def compute_cs2_soverh():
-    e, p, s, t = np.fromfile('EOS/hrg_hotqcd_eos_binary.dat').reshape(-1,4).T
-    cs2 = interp1d((t[1:]+t[:-1])/2., (p[1:]-p[:-1])/(e[1:]-e[:-1]), fill_value=0., bounds_error=False)
-    soverh = interp1d(t, s/(e+p), fill_value=0., bounds_error=False)
-    return cs2, soverh
-
-cs2, soverh = compute_cs2_soverh()
-
 def zetas(T, zmax, T0, width, asym):
     DeltaT = T - T0
     sign = 1 if DeltaT>0 else -1
@@ -89,21 +78,6 @@ def etas(T, T_k, alow, ahigh, etas_k):
         return 0.
 etas = np.vectorize(etas)
 
-def tauPi(T, bPi, zmax, T0, width, asym, power):
-    return bPi * 0.18743**power * zetas(T, zmax, T0, width, asym) / ( 1./3.-cs2(T) )**power * soverh(T)
-tauPi = np.vectorize(tauPi)
-
-def taupi(T, bpi, Tk, alow, ahigh, etas_k):
-    return bpi * etas(T, Tk, alow, ahigh, etas_k) * soverh(T)
-taupi = np.vectorize(taupi)
-
-"""
-"""
-def tau_fs(e, tauR, alpha):
-    e0 = 1.
-    return tauR * (e/e0)**alpha
-tau_fs = np.vectorize(tau_fs)
-"""
 
 # load design for other module
 def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
@@ -138,33 +112,14 @@ def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
 # zeta_over_s_max zeta_over_s_T_peak_in_GeV zeta_over_s_width_in_GeV
 #
 # 14                       15                      16
-# zeta_over_s_lambda_asymm shear_relax_time_factor bulk_relax_time_factor
-#
-# 17                    18
-# bulk_relax_time_power Tswitch
+# zeta_over_s_lambda_asymm shear_relax_time_factor Tswitch
+
 
 
 
 def transform_design(X):
 
     """
-    t0 = tau_fs(20, X[:, 5], X[:, 6])
-    t1 = tau_fs(4, X[:, 5], X[:, 6])
-
-    X[:,5] = t0
-    X[:,6] = t1
-
-
-    tPi = tauPi(0.3,
-                X[:, 16],
-                X[:, 11], X[:, 12], X[:, 13], X[:, 14],
-                X[:, 17])
-
-    tpi = taupi(0.3,
-                X[:, 15],
-                X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-
-
     e1 = etas(.15,
               X[:, 7], X[:, 8], X[:, 9], X[:, 10])
     e2 = etas(.2,
@@ -183,8 +138,6 @@ def transform_design(X):
     z4 = zetas(.4,
                X[:, 11], X[:, 12], X[:, 13], X[:, 14])
 
-    X[:, 16] = tPi
-    X[:, 15] = tpi
     X[:, 7] = e1
     X[:, 8] = e2
     X[:, 9] = e3
