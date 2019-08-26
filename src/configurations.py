@@ -111,8 +111,8 @@ def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
        '/design_points_{:s}_{:s}{:s}-{:d}.dat'.format(pset, *system)
     range_file = design_dir + \
        '/design_ranges_{:s}_{:s}{:s}-{:d}.dat'.format(pset, *system)
-    logging.info("Loading {:s} points from {:s}".format(pset, design_file) )
-    logging.info("Loading {:s} ranges from {:s}".format(pset, range_file) )
+    print("Loading {:s} points from {:s}".format(pset, design_file) )
+    print("Loading {:s} ranges from {:s}".format(pset, range_file) )
     with open(design_dir+'/design_labels_{:s}{:s}-{:d}.dat'.format(*system),\
               'r') as f:
          labels = [r""+line[:-1] for line in f]

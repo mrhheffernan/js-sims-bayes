@@ -36,10 +36,10 @@ def main():
 
         #load the dill'ed emulator from emulator file
         system_str = "{:s}-{:s}-{:d}".format(*s)
-        logging.info("Loading emulators from emulator/emu-" + system_str + '.dill' )
+        print("Loading emulators from emulator/emu-" + system_str + '.dill' )
         emu = dill.load(open('emulator/emu-' + system_str + '.dill', "rb"))
-        logging.info("NPC = " + str(emu.npc))
-        logging.info("idf = " + str(idf))
+        print("NPC = " + str(emu.npc))
+        print("idf = " + str(idf))
 
 
         #get VALIDATION points
@@ -47,9 +47,9 @@ def main():
                load_design(system=('Pb','Pb',2760), pset='validation')
 
         #get model calculations at VALIDATION POINTS
-        logging.info("Load calculations from " + f_obs_validation)
+        print("Load calculations from " + f_obs_validation)
         model_data = np.fromfile(f_obs_validation, dtype=bayes_dtype)
-  
+
         #make a plot
         fig, axes = plt.subplots(figsize=(10,6), ncols=5, nrows=3)
         print("Validating: ", design.shape)
@@ -61,10 +61,10 @@ def main():
                 y_true = model_data[system_str][obs]['mean'][ipt,idf]
                 y_emu = mean[obs][0]
                 dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
-                Y_true = np.concatenate([Y_true, y_true])               
+                Y_true = np.concatenate([Y_true, y_true])
                 Y_emu = np.concatenate([Y_emu, y_emu])
             ym, yM = np.min(Y_emu), np.max(Y_emu)
-            ax.hist2d(Y_emu, Y_true, bins=31, 
+            ax.hist2d(Y_emu, Y_true, bins=31,
                       cmap='coolwarm', range=[(ym, yM),(ym, yM)])
             ym, yM = ym-(yM-ym)*.05, yM+(yM-ym)*.05
             ax.plot([ym,yM],[ym,yM],'k--', zorder=100)
