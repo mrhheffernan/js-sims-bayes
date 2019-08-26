@@ -40,7 +40,7 @@ import pandas as pd
 from bayes_mcmc import Chain, credible_interval
 from configurations import *
 from emulator import Trained_Emulators
-from bayes_model import trimed_model_data
+from bayes_model import trimmed_model_data
 
 fontsize = dict(
     large=11,
@@ -297,7 +297,7 @@ def _observables(posterior=False):
     if posterior:
         Ymodel = Chain().samples(100)
     else:
-        Ymodel = trimed_model_data
+        Ymodel = trimmed_model_data
 
     if validation < 0:
         Yexp = ...
@@ -310,8 +310,8 @@ def _observables(posterior=False):
         design = design.drop("idx", axis=1)
         truth = design.values[validation]
         Yexp = Yexp_PseudoData[validation]
-        Ypred = {s: Trained_Emulators[s].predict(np.array([truth])) \
-                 for s in system_strs}
+        #Ypred = {s: Trained_Emulators[s].predict(np.array([truth])) \
+        #         for s in system_strs}
 
 
     fig, axes = plt.subplots(nrows=3, ncols=5, figsize=(10,4), sharex=True)
@@ -331,16 +331,16 @@ def _observables(posterior=False):
                     ax.plot(x, y, color=cr, alpha=.1, lw=.3)
             try:
                 Y0 = Yexp[system][obs]
-                Y1 = Ypred[system][obs]
+                #Y1 = Ypred[system][obs]
             except KeyError:
                 continue
 
             ax.errorbar(
                 x, Y0['mean'][idf], yerr=Y0['err'][idf], fmt='o'
             )
-            ax.plot(
-                x, Y1[0], 'k--'
-            )
+            #ax.plot(
+            #    x, Y1[0], 'k--'
+            #)
 
 
             ax.set_xlim(0, 70)
