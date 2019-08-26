@@ -144,8 +144,10 @@ def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
 # bulk_relax_time_power Tswitch
 
 
-"""
+
 def transform_design(X):
+
+    """
     t0 = tau_fs(20, X[:, 5], X[:, 6])
     t1 = tau_fs(4, X[:, 5], X[:, 6])
 
@@ -191,9 +193,9 @@ def transform_design(X):
     X[:, 12] = z2
     X[:, 13] = z3
     X[:, 14] = z4
+    """
 
     return X
-"""
 
 
 def prepare_emu_design():
@@ -201,7 +203,7 @@ def prepare_emu_design():
           load_design(system=('Pb','Pb',2760), pset='main')
 
     #not transforming design of any parameters right now
-    #design = transform_design(design.values)
+    design = transform_design(design.values)
 
     design_max = np.max(design, axis=0)
     design_min = np.min(design, axis=0)
