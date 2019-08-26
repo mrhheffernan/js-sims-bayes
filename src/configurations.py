@@ -40,6 +40,8 @@ f_obs_main = str(
 f_obs_validation = str(
     workdir/'model_calculations/{:s}/Obs/validation.dat'.format(runid))
 
+dir_obs_exp = "saved_data"
+
 design_dir =  str(workdir/'design_pts') #folder containing design points
 
 idf = 0 # the choice of viscous correction
