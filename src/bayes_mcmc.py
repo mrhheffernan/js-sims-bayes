@@ -39,7 +39,9 @@ from scipy.linalg import lapack
 import matplotlib.pyplot as plt
 from configurations import *
 from emulator import Trained_Emulators, _Covariance
-from bayes_exp import Yexp_PseudoData
+
+from bayes_exp import Y_exp_data
+
 
 def mvn_loglike(y, cov):
     """
@@ -93,7 +95,7 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
         nsteps).
 
         """
-        logging.info('running %d walkers for %d steps', self.k, nsteps)
+        print('running %d walkers for %d steps', self.k, nsteps)
 
         if status is None:
             status = nsteps // 10
@@ -104,7 +106,7 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
         ):
             if n % status == 0 or n == nsteps:
                 af = self.acceptance_fraction
-                logging.info(
+                print(
                     'step %d: acceptance fraction: '
                     'mean %.4f, std %.4f, min %.4f, max %.4f',
                     n, af.mean(), af.std(), af.min(), af.max()
@@ -135,29 +137,26 @@ class Chain:
         self._expt_y = {}
         self._expt_cov = {}
 
-        if validation < 0:
-            Yexp = expdata
-        else:
-            Yexp = Yexp_PseudoData[validation]
-        
+        Yexp = Y_exp_data
+
         design, design_min, design_max, labels = \
                 load_design(system=('Pb','Pb',2760), pset='main')
         # with an extra model uncertainty parameter (0, 0.4)
         self.max = np.array(list(design_max)+[.4])
         self.min = np.array(list(design_min)+[.0])
-        self.ndim = len(self.max) 
+        self.ndim = len(self.max)
         self.keys = list(labels) + ['sigmaM']
         self.labels = list(labels) + [r'$\sigma_M$']
         self.range = np.array([self.min, self.max]).T
 
-        logging.info("Pre-compute experimental covariance matrix")
+        print("Pre-compute experimental covariance matrix")
         for s in system_strs:
-            idf1 = idf
             nobs = 0
             self._slices[s] = []
             for obs in active_obs_list[s]:
+                print("obs = " + obs)
                 try:
-                    obsdata = Yexp[s][obs]['mean'][idf1,:]
+                    obsdata = Yexp[s][obs]['mean'][idf,:]
                 except KeyError:
                     continue
 
@@ -171,11 +170,11 @@ class Chain:
             self._expt_cov[s] = np.empty((nobs, nobs))
 
             for obs1, slc1 in self._slices[s]:
-                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf1,:]
-                dy1 = Yexp[s][obs1]['err'][idf1,:]
+                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf,:]
+                dy1 = Yexp[s][obs1]['err'][idf,:]
 
-                for obs2, slc2 in self._slices[s]: 
-                    dy2 = Yexp[s][obs2]['err'][idf1,:]
+                for obs2, slc2 in self._slices[s]:
+                    dy2 = Yexp[s][obs2]['err'][idf,:]
                     self._expt_cov[s][slc1, slc2] = compute_cov(
                         s, obs1, obs2, dy1, dy2
                     )
@@ -200,12 +199,12 @@ class Chain:
 
         """
         X = np.array(X, copy=False, ndmin=2)
-        
+
         lp = np.zeros(X.shape[0])
 
         inside = np.all((X > self.min) & (X < self.max), axis=1)
         lp[~inside] = -np.inf
-        
+
         extra_std = X[inside, -1]
 
         nsamples = np.count_nonzero(inside)
@@ -267,7 +266,7 @@ class Chain:
             except KeyError:
                 burn = True
                 if nburnsteps is None or nwalkers is None:
-                    logging.error(
+                    print(
                         'must specify nburnsteps and nwalkers to start chain'
                     )
                     return
@@ -287,7 +286,7 @@ class Chain:
             )
 
             if burn:
-                logging.info(
+                print(
                     'no existing chain found, starting initial burn-in')
                 # Run first half of burn-in starting from random positions.
                 nburn0 = nburnsteps // 2
@@ -296,7 +295,7 @@ class Chain:
                     nburn0,
                     status=status
                 )
-                logging.info('resampling walker positions')
+                print('resampling walker positions')
                 # Reposition walkers to the most likely points in the chain,
                 # then run the second half of burn-in.  This significantly
                 # accelerates burn-in and helps prevent stuck walkers.
@@ -314,14 +313,14 @@ class Chain:
                     storechain=False
                 )[0]
                 sampler.reset()
-                logging.info('burn-in complete, starting production')
+                print('burn-in complete, starting production')
             else:
-                logging.info('restarting from last point of existing chain')
+                print('restarting from last point of existing chain')
                 X0 = dset[:, -1, :]
 
             sampler.run_mcmc(X0, nsteps, status=status)
 
-            logging.info('writing chain to file')
+            print('writing chain to file')
             dset.resize(dset.shape[1] + nsteps, 1)
             dset[:, -nsteps:, :] = sampler.chain
 

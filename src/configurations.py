@@ -46,9 +46,9 @@ design_dir =  str(workdir/'design_pts') #folder containing design points
 
 idf = 0 # the choice of viscous correction
 
-validation = 0
+validation = False #make this True to perform emulator validation , otherwise using experimental data for parameter estimation
 
-bayes_dtype=[    (s,
+bayes_dtype = [    (s,
                   [(obs, [("mean",float_t,len(cent_list)),
                           ("err",float_t,len(cent_list))]) \
                     for obs, cent_list in obs_cent_list[s].items() ],
