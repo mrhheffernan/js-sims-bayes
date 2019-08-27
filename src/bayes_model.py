@@ -8,19 +8,23 @@ print("Loading model calculations from " + f_obs_main)
 model_data = np.fromfile(f_obs_main, dtype=bayes_dtype)
 print("model_data.shape = " + str(model_data.shape))
 
-# things to drop
-delete_sets = set()
+
+# handle some Nans
 for pt in range(n_design_pts_main): # loop over all design points
     system_str = 'Pb-Pb-2760'
     for obs in active_obs_list[system_str]:
         #print(model_data[system_str][:,:][obs]['mean'].shape)
-        values = np.array( model_data[system_str][pt, idf][obs]['mean'] )
+        values = np.array( model_data[system_str][pt, idf][obs]['mean'])
         # delete Nan dataset
         isnan = np.isnan(values)
         if np.sum(isnan) > 0:
             model_data[system_str][pt, idf][obs]['mean'][isnan] = np.mean(values[np.logical_not(isnan)])
+        if 'dN' in obs or 'dET' in obs: 
+            model_data[system_str][pt, idf][obs]['mean'] = np.log(1+values)
 
-delete_sets = []
+# things to drop for validation
+np.random.seed(1)
+delete_sets = []#np.random.choice(range(50), 10, replace=False)
 
 if len(delete_sets) > 0 :
     print("Design points which will be deleted from training : " + str( np.sort( list(delete_sets) ) ) )

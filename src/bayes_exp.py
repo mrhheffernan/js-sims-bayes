@@ -20,7 +20,7 @@ else :
                 expt_data = pd.read_csv('expt_data/saved_data/' + system + '/' + obs + '.dat', sep = ' ', header=None)
                 entry[system][obs]['mean'][:, idf] = expt_data.iloc[:,1].values
                 entry[system][obs]['err'][:, idf] = expt_data.iloc[:,2].values
-                entry[system][obs]['err'][:, idf] = 0.0
+                #entry[system][obs]['err'][:, idf] = 0.0
 
                 #entry[system][obs]['mean'][idf, :] = expt_data.iloc[:,1].values
                 #entry[system][obs]['err'][:, idf] = expt_data.iloc[:,2].values

@@ -134,7 +134,7 @@ class Emulator:
         # noise term is necessary since model calculations contain statistical noise
         k0 = 1. * kernels.RBF(
                       length_scale=ptp,
-                      length_scale_bounds=np.outer(ptp, (4e-1, 1e2)),
+                      length_scale_bounds=np.outer(ptp, (6e-1, 1e2)),
                       #nu = 3.5
                    )
         k1 = kernels.ConstantKernel()

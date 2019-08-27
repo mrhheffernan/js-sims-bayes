@@ -85,6 +85,10 @@ def etas(T, T_k, alow, ahigh, etas_k):
         return 0.
 etas = np.vectorize(etas)
 
+def taupi(T, T_k, alow, ahigh, etas_k, bpi):
+    return bpi*etas(T, T_k, alow, ahigh, etas_k)/T
+taupi = np.vectorize(taupi)
+
 
 # load design for other module
 def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
@@ -121,12 +125,7 @@ def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
 # 14                       15                      16
 # zeta_over_s_lambda_asymm shear_relax_time_factor Tswitch
 
-
-
-
 def transform_design(X):
-
-    """
     e1 = etas(.15,
               X[:, 7], X[:, 8], X[:, 9], X[:, 10])
     e2 = etas(.2,
@@ -153,8 +152,7 @@ def transform_design(X):
     X[:, 12] = z2
     X[:, 13] = z3
     X[:, 14] = z4
-    """
-
+    
     return X
 
 

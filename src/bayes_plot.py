@@ -790,72 +790,6 @@ def zetas_prior():
     set_tight(fig, rect=[0, 0, 1, 1])
 
 @plot
-def viscous_check():
-
-    index = [
-106,
-109,
-114,
-119,
-134,
-144,
-152,
-165,
-167,
-170,
-179,
-190,
-196,
-28,
-35,
-72,
-82,
-87,
-90,
-67,
-148,
-176,
-]
-
-    design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
-    samples = design.values[index]
-    fig, axes = plt.subplots(
-        nrows=2, ncols=2,
-        figsize=(5,5), sharex=True, sharey=False
-    )
-    T = np.linspace(0.12, 0.4, 20)
-
-    print((samples[:, 3]<0.6).sum(), (samples[:, 3]>0).sum())
-
-    posterior_tauPi = []
-    posterior_zetas = []
-    for (zm, T0, w, asym, bPi, q) in zip(
-				samples[:,11],
-				samples[:,12],
-				samples[:,13],
-				samples[:,14],
-				samples[:,16],
-				samples[:,17],
-               ):
-        posterior_zetas.append(zetas(T, zm, T0, w, asym))
-        posterior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
-    axes[0,0].plot(T, np.array(posterior_zetas).T, color=cr)
-    axes[0,1].plot(T, np.array(posterior_tauPi).T, color=cr)
-
-    ##########################
-    posterior_taupi = []
-    posterior_etas = []
-    for d in samples:
-        posterior_etas.append(etas(T, *d[7:11]))
-        posterior_taupi.append(taupi(T, d[15], *d[7:11]))
-    axes[1,0].plot(T, np.array(posterior_etas).T, color=cr)
-    axes[1,1].plot(T, np.array(posterior_taupi).T, color=cr)
-
-
-    set_tight(fig, rect=[0, 0, 1, 1])
-
-
-@plot
 def viscous_posterior():
     chain = Chain()
     data = chain.load()
@@ -864,7 +798,7 @@ def viscous_posterior():
 
     design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
     samples = data[index]
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6,6), sharex=True, sharey=False)
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3), sharex=True, sharey=False)
     T = np.linspace(0.12, 0.4, 20)
 
     prior_zetas = []
@@ -874,99 +808,50 @@ def viscous_posterior():
 				design['zeta_over_s_T_peak_in_GeV'],
 				design['zeta_over_s_width_in_GeV'],
 				design['zeta_over_s_lambda_asymm'],
-                #design['bulk_relax_time_factor'],
-                #design['bulk_relax_time_power']):
+                ):
         prior_zetas.append(zetas(T, zm, T0, w, asym))
-        prior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
 
-    axes[0,0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3)
-
-    #axes[0,1].fill_between(T, np.min(prior_tauPi, axis=0), np.max(prior_tauPi, axis=0), color='k', alpha=0.3)
-
-    #posterior_tauPi = []
+    axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3)
     posterior_zetas = []
     for (zm, T0, w, asym) in zip(
 				samples[:,11],
 				samples[:,12],
 				samples[:,13],
 				samples[:,14],
-				#samples[:,16],
-				#samples[:,17],
                ):
         posterior_zetas.append(zetas(T, zm, T0, w, asym))
-        #posterior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
-    axes[0,0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0),
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0),
                        np.percentile(posterior_zetas, 95, axis=0),
                     color=cr, alpha=0.3)
-    axes[0,0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0),
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0),
                        np.percentile(posterior_zetas, 80, axis=0),
                     color=cr, alpha=0.3)
-    axes[0,0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)
-
-    #axes[0,1].fill_between(T, np.percentile(posterior_tauPi, 5, axis=0),
-    #                   np.percentile(posterior_tauPi, 95, axis=0),
-    #                color=cr, alpha=0.3)
-    #axes[0,1].fill_between(T, np.percentile(posterior_tauPi, 20, axis=0),
-    #                   np.percentile(posterior_tauPi, 80, axis=0),
-    #                color=cr, alpha=0.3)
-    #axes[0,1].plot(T, np.percentile(posterior_tauPi, 50, axis=0), color=cr)
-
+    axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)
 
     ##########################
     prior_etas = []
-    #prior_taupi = []
     for d in design.values:
         prior_etas.append(etas(T, *d[7:11]))
-        #prior_taupi.append(taupi(T, d[15], *d[7:11]))
-    axes[1,0].fill_between(T, np.min(prior_etas, axis=0),
+    axes[1].fill_between(T, np.min(prior_etas, axis=0),
                    np.max(prior_etas, axis=0), color='k', alpha=0.3)
-    #axes[1,1].fill_between(T, np.min(prior_taupi, axis=0),
-    #               np.max(prior_taupi, axis=0), color='k', alpha=0.3)
-    #posterior_taupi = []
     posterior_etas = []
     for d in samples:
         posterior_etas.append(etas(T, *d[7:11]))
-        #posterior_taupi.append(taupi(T, d[15], *d[7:11]))
-    axes[1,0].fill_between(T, np.percentile(posterior_etas, 5, axis=0),
+    axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),
                        np.percentile(posterior_etas, 95, axis=0),
                     color=cr, alpha=0.3)
-    axes[1,0].fill_between(T, np.percentile(posterior_etas, 20, axis=0),
+    axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),
                        np.percentile(posterior_etas, 80, axis=0),
                     color=cr, alpha=0.3)
-    axes[1,0].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)
-    #axes[1,1].fill_between(T, np.percentile(posterior_taupi, 5, axis=0),
-    #                   np.percentile(posterior_taupi, 95, axis=0),
-    #                color=cr, alpha=0.3)
-    #axes[1,1].fill_between(T, np.percentile(posterior_taupi, 20, axis=0),
-    #                   np.percentile(posterior_taupi, 80, axis=0),
-    #                color=cr, alpha=0.3)
-    #axes[1,1].plot(T, np.percentile(posterior_taupi, 50, axis=0), color=cr)
+    axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)
 
+    axes[0].set_ylabel(r"$\zeta/s$")
+    axes[0].set_xticks([0.1, 0.2, 0.3, 0.4])
+    axes[0].set_ylim(0,.35)
 
-    A, _, _, _ = load_design(system=('Pb','Pb',2760), pset='validation')
-    #truth = A.values[validation]
-    #zetas_truth = zetas(T, *truth[11:15])
-    #tauPi_truth = tauPi(T, truth[16], *truth[11:15], truth[17])
-    #axes[0,0].plot(T, zetas_truth, 'k--')
-    #axes[0,1].plot(T, tauPi_truth, 'k--')
-
-    #etas_truth = etas(T, *truth[7:11])
-    #taupi_truth = taupi(T, truth[15], *truth[7:11])
-    #axes[1,0].plot(T, etas_truth, 'k--')
-    #axes[1,1].plot(T, taupi_truth, 'k--')
-
-    axes[0,0].set_ylabel(r"$\zeta/s$")
-    axes[0,0].set_xticks([0.1, 0.2, 0.3, 0.4])
-    axes[0,0].set_ylim(0,.35)
-    axes[0,1].set_ylabel(r"$\tau_{\Pi}$ [GeV${}^{-1}$]")
-    axes[0,1].set_xticks([0.1, 0.2, 0.3, 0.4])
-    axes[0,1].set_ylim(0,40)
-    axes[1,0].set_ylabel(r"$\eta/s$")
-    axes[1,0].set_xticks([0.1, 0.2, 0.3, 0.4])
-    axes[1,0].set_ylim(0,.7)
-    axes[1,1].set_ylabel(r"$\tau_{\pi}$ [GeV${}^{-1}$]")
-    axes[1,1].set_xticks([0.1, 0.2, 0.3, 0.4])
-    axes[1,1].set_ylim(0,40)
+    axes[1].set_ylabel(r"$\eta/s$")
+    axes[1].set_xticks([0.1, 0.2, 0.3, 0.4])
+    axes[1].set_ylim(0,.7)
 
     set_tight(fig, rect=[0, 0, 1, 1])
 

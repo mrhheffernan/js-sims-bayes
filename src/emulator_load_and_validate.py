@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import logging
 import dill
-import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 from configurations import *
 from emulator import *
+from bayes_model import delete_sets
 
 def main():
     for s in systems:
@@ -57,9 +58,13 @@ def main():
             Y_true = []
             Y_emu = []
             for ipt, pt in enumerate(design.values):
+                if ipt not in delete_sets:
+                    continue
                 mean, cov = emu.predict(np.array([pt]), return_cov=True)
                 y_true = model_data[system_str][obs]['mean'][ipt,idf]
                 y_emu = mean[obs][0]
+                if 'dET' in obs or 'dN' in obs:
+                     y_emu = np.exp(y_emu) - 1.
                 dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
                 Y_true = np.concatenate([Y_true, y_true])
                 Y_emu = np.concatenate([Y_emu, y_emu])

@@ -94,7 +94,7 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
         nsteps).
 
         """
-        print('running %d walkers for %d steps', self.k, nsteps)
+        print('running {:d} walkers for {:d} steps'.format(self.k, nsteps))
 
         if status is None:
             status = nsteps // 10
@@ -106,16 +106,18 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
             if n % status == 0 or n == nsteps:
                 af = self.acceptance_fraction
                 print(
-                    'step %d: acceptance fraction: '
-                    'mean %.4f, std %.4f, min %.4f, max %.4f',
+                    'step {:d}: acceptance fraction: '
+                    'mean {:.4f}, std {:.4f}, min {:.4f}, max {:.4f}'.format(
                     n, af.mean(), af.std(), af.min(), af.max()
+                    )
                 )
 
         return result
 
 def compute_cov(system, obs1, obs2, dy1, dy2):
     if obs1 == obs2:
-        return np.diag(dy1**2)
+        #x = np.linspace(0,1,len(dy1))
+        return np.diag(dy1**2)# * np.exp(-np.subtract.outer(x, x)**2/0.2**2)
     else:
         return np.zeros([dy1.size, dy2.size])
 
@@ -171,15 +173,16 @@ class Chain:
             self._expt_cov[s] = np.empty((nobs, nobs))
 
             for obs1, slc1 in self._slices[s]:
-                #print(Yexp[s][obs1]['mean'][idf,:])
-                #self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf,:]
-                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf]
-                #dy1 = Yexp[s][obs1]['err'][idf,:]
-                dy1 = Yexp[s][obs1]['err'][:,idf]
+                ismult1 = ('dN' in obs1) or ('dET' in obs1)
+                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf] if not ismult1 \
+                                     else np.log(Yexp[s][obs1]['mean'][:,idf]+1.)
+                dy1 = Yexp[s][obs1]['err'][:,idf] if not ismult1 \
+                      else Yexp[s][obs1]['err'][:,idf]/(Yexp[s][obs1]['mean'][:,idf]+1.)
 
                 for obs2, slc2 in self._slices[s]:
-                    #dy2 = Yexp[s][obs2]['err'][idf,:]
-                    dy2 = Yexp[s][obs2]['err'][:,idf]
+                    ismult2 = ('dN' in obs2) or ('dET' in obs2)
+                    dy2 = Yexp[s][obs2]['err'][:,idf] if not ismult2 \
+                          else Yexp[s][obs2]['err'][:,idf]/(Yexp[s][obs2]['mean'][:,idf]+1.)
                     self._expt_cov[s][slc1, slc2] = compute_cov(s, obs1, obs2, dy1, dy2)
 
     def _predict(self, X, **kwargs):
@@ -191,7 +194,7 @@ class Chain:
                  for s in system_strs
                }
 
-    def log_posterior(self, X, extra_std_prior_scale=0.005):
+    def log_posterior(self, X, extra_std_prior_scale=0.05):
         """
         Evaluate the posterior at `X`.
 
