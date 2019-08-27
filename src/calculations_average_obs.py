@@ -251,4 +251,5 @@ if __name__ == '__main__':
             results.append(load_and_compute(filename, system)[0])
             print("\n")
         results = np.array(results)
+        print("results.shape = " + str(results.shape))
         results.tofile(file_output)

@@ -1,14 +1,12 @@
 ## Configurations
 
-First see the parameters located in `src/configurations.py`. These set the number of design points, principal components, etc...
+First see the parameters located in `src/configurations.py`. These set the number of design points, principal components, and other 'global' settings. 
 
 ## Generating Design
 
  To generate the design points: `./src/design.py design_pts`
 
 This will create a directory called `design_pts`. 
-
-
 
 To make a plot checking the design prior for all observables:
 
@@ -28,25 +26,23 @@ Submit the job : `sbatch submit_launcher_design_new_norm`
 
 ## Event Averaging
 
-Once events have finished, cp the results `<job_ID>` folder with name given by job ID to the `model_calculations` directory (on stampede2 or locally)
+Once the events have finished, we have the script `src/calculations_average_obs.py` which can perform the event averaging. Make sure that the parameter `run_id` in `configurations.py` is set to match the name of the folder where you will store the events. Suppose that `run_id = my_events` , and the directory `model_calculations/my_events` exists. 
 
-Use `sh prepare_stampede2.sh` to load modules necessary if performing event averaging on stampede2.
+One should make two subdirectores `my_events/Events` and `my_events/Obs`
 
-The scripts `cat_events_for_each_design_pt.sh` and `average_events_for_each_design_pt.sh` can be used to generate the `obs.dat` file for each design point. Then be careful to use brace expansion to cat these files together so that their indexing is preserved: `cat <job_ID>/{0..9}/obs.dat >> obs.dat`
+The raw event files before taking centrality bin averages will be stored in `Events/main`. Suppose we have 50 design points. Then, all of the events binary files generated for design point 0 should be catted together and stored in `0.dat`, and similarly for all other design points. There is a script  `sims_scripts/submit/cat_events.sh` which is designed to do this on stampede2.
+
+After this, there should exist `main/0.dat` , `main/1.dat` , ... , `main/49.dat` .
+
+Now, one can run `./src/calculations_average_obs.py` to perform the centrality averaging of all events. 
 
 ## Building Emulator
 
-`obs.dat` generated above should be copied to `model_calculations/obs.dat`
-
-
-
-Then, to build the emulator: 
+To build the emulator: 
 
 ```./src/emulator.py --retrain --npc 10 --nrestarts 4```
 
 This will build the emulator and store it as a dill file.
-
-
 
 ## Validating Emulator
 
@@ -54,15 +50,13 @@ To validate the emulator using a validation data set:
 
 ```./src/emulator_load_and_validate.py```
 
-
-
 ## MCMC
 
 To run the MCMC for parameter estimation:
 
 ```./src/bayes_mcmc.py 2000 --nwalkers 100 --nburnsteps 500```
 
-
+If a file exists `mcmc/chain.hdf` then the exisiting chain will be reused. To start a new chain, make sure that this file does not exist. 
 
 To plot the estimation of parameters:
 

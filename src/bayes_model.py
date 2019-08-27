@@ -6,6 +6,7 @@ import numpy as np
 
 print("Loading model calculations from " + f_obs_main)
 model_data = np.fromfile(f_obs_main, dtype=bayes_dtype)
+print("model_data.shape = " + str(model_data.shape))
 
 # things to drop
 delete_sets = set()

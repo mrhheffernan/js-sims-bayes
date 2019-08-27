@@ -121,7 +121,10 @@ plt.rcParams.update({
 
 from configurations import *
 from bayes_model import model_data
-from bayes_exp import Yexp_PseudoData
+#from bayes_exp import Yexp_PseudoData
+from bayes_exp import Y_exp_data
+
+
 plotdir = workdir / 'plots'
 plotdir.mkdir(exist_ok=True)
 plot_functions = {}
@@ -299,19 +302,21 @@ def _observables(posterior=False):
     else:
         Ymodel = trimmed_model_data
 
-    if validation < 0:
-        Yexp = ...
-    else:
+    if validation:
         #get VALIDATION points
         design_file = design_dir + \
                '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*systems[0])
         logging.info("Loading design points from " + design_file)
         design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
-        truth = design.values[validation]
-        Yexp = Yexp_PseudoData[validation]
+        truth = design.values[validation_pt]
+        #Yexp = Y_exp_data[validation]
+        Yexp = Y_exp_data[validation_pt]
+
         #Ypred = {s: Trained_Emulators[s].predict(np.array([truth])) \
         #         for s in system_strs}
+    else:
+        Yexp = Y_exp_data
 
 
     fig, axes = plt.subplots(nrows=3, ncols=5, figsize=(10,4), sharex=True)
@@ -859,42 +864,37 @@ def viscous_posterior():
 
     design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
     samples = data[index]
-    fig, axes = plt.subplots(
-        nrows=2, ncols=2,
-        figsize=(5,5), sharex=True, sharey=False
-    )
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6,6), sharex=True, sharey=False)
     T = np.linspace(0.12, 0.4, 20)
-
 
     prior_zetas = []
     prior_tauPi = []
-    for (zm, T0, w, asym, bPi, q) in zip(
+    for (zm, T0, w, asym) in zip(
 				design['zeta_over_s_max'],
 				design['zeta_over_s_T_peak_in_GeV'],
 				design['zeta_over_s_width_in_GeV'],
 				design['zeta_over_s_lambda_asymm'],
-                design['bulk_relax_time_factor'],
-                design['bulk_relax_time_power']):
+                #design['bulk_relax_time_factor'],
+                #design['bulk_relax_time_power']):
         prior_zetas.append(zetas(T, zm, T0, w, asym))
         prior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
-    axes[0,0].fill_between(T, np.min(prior_zetas, axis=0),
-                   np.max(prior_zetas, axis=0), color='k', alpha=0.3)
 
-    axes[0,1].fill_between(T, np.min(prior_tauPi, axis=0),
-                   np.max(prior_tauPi, axis=0), color='k', alpha=0.3)
+    axes[0,0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3)
 
-    posterior_tauPi = []
+    #axes[0,1].fill_between(T, np.min(prior_tauPi, axis=0), np.max(prior_tauPi, axis=0), color='k', alpha=0.3)
+
+    #posterior_tauPi = []
     posterior_zetas = []
-    for (zm, T0, w, asym, bPi, q) in zip(
+    for (zm, T0, w, asym) in zip(
 				samples[:,11],
 				samples[:,12],
 				samples[:,13],
 				samples[:,14],
-				samples[:,16],
-				samples[:,17],
+				#samples[:,16],
+				#samples[:,17],
                ):
         posterior_zetas.append(zetas(T, zm, T0, w, asym))
-        posterior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
+        #posterior_tauPi.append(tauPi(T, bPi, zm, T0, w, asym, q))
     axes[0,0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0),
                        np.percentile(posterior_zetas, 95, axis=0),
                     color=cr, alpha=0.3)
@@ -902,30 +902,31 @@ def viscous_posterior():
                        np.percentile(posterior_zetas, 80, axis=0),
                     color=cr, alpha=0.3)
     axes[0,0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)
-    axes[0,1].fill_between(T, np.percentile(posterior_tauPi, 5, axis=0),
-                       np.percentile(posterior_tauPi, 95, axis=0),
-                    color=cr, alpha=0.3)
-    axes[0,1].fill_between(T, np.percentile(posterior_tauPi, 20, axis=0),
-                       np.percentile(posterior_tauPi, 80, axis=0),
-                    color=cr, alpha=0.3)
-    axes[0,1].plot(T, np.percentile(posterior_tauPi, 50, axis=0), color=cr)
+
+    #axes[0,1].fill_between(T, np.percentile(posterior_tauPi, 5, axis=0),
+    #                   np.percentile(posterior_tauPi, 95, axis=0),
+    #                color=cr, alpha=0.3)
+    #axes[0,1].fill_between(T, np.percentile(posterior_tauPi, 20, axis=0),
+    #                   np.percentile(posterior_tauPi, 80, axis=0),
+    #                color=cr, alpha=0.3)
+    #axes[0,1].plot(T, np.percentile(posterior_tauPi, 50, axis=0), color=cr)
 
 
     ##########################
     prior_etas = []
-    prior_taupi = []
+    #prior_taupi = []
     for d in design.values:
         prior_etas.append(etas(T, *d[7:11]))
-        prior_taupi.append(taupi(T, d[15], *d[7:11]))
+        #prior_taupi.append(taupi(T, d[15], *d[7:11]))
     axes[1,0].fill_between(T, np.min(prior_etas, axis=0),
                    np.max(prior_etas, axis=0), color='k', alpha=0.3)
-    axes[1,1].fill_between(T, np.min(prior_taupi, axis=0),
-                   np.max(prior_taupi, axis=0), color='k', alpha=0.3)
-    posterior_taupi = []
+    #axes[1,1].fill_between(T, np.min(prior_taupi, axis=0),
+    #               np.max(prior_taupi, axis=0), color='k', alpha=0.3)
+    #posterior_taupi = []
     posterior_etas = []
     for d in samples:
         posterior_etas.append(etas(T, *d[7:11]))
-        posterior_taupi.append(taupi(T, d[15], *d[7:11]))
+        #posterior_taupi.append(taupi(T, d[15], *d[7:11]))
     axes[1,0].fill_between(T, np.percentile(posterior_etas, 5, axis=0),
                        np.percentile(posterior_etas, 95, axis=0),
                     color=cr, alpha=0.3)
@@ -933,26 +934,26 @@ def viscous_posterior():
                        np.percentile(posterior_etas, 80, axis=0),
                     color=cr, alpha=0.3)
     axes[1,0].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)
-    axes[1,1].fill_between(T, np.percentile(posterior_taupi, 5, axis=0),
-                       np.percentile(posterior_taupi, 95, axis=0),
-                    color=cr, alpha=0.3)
-    axes[1,1].fill_between(T, np.percentile(posterior_taupi, 20, axis=0),
-                       np.percentile(posterior_taupi, 80, axis=0),
-                    color=cr, alpha=0.3)
-    axes[1,1].plot(T, np.percentile(posterior_taupi, 50, axis=0), color=cr)
+    #axes[1,1].fill_between(T, np.percentile(posterior_taupi, 5, axis=0),
+    #                   np.percentile(posterior_taupi, 95, axis=0),
+    #                color=cr, alpha=0.3)
+    #axes[1,1].fill_between(T, np.percentile(posterior_taupi, 20, axis=0),
+    #                   np.percentile(posterior_taupi, 80, axis=0),
+    #                color=cr, alpha=0.3)
+    #axes[1,1].plot(T, np.percentile(posterior_taupi, 50, axis=0), color=cr)
 
 
     A, _, _, _ = load_design(system=('Pb','Pb',2760), pset='validation')
-    truth = A.values[validation]
-    zetas_truth = zetas(T, *truth[11:15])
-    tauPi_truth = tauPi(T, truth[16], *truth[11:15], truth[17])
-    axes[0,0].plot(T, zetas_truth, 'k--')
-    axes[0,1].plot(T, tauPi_truth, 'k--')
+    #truth = A.values[validation]
+    #zetas_truth = zetas(T, *truth[11:15])
+    #tauPi_truth = tauPi(T, truth[16], *truth[11:15], truth[17])
+    #axes[0,0].plot(T, zetas_truth, 'k--')
+    #axes[0,1].plot(T, tauPi_truth, 'k--')
 
-    etas_truth = etas(T, *truth[7:11])
-    taupi_truth = taupi(T, truth[15], *truth[7:11])
-    axes[1,0].plot(T, etas_truth, 'k--')
-    axes[1,1].plot(T, taupi_truth, 'k--')
+    #etas_truth = etas(T, *truth[7:11])
+    #taupi_truth = taupi(T, truth[15], *truth[7:11])
+    #axes[1,0].plot(T, etas_truth, 'k--')
+    #axes[1,1].plot(T, taupi_truth, 'k--')
 
     axes[0,0].set_ylabel(r"$\zeta/s$")
     axes[0,0].set_xticks([0.1, 0.2, 0.3, 0.4])
@@ -1321,50 +1322,81 @@ def _posterior():
     set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(.01, 0, 1, 1))
 
 def _posterior_diag():
+
     chain = Chain()
-    #get VALIDATION points
-    design, _, _, _ = load_design(system=('Pb','Pb',2760), pset='validation')
-    labels = chain.labels
-    ranges = chain.range
 
-    data = chain.load().T
-    ndims, nsamples = data.shape
+    if validation:
+        #get VALIDATION points
+        design, _, _, _ = load_design(system=('Pb','Pb',2760), pset='validation')
+        labels = chain.labels
+        ranges = chain.range
 
-    truths = list(design.values[validation])+[0.0]
-    ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
+        data = chain.load().T
+        ndims, nsamples = data.shape
 
-    cmap = plt.get_cmap('Blues')
-    cmap.set_bad('white')
+        truths = list(design.values[validation_pt])+[0.0]
+        ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
 
-    fig, axes = plt.subplots(
-        nrows=4, ncols=5,
-        figsize=(6, 4.5)
-    )
+        cmap = plt.get_cmap('Blues')
+        cmap.set_bad('white')
 
-    for ax, x, xlabel, xlim, truth in \
-          zip(axes.flatten(), data, labels, ranges, truths):
+        fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(8, 6) )
 
-            H, _, _ = ax.hist(x, bins=21, histtype='step', density=True)
+        for ax, x, xlabel, xlim, truth in zip(axes.flatten(), data, labels, ranges, truths):
 
-            stex = format_ci(x)
-            ax.annotate(stex, xy=(.75, .8), xycoords="axes fraction",
-                        ha='center', va='bottom', fontsize=6)
+                H, _, _ = ax.hist(x, bins=21, histtype='step', density=True)
 
-            ax.set_xlim(*xlim)
-            ax.axvline(x=truth, color='r')
-            ax.set_ylim(0, H.max()*1.25)
-            ax.set_yticks([])
+                stex = format_ci(x)
+                ax.annotate(stex, xy=(.75, .8), xycoords="axes fraction", ha='center', va='bottom', fontsize=6)
+                ax.set_xlim(*xlim)
+                ax.axvline(x=truth, color='r')
+                ax.set_ylim(0, H.max()*1.25)
+                ax.set_yticks([])
 
-            ax.annotate(xlabel, xy=(.25, .8), xycoords="axes fraction",
-                        ha='center', va='bottom',  fontsize=6)
-            l = xlim[1]-xlim[0]
-            ax.set_xticks([xlim[0]+l*.05, (xlim[0]+xlim[1])/2., xlim[1]-l*.05])
-            ax.set_xticklabels(["{:1.2f} ".format(xlim[0]),
-                                "{:1.2f} ".format((xlim[0]+xlim[1])/2.),
-                                " {:1.2f}".format(xlim[1])], fontsize=6)
+                ax.annotate(xlabel, xy=(.25, .8), xycoords="axes fraction", ha='center', va='bottom', fontsize=6)
+                l = xlim[1]-xlim[0]
+                ax.set_xticks([xlim[0]+l*.05, (xlim[0]+xlim[1])/2., xlim[1]-l*.05])
+                ax.set_xticklabels(["{:1.2f} ".format(xlim[0]),
+                                    "{:1.2f} ".format((xlim[0]+xlim[1])/2.),
+                                    " {:1.2f}".format(xlim[1])], fontsize=6)
 
-            plt.subplots_adjust(wspace=0.05, hspace=0.1)
-    set_tight(pad=.0, h_pad=.1, w_pad=.05, rect=(.01, 0, 1, 1))
+                plt.subplots_adjust(wspace=0.05, hspace=0.1)
+        set_tight(pad=.0, h_pad=.1, w_pad=.05, rect=(.01, 0, 1, 1))
+
+    else :
+        labels = chain.labels
+        ranges = chain.range
+
+        data = chain.load().T
+        ndims, nsamples = data.shape
+
+        ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
+
+        cmap = plt.get_cmap('Blues')
+        cmap.set_bad('white')
+
+        fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(6, 4.5) )
+
+        for ax, x, xlabel, xlim in zip(axes.flatten(), data, labels, ranges):
+
+                H, _, _ = ax.hist(x, bins=21, histtype='step', density=True)
+
+                stex = format_ci(x)
+                ax.annotate(stex, xy=(.75, .8), xycoords="axes fraction", ha='center', va='bottom', fontsize=6)
+                ax.set_xlim(*xlim)
+                ax.set_ylim(0, H.max()*1.25)
+                ax.set_yticks([])
+                ax.annotate(xlabel, xy=(.25, .8), xycoords="axes fraction", ha='center', va='bottom', fontsize=6)
+                l = xlim[1]-xlim[0]
+                ax.set_xticks([xlim[0]+l*.05, (xlim[0]+xlim[1])/2., xlim[1]-l*.05])
+                ax.set_xticklabels(["{:1.2f} ".format(xlim[0]),
+                                    "{:1.2f} ".format((xlim[0]+xlim[1])/2.),
+                                    " {:1.2f}".format(xlim[1])], fontsize=6)
+
+                plt.subplots_adjust(wspace=0.05, hspace=0.1)
+        set_tight(pad=.0, h_pad=.1, w_pad=.05, rect=(.01, 0, 1, 1))
+
+
 
 
 @plot

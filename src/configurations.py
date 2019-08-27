@@ -44,9 +44,14 @@ dir_obs_exp = "saved_data"
 
 design_dir =  str(workdir/'design_pts') #folder containing design points
 
-idf = 0 # the choice of viscous correction
+idf = 3 # the choice of viscous correction
 
-validation = False #make this True to perform emulator validation , otherwise using experimental data for parameter estimation
+# if True : perform emulator validation
+# if False : using experimental data for parameter estimation
+validation = False
+
+#if validation is True, this is the point in design that will be used as pseudo-data
+validation_pt = 5
 
 bayes_dtype = [    (s,
                   [(obs, [("mean",float_t,len(cent_list)),

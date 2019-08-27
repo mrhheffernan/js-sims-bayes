@@ -42,7 +42,6 @@ from emulator import Trained_Emulators, _Covariance
 
 from bayes_exp import Y_exp_data
 
-
 def mvn_loglike(y, cov):
     """
     Evaluate the multivariate-normal log-likelihood for difference vector `y`
@@ -154,9 +153,11 @@ class Chain:
             nobs = 0
             self._slices[s] = []
             for obs in active_obs_list[s]:
-                print("obs = " + obs)
+                #print("obs = " + obs)
                 try:
-                    obsdata = Yexp[s][obs]['mean'][idf,:]
+                    #obsdata = Yexp[s][obs]['mean'][idf,:]
+                    obsdata = Yexp[s][obs]['mean'][:,idf]
+                    #print(obsdata)
                 except KeyError:
                     continue
 
@@ -170,14 +171,16 @@ class Chain:
             self._expt_cov[s] = np.empty((nobs, nobs))
 
             for obs1, slc1 in self._slices[s]:
-                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf,:]
-                dy1 = Yexp[s][obs1]['err'][idf,:]
+                #print(Yexp[s][obs1]['mean'][idf,:])
+                #self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf,:]
+                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf]
+                #dy1 = Yexp[s][obs1]['err'][idf,:]
+                dy1 = Yexp[s][obs1]['err'][:,idf]
 
                 for obs2, slc2 in self._slices[s]:
-                    dy2 = Yexp[s][obs2]['err'][idf,:]
-                    self._expt_cov[s][slc1, slc2] = compute_cov(
-                        s, obs1, obs2, dy1, dy2
-                    )
+                    #dy2 = Yexp[s][obs2]['err'][idf,:]
+                    dy2 = Yexp[s][obs2]['err'][:,idf]
+                    self._expt_cov[s][slc1, slc2] = compute_cov(s, obs1, obs2, dy1, dy2)
 
     def _predict(self, X, **kwargs):
         """
@@ -266,9 +269,7 @@ class Chain:
             except KeyError:
                 burn = True
                 if nburnsteps is None or nwalkers is None:
-                    print(
-                        'must specify nburnsteps and nwalkers to start chain'
-                    )
+                    print('must specify nburnsteps and nwalkers to start chain')
                     return
                 dset = f.create_dataset(
                     'chain', dtype='f8',
@@ -286,24 +287,16 @@ class Chain:
             )
 
             if burn:
-                print(
-                    'no existing chain found, starting initial burn-in')
+                print('no existing chain found, starting initial burn-in')
                 # Run first half of burn-in starting from random positions.
                 nburn0 = nburnsteps // 2
-                sampler.run_mcmc(
-                    self.random_pos(nwalkers),
-                    nburn0,
-                    status=status
-                )
+                sampler.run_mcmc( self.random_pos(nwalkers), nburn0, status=status )
                 print('resampling walker positions')
                 # Reposition walkers to the most likely points in the chain,
                 # then run the second half of burn-in.  This significantly
                 # accelerates burn-in and helps prevent stuck walkers.
                 X0 = sampler.flatchain[
-                    np.unique(
-                        sampler.flatlnprobability,
-                        return_index=True
-                    )[1][-nwalkers:]
+                    np.unique( sampler.flatlnprobability, return_index=True )[1][-nwalkers:]
                 ]
                 sampler.reset()
                 X0 = sampler.run_mcmc(
