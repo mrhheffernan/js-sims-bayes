@@ -235,15 +235,19 @@ if __name__ == '__main__':
     system = 'Pb-Pb-2760'
 
     print("Computing observables for all design points")
+    print("System = " + system)
     for folder_input, file_output, nset in zip(
               [f_events_main, f_events_validation],
               [f_obs_main, f_obs_validation],
               [n_design_pts_main, n_design_pts_validation],
            ):
+        print("\n")
+        print("Averaging events in " + folder_input)
+        print("##########################")
         results = []
         for i in range(nset):
             print("design pt : " + str(i))
-            filename = folder_input+"/{:d}.dat".format(i)
+            filename = folder_input + "/{:d}.dat".format(i)
             results.append(load_and_compute(filename, system)[0])
             print("\n")
         results = np.array(results)
