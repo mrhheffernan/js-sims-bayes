@@ -41,51 +41,62 @@ obs_cent_list = {
 }
 """
 
-obs_cent_list = {
-'Pb-Pb-2760': {
-	'dNch_deta' : np.array([[0,5],  [5,10], [10,20],[20,30],
-		                    [30,40],[40,50],[50,60],[60,70]]), #8 bins
+#we can define these centrality bins for all STAR observables
+STAR_cent_bins = np.array( [ [0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70], [70,80] ] ) # 9 bins
+#these bins are common to many ALICE observables
+ALICE_cent_bins = np.array( [ [0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70] ] ) # 8 bins
 
+obs_cent_list = {
+
+#ALICE Observables
+'Pb-Pb-2760': {
+	'dNch_deta' : ALICE_cent_bins,
 	'dET_deta' : np.array([[0, 2.5], [2.5, 5], [5, 7.5], [7.5, 10],
 		                   [10, 12.5], [12.5, 15], [15, 17.5], [17.5, 20],
 		                   [20, 22.5], [22.5, 25], [25, 27.5], [27.5, 30],
 		                   [30, 32.5], [32.5, 35], [35, 37.5], [37.5, 40],
 		                   [40, 45], [45, 50], [50, 55], [55, 60],
 		                   [60, 65], [65, 70]]), # 22 bins
-
-	'dN_dy_pion'   : np.array([[0,5],[5,10],[10,20],[20,30],
-		                     [30,40],[40,50],[50,60],[60,70]]), # 8 bins
-	'dN_dy_kaon'   : np.array([[0,5],[5,10],[10,20],[20,30],
-		                     [30,40],[40,50],[50,60],[60,70]]), # 8 bins
-	'dN_dy_proton' : np.array([[0,5],[5,10],[10,20],[20,30],
-		                     [30,40],[40,50],[50,60],[60,70]]), # 8 bins
-
+	'dN_dy_pion'   : ALICE_cent_bins,
+	'dN_dy_kaon'   : ALICE_cent_bins,
+	'dN_dy_proton' : ALICE_cent_bins,
 	'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), # 5 bins
-
 	'dN_dy_Omega'  : np.array([[0,10],[10,20],[20,40],[40,60]]), # 4 bins
 	'dN_dy_Xi'     : np.array([[0,10],[10,20],[20,40],[40,60]]), # 4 bins
-
-	'mean_pT_pion'   : np.array([[0,5],[5,10],[10,20],[20,30],
-		                     [30,40],[40,50],[50,60],[60,70]]), # 8 bins
-	'mean_pT_kaon'   : np.array([[0,5],[5,10],[10,20],[20,30],
-		                     [30,40],[40,50],[50,60],[60,70]]), # 8 bins
-	'mean_pT_proton' : np.array([[0,5],[5,10],[10,20],[20,30],
-		                     [30,40],[40,50],[50,60],[60,70]]), # 8 bins
-
+	'mean_pT_pion'   : ALICE_cent_bins,
+	'mean_pT_kaon'   : ALICE_cent_bins,
+	'mean_pT_proton' : ALICE_cent_bins,
 	'pT_fluct' : np.array([[0,5],[5,10],[10,15],[15,20],
 		                  [20,25],[25,30],[30,35],[35,40],
 		                  [40,45],[45,50],[50,55],[55,60]]), #12 bins
-
-	'v22' : np.array([[0,5],[5,10],[10,20],[20,30],
-		              [30,40],[40,50],[50,60],[60,70]]), # 8 bins
-
-	'v32' : np.array([[0,5],[5,10],[10,20],[20,30],
-		              [30,40],[40,50]]), # 6 bins
-	'v42' : np.array([[0,5],[5,10],[10,20],[20,30],
-		              [30,40],[40,50]]), # 6 bins
+	'v22' : ALICE_cent_bins,
+	'v32' : np.array([[0,5],[5,10],[10,20],[20,30], [30,40],[40,50]]), # 6 bins
+	'v42' : np.array([[0,5],[5,10],[10,20],[20,30], [30,40],[40,50]]), # 6 bins
     },
+
+#STAR doesn't actually publish many of these observables,
+#but we can keep them anyway
+'Au-Au-200': {
+	'dNch_deta' : STAR_cent_bins, #unavailable
+	'dET_deta' : STAR_cent_bins, #unavailable
+	'dN_dy_pion'   : STAR_cent_bins,
+	'dN_dy_kaon'   : STAR_cent_bins,
+	'dN_dy_proton' : STAR_cent_bins,
+	'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), #unavailable
+	'dN_dy_Omega'  : np.array([[0,10],[10,20],[20,40],[40,60]]), #unavailable
+	'dN_dy_Xi'     : np.array([[0,10],[10,20],[20,40],[40,60]]), #unavailable
+	'mean_pT_pion'   : STAR_cent_bins,
+	'mean_pT_kaon'   : STAR_cent_bins,
+	'mean_pT_proton' : STAR_cent_bins,
+	'pT_fluct' : STAR_cent_bins, #unavailable
+	'v22' : STAR_cent_bins,
+	'v32' : STAR_cent_bins,
+	'v42' : STAR_cent_bins,
+    },
+
 }
 
+#these just define some 'reasonable' ranges for plotting purposes
 obs_range_list = {
     'Pb-Pb-2760': {
 		'dNch_deta': [0,2000],
@@ -93,6 +104,23 @@ obs_range_list = {
 		'dN_dy_pion': [0,1700],
 		'dN_dy_kaon': [0,400],
 		'dN_dy_proton': [0,120],
+		'dN_dy_Lambda': [0,40],
+		'dN_dy_Omega': [0,2],
+		'dN_dy_Xi': [0,10],
+		'mean_pT_pion': [0,1],
+		'mean_pT_kaon': [0,1.5],
+		'mean_pT_proton': [0,2],
+		'pT_fluct': [0,0.05],
+		'v22': [0,0.16],
+		'v32': [0,0.1],
+		'v42': [0,0.1]
+    },
+	'Au-Au-200': {
+		'dNch_deta': [0,1000],
+		'dET_deta': [0,1200],
+		'dN_dy_pion': [0,700],
+		'dN_dy_kaon': [0,100],
+		'dN_dy_proton': [0,40],
 		'dN_dy_Lambda': [0,40],
 		'dN_dy_Omega': [0,2],
 		'dN_dy_Xi': [0,10],

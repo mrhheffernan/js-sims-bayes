@@ -18,18 +18,29 @@ complex_t = '<c16'
 
 #how many versions of the model are run, for instance
 # 4 versions of delta-f with SMASH and a fifth model with UrQMD totals 5
-number_of_models_per_run = 5
+number_of_models_per_run = 4
 
 #the Collision systems
-systems = [('Pb', 'Pb', 2760)]
+#systems = [('Pb', 'Pb', 2760)]
+systems = [('Au', 'Au', 200)]
+
+"""
+systems = [
+            ('Au', 'Au', 200),
+            ('Pb', 'Pb', 2760),
+            ('Pb', 'Pb', 5200),
+            ('Xe', 'Xe', 5440)
+            ]
+"""
+
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
 
 #the number of design points
-n_design_pts_main = 50
-n_design_pts_validation = 50
+n_design_pts_main = 500
+n_design_pts_validation = 500
 
 #runid = "run-19p-200d"
-runid = "check_prior_3"
+runid = "run_PbPb_2760"
 
 f_events_main = str(
     workdir/'model_calculations/{:s}/Events/main/'.format(runid))
@@ -91,7 +102,7 @@ taupi = np.vectorize(taupi)
 
 
 # load design for other module
-def load_design(system=('Pb','Pb',2760), pset='main'): # or validation
+def load_design(system = ('Pb','Pb',2760), pset = 'main'): # or validation
     design_file = design_dir + \
        '/design_points_{:s}_{:s}{:s}-{:d}.dat'.format(pset, *system)
     range_file = design_dir + \
@@ -152,13 +163,13 @@ def transform_design(X):
     X[:, 12] = z2
     X[:, 13] = z3
     X[:, 14] = z4
-    
+
     return X
 
 
-def prepare_emu_design():
+def prepare_emu_design(system_in):
     design, design_max, design_min, labels = \
-          load_design(system=('Pb','Pb',2760), pset='main')
+          load_design(system=system_in, pset='main')
 
     #not transforming design of any parameters right now
     design = transform_design(design.values)

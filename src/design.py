@@ -100,8 +100,10 @@ class Design:
         # 5.02 TeV has ~1.2x particle production as 2.76 TeV
         # [https://inspirehep.net/record/1410589]
         norm_range = {
-            2760: (10., 19.),
-            5020: (10., 25.),
+             200: {3., 10.},
+            2760: (10., 20.),
+            5020: (15., 25.),
+            5440: {15., 25.}
         }[self.beam_energy]
 
         #any keys which are uncommented will be sampled / part of the design matrix
@@ -125,7 +127,7 @@ class Design:
         ('eta_over_s_at_kink', r'$(\eta/s)_{\mathrm{kink}}$',                        ( .01, 0.2 )),
 
         #bulk visc
-        ('zeta_over_s_max',             r'$(\zeta/s)_{\max}$' , (0.01,  0.25)),
+        ('zeta_over_s_max',             r'$(\zeta/s)_{\max}$' , (0.01,  0.2)),
         ('zeta_over_s_T_peak_in_GeV',   r'$T_{\zeta,c}$ [GeV]', (0.12,  0.3)),
         ('zeta_over_s_width_in_GeV',   r'$w_{\zeta}$ [GeV]'   , (0.025 ,  0.15)),
         ('zeta_over_s_lambda_asymm',    r'$\lambda_{\zeta}$'  , (-0.8,  0.8)),
@@ -203,7 +205,7 @@ class Design:
                 target = self.projectiles,
                 sqrts = self.beam_energy,
                 inel_nucleon_cross_section = { # sqrt(s) [GeV] : sigma_NN [fm^2]
-                                            200: 4.2,  2760: 6.4,  5020: 7.0,
+                                            200: 4.3,  2760: 6.4,  5020: 7.0, 5440: 7.1
                                              }[self.beam_energy],
                 trento_normalization = kwargs['norm'],
                 trento_reduced_thickness = kwargs['trento_p'],
