@@ -39,7 +39,7 @@ def write_module_inputs(
     #relaxation times
     shear_relax_time_factor = 5.0,
     bulk_relax_time_factor = 1.0 / 14.55,
-    bulk_relax_time_power = 2.,
+    #bulk_relax_time_power = 2.,
 
     #hydro params
     T_switch = 0.151,
@@ -51,7 +51,7 @@ def write_module_inputs(
 
     #formula for Energy-dependent freestreaming time: tau_fs = tau_R * (e_T / e_R) ^ alpha
     e_dep_fs_time = 1 # switch for energy dependent freestreaming time
-    e_R = 1.0 # GeV / fm^3
+    e_R = 4.0 # GeV / fm^3
     #this is just a dummy parameter that will be overridden by formula above
     tau_fs = 1.16
 
@@ -74,9 +74,23 @@ def write_module_inputs(
     dtau = dx / 8.0
 
     #choose a grid size large enough to capture central events
-    #Does [-15fm, 15fm] work even for events with very large norm?
-    L_x = 15.0 #[fm]
-    L_y = 15.0 #[fm]
+    if (sqrts == 200):
+        L_x = 12.0 #[fm]
+        L_y = 12.0 #[fm]
+    elif (sqrts == 2760):
+        L_x = 16.0 #[fm]
+        L_y = 16.0 #[fm]
+    elif (sqrts == 5020):
+        L_x = 18.0 #[fm]
+        L_y = 18.0 #[fm]
+    elif (sqrts == 5440):
+        L_x = 18.0 #[fm]
+        L_y = 18.0 #[fm]
+    else :
+        print("invalid sqrts !")
+        exit()
+
+
     nx = 1.0 + (2.0 * L_x)/dx
     ny = 1.0 + (2.0 * L_y)/dy
     #get nearest ODD integer (freestream needs odd number of points!)
@@ -103,7 +117,6 @@ def write_module_inputs(
     os.mkdir(design_point_outdir)
 
     #freestream file
-    #fs_file = open(os.path.join(outdir, 'freestream_input_' + str(design_point_id)),'w')
     fs_file = open(os.path.join(design_point_outdir, 'freestream_input'),'w')
 
     fs_file.write("OUTPUTFORMAT 2\n")
@@ -137,7 +150,6 @@ def write_module_inputs(
     fs_file.close()
 
     #MUSIC file
-    #music_file = open(os.path.join(outdir, 'music_input_' + str(design_point_id)),'w')
     music_file = open(os.path.join(design_point_outdir, 'music_input'),'w')
 
     music_file.write("echo_level  1\n")                  # control the mount of message output to screen
@@ -195,11 +207,7 @@ def write_module_inputs(
 
     music_file.close()
 
-    #the iS3D files, one for each delta_f
-    #delta_f_mode = 4 # 1: 14 moment, 2: C.E., 3: McNelis feq_mod, 4: Bernhard feq_mod
-    #for df_mode in range(1,5):
-    #iS3D_file = open(os.path.join(outdir, 'iS3D_parameters_' + str(design_point_id) + '_df_' + str(df_mode) + '.dat'),'w')
-    #iS3D_file = open(os.path.join(design_point_outdir, 'iS3D_parameters_df_' + str(df_mode) + '.dat'),'w')
+    #iS3D File
     iS3D_file = open(os.path.join(design_point_outdir, 'iS3D_parameters.dat'),'w')
 
     iS3D_file.write("operation = 2\n")
@@ -248,7 +256,6 @@ def write_module_inputs(
     #the jetscape init xml file
     #note that this file can potentially override parameters set in the MUSIC input file
     js_file = open(os.path.join(design_point_outdir, 'jetscape_init.xml'),'w')
-    #js_file = open('jetscape_init.xml', 'w')
 
     js_file.write("<?xml version=\"1.0\"?>\n")
     js_file.write(" <jetscape>\n")
