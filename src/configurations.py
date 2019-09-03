@@ -4,7 +4,7 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 from sklearn import svm
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from bins_and_cuts import obs_cent_list, obs_range_list
 
