@@ -120,7 +120,7 @@ class Emulator:
         # `npc` components but save the full PC transformation for later.
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
-        design, design_max, design_min, labels = prepare_emu_design()
+        design, design_max, design_min, labels = prepare_emu_design(system)
 
         #delete undesirable data
         if len(delete_sets) > 0:
