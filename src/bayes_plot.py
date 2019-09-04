@@ -1151,7 +1151,7 @@ def _posterior():
     data = chain.load().T
     ndims, nsamples = data.shape
 
-    truth = design.values[validation]
+    truth = design.values[validation_pt]
     print(truth)
     ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
 

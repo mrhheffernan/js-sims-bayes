@@ -6,7 +6,8 @@ import numpy as np
 #get model calculations at VALIDATION POINTS
 if validation:
     print("Load calculations from " + f_obs_validation)
-    Y_exp_data = np.fromfile(f_obs_validation, dtype=bayes_dtype)
+    Y_exp_data_pre = np.fromfile(f_obs_validation, dtype=bayes_dtype)
+    Y_exp_data=np.array([Y_exp_data_pre[validation_pt]])
 
 #get experimental data
 else :
