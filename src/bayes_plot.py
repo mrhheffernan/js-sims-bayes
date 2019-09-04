@@ -310,8 +310,7 @@ def _observables(posterior=False):
         design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
         truth = design.values[validation_pt]
-        #Yexp = Y_exp_data[validation]
-        Yexp = Y_exp_data[validation_pt]
+        Yexp = Y_exp_data[0]
 
         #Ypred = {s: Trained_Emulators[s].predict(np.array([truth])) \
         #         for s in system_strs}
