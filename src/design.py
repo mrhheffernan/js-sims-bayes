@@ -100,7 +100,7 @@ class Design:
         # 5.02 TeV has ~1.2x particle production as 2.76 TeV
         # [https://inspirehep.net/record/1410589]
         norm_range = {
-             200: {3., 10.},
+             200: (3., 10.),
             2760: (10., 20.),
             5020: (15., 25.),
             5440: {15., 25.}
@@ -184,12 +184,11 @@ class Design:
             # write header
             f.write("param,min,max\n")
             for key, minmax in zip(self.keys, self.range):
-                f.write('{:s},{:1.5f},{:1.5f}\n'.format(key,*minmax))
+                f.write('{:s},{:1.5f},{:1.5f}\n'.format(key, *minmax))
         # write latex labels
-        with open(os.path.join(basedir, 'design_labels_'+str(self.system)\
-                       +'.dat'), 'w') as f:
+        with open(os.path.join(basedir, 'design_labels_' + str(self.system) + '.dat'), 'w') as f:
             for item in self.labels:
-                f.write(item+"\n")
+                f.write(item + "\n")
 
 
         # Write the module input files for JETSCAPE-SIMS
