@@ -40,7 +40,7 @@ import pandas as pd
 from bayes_mcmc import Chain, credible_interval
 from configurations import *
 from emulator import Trained_Emulators
-from bayes_model import trimmed_model_data
+from calculations_load import trimmed_model_data
 
 fontsize = dict(
     large=11,

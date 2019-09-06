@@ -28,7 +28,7 @@ from sklearn.gaussian_process import kernels
 from sklearn.preprocessing import StandardScaler
 
 from configurations import *
-from bayes_model import trimmed_model_data 
+from calculations_load import trimmed_model_data 
 
 ###########################################################
 ############### Emulator and help functions ###############
