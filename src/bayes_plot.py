@@ -320,8 +320,8 @@ def _observables(posterior=False):
 
     fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10,6), sharex=True)
     for system in system_strs:
-        for obs, ax in zip(calibration_active_obs_list[system], axes.flatten()):
-            xbins = np.array(calibration_obs_cent_list[system][obs])
+        for obs, ax in zip(active_obs_list[system], axes.flatten()):
+            xbins = np.array(obs_cent_list[system][obs])
             x = (xbins[:,0]+xbins[:,1])/2.
             if posterior:
                 Y = Ymodel[system][obs]
