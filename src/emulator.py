@@ -85,12 +85,15 @@ class Emulator:
         self.nobs = 0
         self.observables = []
         self._slices = {}
-        for obs, cent_list in obs_cent_list[system_str].items():
+
+        #for obs, cent_list in obs_cent_list[system_str].items():
+        for obs, cent_list in calibration_obs_cent_list[system_str].items():
             self.observables.append(obs)
             n = np.array(cent_list).shape[0]
             self._slices[obs] = slice(self.nobs, self.nobs + n)
             self.nobs += n
 
+        print("self.nobs = " + str(self.nobs))
         #read in the model data from file
         print("Loading model calculations from " + f_obs_main)
 
@@ -101,8 +104,8 @@ class Emulator:
         for pt in range(n_design_pts_main - len(delete_sets)):
             row = np.array([])
             for obs in self.observables:
-                values = np.array(
-                        trimmed_model_data[system_str][pt, idf][obs]['mean'] )
+                n_bins_bayes = len(calibration_obs_cent_list[system_str][obs]) # only using these bins for calibration
+                values = np.array(trimmed_model_data[system_str][pt, idf][obs]['mean'][:n_bins_bayes] )
                 if np.isnan(values).sum() > 0:
                     print("Warning! found nan in model data!")
                     print("Design pt = " + str(pt) + "; Obs = " + obs)
@@ -120,7 +123,7 @@ class Emulator:
         # `npc` components but save the full PC transformation for later.
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
-        design, design_max, design_min, labels = prepare_emu_design()
+        design, design_max, design_min, labels = prepare_emu_design(system)
 
         #delete undesirable data
         if len(delete_sets) > 0:

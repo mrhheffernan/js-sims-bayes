@@ -174,65 +174,72 @@ def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
                         'obs': vn, 'err': vn_err}
 
 def load_and_compute(inputfile, system):
+
+    #expt_type = 'ALICE'
+    expt_type = 'STAR'
+
     entry = np.zeros(1, dtype=np.dtype(bayes_dtype))
 
     res_unsort = np.fromfile(inputfile, dtype=result_dtype)
 
-    for idf in [0,3]:
+    for idf in [0,1,2,3]:
         print("----------------------")
         print("idf : " + str(idf) )
-        res = np.array(sorted(res_unsort, key=lambda x: x['ALICE'][idf]['dNch_deta'], reverse=True))
+        res = np.array(sorted(res_unsort, key=lambda x: x[expt_type][idf]['dNch_deta'], reverse=True))
         print("Result size : " + str(res.size))
-        print("Number events w/o charged particles : " + str( (res_unsort['ALICE']['dNch_deta'][:, idf] == 0).sum() ) )
+        print("Number events w/o charged particles : " + str( (res_unsort[expt_type]['dNch_deta'][:, idf] == 0).sum() ) )
 
         # dNdeta
         tmp_obs='dNch_deta'
         cenb=np.array(obs_cent_list[system][tmp_obs])
-        info = calculate_dNdeta(res, 'ALICE', cenb, idf)
-        entry['Pb-Pb-2760'][tmp_obs]['mean'][:, idf] = info['obs']
-        entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
+        info = calculate_dNdeta(res, expt_type, cenb, idf)
+        entry[system][tmp_obs]['mean'][:, idf] = info['obs']
+        entry[system][tmp_obs]['err'][:,idf] = info['err']
 
         # dETdeta
         tmp_obs='dET_deta'
         cenb=np.array(obs_cent_list[system][tmp_obs])
-        info = calculate_dETdeta(res, 'ALICE', cenb, idf)
-        entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
-        entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
+        info = calculate_dETdeta(res, expt_type, cenb, idf)
+        entry[system][tmp_obs]['mean'][:,idf] = info['obs']
+        entry[system][tmp_obs]['err'][:,idf] = info['err']
 
         # dN(pid)/dy
         for s in ['pion','kaon','proton','Lambda', 'Omega','Xi']:
             cenb=np.array(obs_cent_list[system]['dN_dy_'+s])
-            info = calculate_dNdy(res, 'ALICE', cenb, idf)
-            entry['Pb-Pb-2760']['dN_dy_'+s]['mean'][:,idf] = info['obs'][s]
-            entry['Pb-Pb-2760']['dN_dy_'+s]['err'][:,idf] = info['err'][s]
+            info = calculate_dNdy(res, expt_type, cenb, idf)
+            entry[system]['dN_dy_'+s]['mean'][:,idf] = info['obs'][s]
+            entry[system]['dN_dy_'+s]['err'][:,idf] = info['err'][s]
 
 
         # mean-pT
         for s in ['pion','kaon','proton']:
             cenb=np.array(obs_cent_list[system]['mean_pT_'+s])
-            info = calculate_mean_pT(res, 'ALICE', cenb, idf)
-            entry['Pb-Pb-2760']['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
-            entry['Pb-Pb-2760']['dN_dy_'+s]['err'][:,idf] = info['err'][s]
+            info = calculate_mean_pT(res, expt_type, cenb, idf)
+            entry[system]['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
+            entry[system]['dN_dy_'+s]['err'][:,idf] = info['err'][s]
 
         # mean-pT-fluct
-
+        """
         tmp_obs='pT_fluct'
         cenb=np.array(obs_cent_list[system][tmp_obs])
-        info = calculate_mean_pT_fluct(res, 'ALICE', cenb, idf)
-        entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs']
-        entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err']
+        info = calculate_mean_pT_fluct(res, expt_type, cenb, idf)
+        entry[system][tmp_obs]['mean'][:,idf] = info['obs']
+        entry[system][tmp_obs]['err'][:,idf] = info['err']
+        """
 
         # vn
         for n in range(2,5):
             tmp_obs='v'+str(n)+'2'
             cenb=np.array(obs_cent_list[system][tmp_obs])
-            info = calculate_vn(res, 'ALICE', cenb, idf)
-            entry['Pb-Pb-2760'][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
-            entry['Pb-Pb-2760'][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
+            info = calculate_vn(res, expt_type, cenb, idf)
+            entry[system][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
+            entry[system][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
     return entry
 
 if __name__ == '__main__':
-    system = 'Pb-Pb-2760'
+
+    #system = 'Pb-Pb-2760'
+    system = 'Au-Au-200'
 
     print("Computing observables for all design points")
     print("System = " + system)

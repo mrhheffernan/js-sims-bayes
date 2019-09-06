@@ -100,7 +100,7 @@ class Design:
         # 5.02 TeV has ~1.2x particle production as 2.76 TeV
         # [https://inspirehep.net/record/1410589]
         norm_range = {
-             200: (3., 10.),
+             200: (4., 9.),
             2760: (10., 20.),
             5020: (15., 25.),
             5440: {15., 25.}
@@ -118,7 +118,7 @@ class Design:
 
         #freestreaming
         ('tau_R', r'$\tau_R$ [fm/$c$]', (  0.3, 2.0 )),
-        ('alpha',  r'$\alpha$',         ( -0.5, 0.0 )),
+        ('alpha',  r'$\alpha$',         ( -0.3, 0.3 )),
 
         #shear visc
         ('eta_over_s_T_kink_in_GeV', r'$T_{\eta,\mathrm{kink}}$ [GeV]',              ( 0.13, 0.3 )),

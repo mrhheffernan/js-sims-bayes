@@ -140,8 +140,9 @@ class Chain:
 
         Yexp = Y_exp_data
 
-        design, design_min, design_max, labels = \
-                load_design(system=('Pb','Pb',2760), pset='main')
+        system = systems[0]
+
+        design, design_min, design_max, labels = load_design(system, pset='main')
         # with an extra model uncertainty parameter (0, 0.4)
         self.max = np.array(list(design_max)+[.4])
         self.min = np.array(list(design_min)+[.0])
@@ -154,12 +155,13 @@ class Chain:
         for s in system_strs:
             nobs = 0
             self._slices[s] = []
-            for obs in active_obs_list[s]:
-                #print("obs = " + obs)
+
+            #for obs in active_obs_list[s]:
+            #only use calibration observables
+            for obs in calibration_obs_cent_list[s]:
                 try:
                     #obsdata = Yexp[s][obs]['mean'][idf,:]
                     obsdata = Yexp[s][obs]['mean'][:,idf]
-                    #print(obsdata)
                 except KeyError:
                     continue
 
@@ -173,16 +175,26 @@ class Chain:
             self._expt_cov[s] = np.empty((nobs, nobs))
 
             for obs1, slc1 in self._slices[s]:
-                ismult1 = ('dN' in obs1) or ('dET' in obs1)
-                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf] if not ismult1 \
-                                     else np.log(Yexp[s][obs1]['mean'][:,idf]+1.)
-                dy1 = Yexp[s][obs1]['err'][:,idf] if not ismult1 \
-                      else Yexp[s][obs1]['err'][:,idf]/(Yexp[s][obs1]['mean'][:,idf]+1.)
+                is_mult_1 = ('dN' in obs1) or ('dET' in obs1)
+                if is_mult_1 and transform_multiplicities:
+                    self._expt_y[s][slc1] = np.log(Yexp[s][obs1]['mean'][:,idf] + 1.)
+                    dy1 = Yexp[s][obs1]['err'][:,idf] / (Yexp[s][obs1]['mean'][:,idf] + 1.)
+                else :
+                    self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf]
+                    dy1 = Yexp[s][obs1]['err'][:,idf]
+
+                #self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf] if not ismult1 else np.log(Yexp[s][obs1]['mean'][:,idf]+1.)
+                #dy1 = Yexp[s][obs1]['err'][:,idf] if not ismult1 else Yexp[s][obs1]['err'][:,idf]/(Yexp[s][obs1]['mean'][:,idf]+1.)
 
                 for obs2, slc2 in self._slices[s]:
-                    ismult2 = ('dN' in obs2) or ('dET' in obs2)
-                    dy2 = Yexp[s][obs2]['err'][:,idf] if not ismult2 \
-                          else Yexp[s][obs2]['err'][:,idf]/(Yexp[s][obs2]['mean'][:,idf]+1.)
+                    is_mult_2 = ('dN' in obs2) or ('dET' in obs2)
+
+                    if is_mult_2 and transform_multiplicities:
+                        dy2 = Yexp[s][obs2]['err'][:,idf] / (Yexp[s][obs2]['mean'][:,idf] + 1.)
+                    else :
+                        dy2 = Yexp[s][obs2]['err'][:,idf]
+
+                    #dy2 = Yexp[s][obs2]['err'][:,idf] if not ismult2 else Yexp[s][obs2]['err'][:,idf]/(Yexp[s][obs2]['mean'][:,idf]+1.)
                     self._expt_cov[s][slc1, slc2] = compute_cov(s, obs1, obs2, dy1, dy2)
 
     def _predict(self, X, **kwargs):

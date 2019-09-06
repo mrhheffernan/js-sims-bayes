@@ -6,7 +6,7 @@ import numpy as np
 from sklearn import svm
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-from bins_and_cuts import obs_cent_list, obs_range_list
+from bins_and_cuts import obs_cent_list, obs_range_list, calibration_obs_cent_list
 
 workdir = Path(os.getenv('WORKDIR', '.'))
 
@@ -35,27 +35,43 @@ systems = [
 
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
 
+#only using data from these experimental collabs
+expt_for_system = { 'Au-Au-200' : 'STAR',
+                    'Pb-Pb-2760' : 'ALICE',
+                    'Pb-Pb-5020' : 'ALICE',
+                    'Xe-Xe-5440' : 'ALICE',
+                    }
+
+#for STAR we have measurements of pi+ dN/dy, k+ dN/dy etc... so we need to scale them by 2 after reading in
+STAR_id_yields = {
+            'dN_dy_pion' : 'dN_dy_pion_+',
+            'dN_dy_kaon' : 'dN_dy_kaon_+',
+            'dN_dy_proton' : 'dN_dy_proton_+',
+}
+
+idf_label = {
+            0 : '14 Mom.',
+            1 : 'C.E. R.T.A',
+            2 : 'McNelis',
+            3 : 'Bernhard'
+            }
+
 #the number of design points
-n_design_pts_main = 500
-n_design_pts_validation = 500
+n_design_pts_main = 100
+n_design_pts_validation = 100
 
-#runid = "run-19p-200d"
-runid = "run_PbPb_2760"
+runid = "check_AuAu_prior"
 
-f_events_main = str(
-    workdir/'model_calculations/{:s}/Events/main/'.format(runid))
-f_events_validation = str(
-    workdir/'model_calculations/{:s}/Events/validation/'.format(runid))
-f_obs_main = str(
-    workdir/'model_calculations/{:s}/Obs/main.dat'.format(runid))
-f_obs_validation = str(
-    workdir/'model_calculations/{:s}/Obs/validation.dat'.format(runid))
+f_events_main = str(workdir/'model_calculations/{:s}/Events/main/'.format(runid))
+f_events_validation = str(workdir/'model_calculations/{:s}/Events/validation/'.format(runid))
+f_obs_main = str(workdir/'model_calculations/{:s}/Obs/main.dat'.format(runid))
+f_obs_validation = str(workdir/'model_calculations/{:s}/Obs/validation.dat'.format(runid))
 
-dir_obs_exp = "saved_data"
+dir_obs_exp = "HIC_experimental_data"
 
 design_dir =  str(workdir/'design_pts') #folder containing design points
 
-idf = 3 # the choice of viscous correction
+idf = 0 # the choice of viscous correction
 
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
@@ -64,6 +80,11 @@ validation = False
 #if validation is True, this is the point in design that will be used as pseudo-data
 validation_pt = 5
 
+#if this switch is turned on, the emulator will be trained on log(1 + dY_dx)
+#where dY_dx includes dET_deta, dNch_deta, dN_dy_pion, etc...
+transform_multiplicities = True
+
+#do we want bayes_dtype to include the observables that we don't use for calibration ?
 bayes_dtype = [    (s,
                   [(obs, [("mean",float_t,len(cent_list)),
                           ("err",float_t,len(cent_list))]) \
@@ -73,9 +94,22 @@ bayes_dtype = [    (s,
                  for s in system_strs
             ]
 
+calibration_bayes_dtype = [    (s,
+                  [(obs, [("mean", float_t, len(cent_list)),
+                          ("err", float_t, len(cent_list))]) \
+                    for obs, cent_list in calibration_obs_cent_list[s].items() ],
+                  number_of_models_per_run
+                 ) \
+                 for s in system_strs
+            ]
+
 # The active ones used in Bayes analysis (MCMC)
 active_obs_list = {
    sys: list(obs_cent_list[sys].keys()) for sys in system_strs
+}
+
+calibration_active_obs_list = {
+   sys: list(calibration_obs_cent_list[sys].keys()) for sys in system_strs
 }
 
 def zetas(T, zmax, T0, width, asym):
@@ -102,15 +136,12 @@ taupi = np.vectorize(taupi)
 
 
 # load design for other module
-def load_design(system = ('Pb','Pb',2760), pset = 'main'): # or validation
-    design_file = design_dir + \
-       '/design_points_{:s}_{:s}{:s}-{:d}.dat'.format(pset, *system)
-    range_file = design_dir + \
-       '/design_ranges_{:s}_{:s}{:s}-{:d}.dat'.format(pset, *system)
+def load_design(system, pset = 'main'): # or validation
+    design_file = design_dir + '/design_points_{:s}_{:s}{:s}-{:d}.dat'.format(pset, *system)
+    range_file = design_dir + '/design_ranges_{:s}_{:s}{:s}-{:d}.dat'.format(pset, *system)
     print("Loading {:s} points from {:s}".format(pset, design_file) )
     print("Loading {:s} ranges from {:s}".format(pset, range_file) )
-    with open(design_dir+'/design_labels_{:s}{:s}-{:d}.dat'.format(*system),\
-              'r') as f:
+    with open(design_dir+'/design_labels_{:s}{:s}-{:d}.dat'.format(*system),'r') as f:
          labels = [r""+line[:-1] for line in f]
     # design
     design = pd.read_csv(design_file)
@@ -168,8 +199,7 @@ def transform_design(X):
 
 
 def prepare_emu_design(system_in):
-    design, design_max, design_min, labels = \
-          load_design(system=system_in, pset='main')
+    design, design_max, design_min, labels = load_design(system=system_in, pset='main')
 
     #not transforming design of any parameters right now
     design = transform_design(design.values)
