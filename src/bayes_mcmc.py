@@ -156,9 +156,8 @@ class Chain:
             nobs = 0
             self._slices[s] = []
 
-            #for obs in active_obs_list[s]:
-            #only use calibration observables
-            for obs in calibration_obs_cent_list[s]:
+            for obs in active_obs_list[s]:
+            #for obs in calibration_obs_cent_list[s]:
                 try:
                     #obsdata = Yexp[s][obs]['mean'][idf,:]
                     obsdata = Yexp[s][obs]['mean'][:,idf]

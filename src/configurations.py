@@ -6,7 +6,7 @@ import numpy as np
 from sklearn import svm
 #import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-from bins_and_cuts import obs_cent_list, obs_range_list, calibration_obs_cent_list
+from bins_and_cuts import obs_cent_list, obs_range_list
 
 workdir = Path(os.getenv('WORKDIR', '.'))
 
@@ -71,7 +71,7 @@ dir_obs_exp = "HIC_experimental_data"
 
 design_dir =  str(workdir/'design_pts') #folder containing design points
 
-idf = 0 # the choice of viscous correction
+idf = 3 # the choice of viscous correction
 
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
@@ -94,6 +94,7 @@ bayes_dtype = [    (s,
                  for s in system_strs
             ]
 
+"""
 calibration_bayes_dtype = [    (s,
                   [(obs, [("mean", float_t, len(cent_list)),
                           ("err", float_t, len(cent_list))]) \
@@ -102,15 +103,18 @@ calibration_bayes_dtype = [    (s,
                  ) \
                  for s in system_strs
             ]
+"""
 
 # The active ones used in Bayes analysis (MCMC)
 active_obs_list = {
    sys: list(obs_cent_list[sys].keys()) for sys in system_strs
 }
 
+"""
 calibration_active_obs_list = {
    sys: list(calibration_obs_cent_list[sys].keys()) for sys in system_strs
 }
+"""
 
 def zetas(T, zmax, T0, width, asym):
     DeltaT = T - T0

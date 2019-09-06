@@ -191,49 +191,68 @@ def load_and_compute(inputfile, system):
 
         # dNdeta
         tmp_obs='dNch_deta'
-        cenb=np.array(obs_cent_list[system][tmp_obs])
-        info = calculate_dNdeta(res, expt_type, cenb, idf)
-        entry[system][tmp_obs]['mean'][:, idf] = info['obs']
-        entry[system][tmp_obs]['err'][:,idf] = info['err']
+        try :
+            cenb=np.array(obs_cent_list[system][tmp_obs])
+            info = calculate_dNdeta(res, expt_type, cenb, idf)
+            entry[system][tmp_obs]['mean'][:, idf] = info['obs']
+            entry[system][tmp_obs]['err'][:,idf] = info['err']
+        except KeyError :
+            pass
+
 
         # dETdeta
         tmp_obs='dET_deta'
-        cenb=np.array(obs_cent_list[system][tmp_obs])
-        info = calculate_dETdeta(res, expt_type, cenb, idf)
-        entry[system][tmp_obs]['mean'][:,idf] = info['obs']
-        entry[system][tmp_obs]['err'][:,idf] = info['err']
+        try :
+            cenb=np.array(obs_cent_list[system][tmp_obs])
+            info = calculate_dETdeta(res, expt_type, cenb, idf)
+            entry[system][tmp_obs]['mean'][:,idf] = info['obs']
+            entry[system][tmp_obs]['err'][:,idf] = info['err']
+        except KeyError :
+            pass
+
 
         # dN(pid)/dy
         for s in ['pion','kaon','proton','Lambda', 'Omega','Xi']:
-            cenb=np.array(obs_cent_list[system]['dN_dy_'+s])
-            info = calculate_dNdy(res, expt_type, cenb, idf)
-            entry[system]['dN_dy_'+s]['mean'][:,idf] = info['obs'][s]
-            entry[system]['dN_dy_'+s]['err'][:,idf] = info['err'][s]
+            try :
+                cenb=np.array(obs_cent_list[system]['dN_dy_'+s])
+                info = calculate_dNdy(res, expt_type, cenb, idf)
+                entry[system]['dN_dy_'+s]['mean'][:,idf] = info['obs'][s]
+                entry[system]['dN_dy_'+s]['err'][:,idf] = info['err'][s]
+            except KeyError :
+                pass
 
 
         # mean-pT
         for s in ['pion','kaon','proton']:
-            cenb=np.array(obs_cent_list[system]['mean_pT_'+s])
-            info = calculate_mean_pT(res, expt_type, cenb, idf)
-            entry[system]['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
-            entry[system]['dN_dy_'+s]['err'][:,idf] = info['err'][s]
+            try :
+                cenb=np.array(obs_cent_list[system]['mean_pT_'+s])
+                info = calculate_mean_pT(res, expt_type, cenb, idf)
+                entry[system]['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
+                entry[system]['dN_dy_'+s]['err'][:,idf] = info['err'][s]
+            except KeyError:
+                pass
 
         # mean-pT-fluct
-        """
         tmp_obs='pT_fluct'
-        cenb=np.array(obs_cent_list[system][tmp_obs])
-        info = calculate_mean_pT_fluct(res, expt_type, cenb, idf)
-        entry[system][tmp_obs]['mean'][:,idf] = info['obs']
-        entry[system][tmp_obs]['err'][:,idf] = info['err']
-        """
+        try :
+            cenb=np.array(obs_cent_list[system][tmp_obs])
+            info = calculate_mean_pT_fluct(res, expt_type, cenb, idf)
+            entry[system][tmp_obs]['mean'][:,idf] = info['obs']
+            entry[system][tmp_obs]['err'][:,idf] = info['err']
+        except KeyError :
+            pass
 
         # vn
         for n in range(2,5):
             tmp_obs='v'+str(n)+'2'
-            cenb=np.array(obs_cent_list[system][tmp_obs])
-            info = calculate_vn(res, expt_type, cenb, idf)
-            entry[system][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
-            entry[system][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
+            try :
+                cenb=np.array(obs_cent_list[system][tmp_obs])
+                info = calculate_vn(res, expt_type, cenb, idf)
+                entry[system][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
+                entry[system][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
+            except KeyError :
+                pass
+
     return entry
 
 if __name__ == '__main__':

@@ -86,8 +86,8 @@ class Emulator:
         self.observables = []
         self._slices = {}
 
-        #for obs, cent_list in obs_cent_list[system_str].items():
-        for obs, cent_list in calibration_obs_cent_list[system_str].items():
+        for obs, cent_list in obs_cent_list[system_str].items():
+        #for obs, cent_list in calibration_obs_cent_list[system_str].items():
             self.observables.append(obs)
             n = np.array(cent_list).shape[0]
             self._slices[obs] = slice(self.nobs, self.nobs + n)
@@ -104,8 +104,9 @@ class Emulator:
         for pt in range(n_design_pts_main - len(delete_sets)):
             row = np.array([])
             for obs in self.observables:
-                n_bins_bayes = len(calibration_obs_cent_list[system_str][obs]) # only using these bins for calibration
-                values = np.array(trimmed_model_data[system_str][pt, idf][obs]['mean'][:n_bins_bayes] )
+                #n_bins_bayes = len(calibration_obs_cent_list[system_str][obs]) # only using these bins for calibration
+                #values = np.array(trimmed_model_data[system_str][pt, idf][obs]['mean'][:n_bins_bayes] )
+                values = np.array(trimmed_model_data[system_str][pt, idf][obs]['mean'])
                 if np.isnan(values).sum() > 0:
                     print("Warning! found nan in model data!")
                     print("Design pt = " + str(pt) + "; Obs = " + obs)

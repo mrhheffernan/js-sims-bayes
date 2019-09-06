@@ -16,6 +16,7 @@ for pt in range(n_design_pts_main): # loop over all design points
         # delete Nan dataset
         isnan = np.isnan(values)
         if np.sum(isnan) > 0:
+            print("WARNING! FOUND NAN IN MODEL DATA")
             model_data[system_str][pt, idf][obs]['mean'][isnan] = np.mean(values[np.logical_not(isnan)])
 
         #transforming yield related observables
