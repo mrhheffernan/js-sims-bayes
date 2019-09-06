@@ -73,6 +73,10 @@ design_dir =  str(workdir/'design_pts') #folder containing design points
 
 idf = 3 # the choice of viscous correction
 
+# Design points to delete
+delete_design_pts_set = [324]
+
+
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
 validation = False

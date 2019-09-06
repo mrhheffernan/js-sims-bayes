@@ -28,7 +28,7 @@ from sklearn.gaussian_process import kernels
 from sklearn.preprocessing import StandardScaler
 
 from configurations import *
-from bayes_model import trimmed_model_data, delete_sets
+from bayes_model import trimmed_model_data 
 
 ###########################################################
 ############### Emulator and help functions ###############
@@ -101,7 +101,7 @@ class Emulator:
         delete = []
         # build a matrix of dimension (num design pts) x (number of observables)
         Y = []
-        for pt in range(n_design_pts_main - len(delete_sets)):
+        for pt in range(n_design_pts_main - len(delete_design_pts_set)):
             row = np.array([])
             for obs in self.observables:
                 #n_bins_bayes = len(calibration_obs_cent_list[system_str][obs]) # only using these bins for calibration
@@ -127,9 +127,9 @@ class Emulator:
         design, design_max, design_min, labels = prepare_emu_design(system)
 
         #delete undesirable data
-        if len(delete_sets) > 0:
-            print("Warning! Deleting " + str(len(delete_sets)) + " points from data")
-        design = np.delete(design, list(delete_sets), 0)
+        if len(delete_design_pts_set) > 0:
+            print("Warning! Deleting " + str(len(delete_design_pts_set)) + " points from data")
+        design = np.delete(design, list(delete_design_pts_set), 0)
 
         ptp = design_max - design_min
         print("Design shape[Ndesign, Nparams] = " + str(design.shape))
