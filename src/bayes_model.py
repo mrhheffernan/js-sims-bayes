@@ -25,11 +25,10 @@ for pt in range(n_design_pts_main): # loop over all design points
 
 # things to drop for validation
 np.random.seed(1)
-delete_sets = []
 
-if len(delete_sets) > 0 :
-    print("Design points which will be deleted from training : " + str( np.sort( list(delete_sets) ) ) )
-    trimmed_model_data = np.delete(model_data, list(delete_sets), 0)
+if len(delete_design_pts_set) > 0 :
+    print("Design points which will be deleted from training : " + str( np.sort( list(delete_design_pts_set) ) ) )
+    trimmed_model_data = np.delete(model_data, list(delete_design_pts_set), 0)
 else :
     print("No design points will be deleted from training")
     trimmed_model_data = model_data

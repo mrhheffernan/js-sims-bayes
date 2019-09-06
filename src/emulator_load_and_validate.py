@@ -7,7 +7,6 @@ import numpy as np
 
 from configurations import *
 from emulator import *
-from bayes_model import delete_sets
 
 def main():
     for s in systems:
@@ -58,7 +57,7 @@ def main():
             Y_true = []
             Y_emu = []
             for ipt, pt in enumerate(design.values):
-                if ipt not in delete_sets:
+                if ipt not in delete_design_pts_set:
                     continue
                 mean, cov = emu.predict(np.array([pt]), return_cov=True)
                 y_true = model_data[system_str][obs]['mean'][ipt,idf]
