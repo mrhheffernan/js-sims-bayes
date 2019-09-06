@@ -63,8 +63,8 @@ def main():
                 mean, cov = emu.predict(np.array([pt]), return_cov=True)
                 y_true = model_data[system_str][obs]['mean'][ipt,idf]
                 y_emu = mean[obs][0]
-                if 'dET' in obs or 'dN' in obs:
-                     y_emu = np.exp(y_emu) - 1.
+                #if 'dET' in obs or 'dN' in obs:
+                #     y_emu = np.exp(y_emu) - 1.
                 dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
                 Y_true = np.concatenate([Y_true, y_true])
                 Y_emu = np.concatenate([Y_emu, y_emu])

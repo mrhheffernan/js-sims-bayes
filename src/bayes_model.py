@@ -19,9 +19,9 @@ for pt in range(n_design_pts_main): # loop over all design points
             model_data[system_str][pt, idf][obs]['mean'][isnan] = np.mean(values[np.logical_not(isnan)])
 
         #transforming yield related observables
-        is_mult = ('dN' in obs) or ('dET' in obs)
-        if is_mult and transform_multiplicities:
-            model_data[system_str][pt, idf][obs]['mean'] = np.log(1.0 + values)
+        #is_mult = ('dN' in obs) or ('dET' in obs)
+        #if is_mult and transform_multiplicities:
+        #    model_data[system_str][pt, idf][obs]['mean'] = np.log(1.0 + values)
 
 # things to drop for validation
 np.random.seed(1)

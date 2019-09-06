@@ -327,9 +327,9 @@ def _observables(posterior=False):
                 Y = Ymodel[system][obs]['mean'][:, idf]
 
             for y in Y:
-                is_mult = ('dN' in obs) or ('dET' in obs)
-                if is_mult and transform_multiplicities:
-                    y = np.exp(y) - 1.0
+                #is_mult = ('dN' in obs) or ('dET' in obs)
+                #if is_mult and transform_multiplicities:
+                #    y = np.exp(y) - 1.0
                 if posterior:
                     ax.plot(x, y, color=cr, alpha=.1, lw=.3)
                 else:
