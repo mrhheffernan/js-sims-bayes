@@ -298,31 +298,27 @@ def _observables(posterior=False):
 
     """
     if posterior:
+        print("Plotting observables drawn from posterior")
         Ymodel = Chain().samples(100)
     else:
         Ymodel = trimmed_model_data
 
     if validation:
         #get VALIDATION points
-        design_file = design_dir + \
-               '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*systems[0])
+        design_file = design_dir + '/design_points_validation_{:s}{:s}-{:d}.dat'.format(*systems[0])
         logging.info("Loading design points from " + design_file)
         design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
         truth = design.values[validation_pt]
-        #Yexp = Y_exp_data[validation]
         Yexp = Y_exp_data[validation_pt]
 
-        #Ypred = {s: Trained_Emulators[s].predict(np.array([truth])) \
-        #         for s in system_strs}
     else:
         Yexp = Y_exp_data
 
-
-    fig, axes = plt.subplots(nrows=3, ncols=5, figsize=(10,4), sharex=True)
+    fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10,6), sharex=True)
     for system in system_strs:
-        for obs, ax in zip(active_obs_list[system], axes.flatten()):
-            xbins = np.array(obs_cent_list[system][obs])
+        for obs, ax in zip(calibration_active_obs_list[system], axes.flatten()):
+            xbins = np.array(calibration_obs_cent_list[system][obs])
             x = (xbins[:,0]+xbins[:,1])/2.
             if posterior:
                 Y = Ymodel[system][obs]
@@ -330,27 +326,23 @@ def _observables(posterior=False):
                 Y = Ymodel[system][obs]['mean'][:, idf]
 
             for y in Y:
+                is_mult = ('dN' in obs) or ('dET' in obs)
+                if is_mult and transform_multiplicities:
+                    y = np.exp(y) - 1.0
                 if posterior:
                     ax.plot(x, y, color=cr, alpha=.1, lw=.3)
                 else:
                     ax.plot(x, y, color=cr, alpha=.1, lw=.3)
             try:
-                Y0 = Yexp[system][obs]
-                #Y1 = Ypred[system][obs]
+                exp_mean = Yexp[system][obs]['mean'][:, 0][0]
+                exp_err = Yexp[system][obs]['err'][:, 0][0]
             except KeyError:
                 continue
 
-            ax.errorbar(
-                x, Y0['mean'][idf], yerr=Y0['err'][idf], fmt='o'
-            )
-            #ax.plot(
-            #    x, Y1[0], 'k--'
-            #)
-
-
-            ax.set_xlim(0, 70)
-            ax.set_ylim(*obs_range_list[system][obs])
-            auto_ticks(ax, 'x', nbins=5, minor=2)
+            ax.errorbar( x, exp_mean, exp_err)
+            #ax.set_xlim(0, 70)
+            #ax.set_ylim(*obs_range_list[system][obs])
+            #auto_ticks(ax, 'x', nbins=5, minor=2)
 
             if ax.is_last_row():
                 ax.set_xlabel('Centrality %')
@@ -796,10 +788,10 @@ def viscous_posterior():
 
     index = np.random.choice(np.arange(data.shape[0]), 2000)
 
-    design, dmin, dmax, labels = load_design(system=('Pb','Pb',2760), pset='main')
+    design, dmin, dmax, labels = load_design(system=systems[0], pset='main')
     samples = data[index]
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3), sharex=True, sharey=False)
-    T = np.linspace(0.12, 0.4, 20)
+    T = np.linspace(0.12, 0.3, 20)
 
     prior_zetas = []
     prior_tauPi = []
@@ -820,37 +812,28 @@ def viscous_posterior():
 				samples[:,14],
                ):
         posterior_zetas.append(zetas(T, zm, T0, w, asym))
-    axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0),
-                       np.percentile(posterior_zetas, 95, axis=0),
-                    color=cr, alpha=0.3)
-    axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0),
-                       np.percentile(posterior_zetas, 80, axis=0),
-                    color=cr, alpha=0.3)
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0), np.percentile(posterior_zetas, 95, axis=0), color=cr, alpha=0.3)
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0), np.percentile(posterior_zetas, 80, axis=0), color=cr, alpha=0.3)
     axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)
 
     ##########################
     prior_etas = []
     for d in design.values:
         prior_etas.append(etas(T, *d[7:11]))
-    axes[1].fill_between(T, np.min(prior_etas, axis=0),
-                   np.max(prior_etas, axis=0), color='k', alpha=0.3)
+    axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3)
     posterior_etas = []
     for d in samples:
         posterior_etas.append(etas(T, *d[7:11]))
-    axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),
-                       np.percentile(posterior_etas, 95, axis=0),
-                    color=cr, alpha=0.3)
-    axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),
-                       np.percentile(posterior_etas, 80, axis=0),
-                    color=cr, alpha=0.3)
+    axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),np.percentile(posterior_etas, 95, axis=0),color=cr, alpha=0.3)
+    axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),np.percentile(posterior_etas, 80, axis=0),color=cr, alpha=0.3)
     axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)
 
     axes[0].set_ylabel(r"$\zeta/s$")
-    axes[0].set_xticks([0.1, 0.2, 0.3, 0.4])
+    axes[0].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
     axes[0].set_ylim(0,.35)
 
     axes[1].set_ylabel(r"$\eta/s$")
-    axes[1].set_xticks([0.1, 0.2, 0.3, 0.4])
+    axes[1].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
     axes[1].set_ylim(0,.7)
 
     set_tight(fig, rect=[0, 0, 1, 1])
@@ -1212,7 +1195,8 @@ def _posterior_diag():
 
     if validation:
         #get VALIDATION points
-        design, _, _, _ = load_design(system=('Pb','Pb',2760), pset='validation')
+        system = systems[0]
+        design, _, _, _ = load_design(system=system, pset='validation')
         labels = chain.labels
         ranges = chain.range
 
@@ -1251,10 +1235,8 @@ def _posterior_diag():
     else :
         labels = chain.labels
         ranges = chain.range
-
         data = chain.load().T
         ndims, nsamples = data.shape
-
         ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
 
         cmap = plt.get_cmap('Blues')
