@@ -316,6 +316,8 @@ def _observables(posterior=False):
     else:
         Yexp = Y_exp_data
 
+    highlight_sets =  []
+
     fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10,6), sharex=True)
     for system in system_strs:
         for obs, ax in zip(calibration_active_obs_list[system], axes.flatten()):
@@ -326,14 +328,24 @@ def _observables(posterior=False):
             else:
                 Y = Ymodel[system][obs]['mean'][:, idf]
 
-            for y in Y:
+            for iy, y in enumerate(Y):
+
+                if (iy in highlight_sets):
+                    colour='black'
+                    lw=0.6
+                    alpha=0.3
+                else:
+                    colour=cr
+                    lw=0.3
+                    alpha=0.1
                 #is_mult = ('dN' in obs) or ('dET' in obs)
                 #if is_mult and transform_multiplicities:
                 #    y = np.exp(y) - 1.0
+
                 if posterior:
-                    ax.plot(x, y, color=cr, alpha=.1, lw=.3)
+                    ax.plot(x, y, color=colour, alpha=alpha, lw=lw)
                 else:
-                    ax.plot(x, y, color=cr, alpha=.1, lw=.3)
+                    ax.plot(x, y, color=colour, alpha=alpha, lw=lw)
             try:
                 exp_mean = Yexp[system][obs]['mean'][:, 0][0]
                 exp_err = Yexp[system][obs]['err'][:, 0][0]
