@@ -29,7 +29,7 @@ for design_pt in range(n_design_pts_main): # loop over all design points
         cent_list_mid=np.array([ (cent_list[i]+ cent_list[i+1])/2. for i in range(len(cent_list)-1)])
 
         # Nevermind NaN's in very peripheral events
-        nan_centrality_cut=60
+        nan_centrality_cut=100
 
         for df_index in range(number_of_models_per_run):
         #for df_index in [idf]:

@@ -37,10 +37,13 @@ from scipy import special
 from scipy.interpolate import PchipInterpolator
 import pandas as pd
 
-from bayes_mcmc import Chain, credible_interval
+#from bayes_mcmc import Chain, credible_interval
 from configurations import *
-from emulator import Trained_Emulators
+#from emulator import Trained_Emulators
+
 from calculations_load import trimmed_model_data
+
+from bayes_exp import Y_exp_data
 
 fontsize = dict(
     large=11,
@@ -119,10 +122,6 @@ plt.rcParams.update({
     'image.interpolation': 'none',
 })
 
-from configurations import *
-from bayes_model import model_data
-#from bayes_exp import Yexp_PseudoData
-from bayes_exp import Y_exp_data
 
 
 plotdir = workdir / 'plots'
@@ -316,7 +315,7 @@ def _observables(posterior=False):
     else:
         Yexp = Y_exp_data
 
-    highlight_sets =  []
+    highlight_sets =  [324,459]
 
     fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10,6), sharex=True)
     for system in system_strs:

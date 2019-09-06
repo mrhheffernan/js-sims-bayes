@@ -21,8 +21,8 @@ complex_t = '<c16'
 number_of_models_per_run = 4
 
 #the Collision systems
-#systems = [('Pb', 'Pb', 2760)]
-systems = [('Au', 'Au', 200)]
+systems = [('Pb', 'Pb', 2760)]
+#systems = [('Au', 'Au', 200)]
 
 """
 systems = [
@@ -57,10 +57,10 @@ idf_label = {
             }
 
 #the number of design points
-n_design_pts_main = 100
-n_design_pts_validation = 100
+n_design_pts_main = 500
+n_design_pts_validation = 500
 
-runid = "check_AuAu_prior"
+runid = "Pb-Pb-2760"
 
 f_events_main = str(workdir/'model_calculations/{:s}/Events/main/'.format(runid))
 f_events_validation = str(workdir/'model_calculations/{:s}/Events/validation/'.format(runid))
