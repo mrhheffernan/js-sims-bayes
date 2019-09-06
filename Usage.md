@@ -30,7 +30,7 @@ Once the events have finished, we have the script `src/calculations_average_obs.
 
 One should make two subdirectores `my_events/Events` and `my_events/Obs`
 
-The raw event files before taking centrality bin averages will be stored in `Events/main`. Suppose we have 50 design points. Then, all of the events binary files generated for design point 0 should be catted together and stored in `0.dat`, and similarly for all other design points. There is a script  `sims_scripts/submit/cat_events.sh` which is designed to do this on stampede2.
+The raw event files before taking centrality bin averages will be stored in `Events/main`. Suppose we have 50 design points. Then, all of the events binary files generated for design point 0 should be catted together and stored in `0.dat`, and similarly for all other design points.
 
 After this, there should exist `main/0.dat` , `main/1.dat` , ... , `main/49.dat` .
 
