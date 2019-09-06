@@ -1,3 +1,3 @@
 # Bayesian parameter estimation for relativistic heavy-ion collisions
 
-Docs: [qcd.phy.duke.edu/hic-param-est](http://qcd.phy.duke.edu/hic-param-est)
+Documentation of the original code: [qcd.phy.duke.edu/hic-param-est](http://qcd.phy.duke.edu/hic-param-est)
