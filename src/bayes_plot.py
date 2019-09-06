@@ -120,8 +120,7 @@ plt.rcParams.update({
 })
 
 from configurations import *
-from bayes_model import model_data
-#from bayes_exp import Yexp_PseudoData
+from calculations_load import model_data
 from bayes_exp import Y_exp_data
 
 
