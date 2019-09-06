@@ -7,7 +7,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 #get model calculations at VALIDATION POINTS
 logging.info("Load calculations from " + f_obs_validation)
-Yexp_PseudoData = np.fromfile(f_obs_validation, dtype=bayes_dtype)
+Yexp_PseudoData_pre = np.fromfile(f_obs_validation, dtype=bayes_dtype)
+Yexp_PseudoData=Yexp_PseudoData_pre[validation_pt]
 
 
 design_file = design_dir + \
@@ -15,7 +16,7 @@ design_file = design_dir + \
 logging.info("Loading design points from " + design_file)
 design = pd.read_csv(design_file)
 design = design.drop("idx", axis=1)
-truth = design.values[validation]
+truth = design.values[validation_pt]
 
 chain = Chain()
 data = chain.load().T[:-1]
@@ -28,7 +29,7 @@ def zetas(T, zmax, width, T0, asym):
     return zmax/(1.+x**2) 
 zetas = np.vectorize(zetas)
 
-with open("validate/{:d}.dat".format(validation),'w') as f:
+with open("validate/{:d}.dat".format(validation_pt),'w') as f:
     for i in range(ndims):
         samples = data[i]
         H, xbins = np.histogram(samples, bins=21)

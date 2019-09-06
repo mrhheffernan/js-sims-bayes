@@ -310,8 +310,11 @@ def _observables(posterior=False):
         design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
         truth = design.values[validation_pt]
-        #Yexp = Y_exp_data[validation_pt]
+<<<<<<< HEAD
+        Yexp = Y_exp_data[validation_pt]
+=======
         Yexp = Y_exp_data[0]
+>>>>>>> d40055442550db87d0581f5de0985a49fb872904
 
     else:
         Yexp = Y_exp_data
