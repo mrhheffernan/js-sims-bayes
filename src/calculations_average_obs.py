@@ -94,21 +94,24 @@ def calculate_mean_pT_fluct(ds, exp, cen, idf):
 
 
                         Npairs = .5*N*(N - 1)
-                        #print("Npairs = " + str(Npairs))
-                        M = sum_pT.sum() / N.sum()
 
-                        # This is equivalent to the sum over pairs in Eq. (2).  It may be derived
-                        # by using that, in general,
-                        #
-                        #   \sum_{i,j>i} a_i a_j = 1/2 [(\sum_{i} a_i)^2 - \sum_{i} a_i^2].
-                        #
-                        # That is, the sum over pairs (a_i, a_j) may be re-expressed in terms of
-                        # the sum of a_i and sum of squares a_i^2.  Applying this to Eq. (2) and
-                        # collecting terms yields the following expression.
-                        x = (.5*(sum_pT**2 - sum_pTsq) - M*(N - 1)*sum_pT + M**2*Npairs)/Npairs
-                        meanC, stdC = weighted_mean_std(x, Npairs)
-                        obs[i] = np.sqrt(meanC)/M
-                        obs_err[i] = stdC*.5/np.sqrt(meanC)/M
+                        if (N > 0):
+                            M = sum_pT.sum() / N.sum()
+                            # This is equivalent to the sum over pairs in Eq. (2).  It may be derived
+                            # by using that, in general,
+                            #
+                            #   \sum_{i,j>i} a_i a_j = 1/2 [(\sum_{i} a_i)^2 - \sum_{i} a_i^2].
+                            #
+                            # That is, the sum over pairs (a_i, a_j) may be re-expressed in terms of
+                            # the sum of a_i and sum of squares a_i^2.  Applying this to Eq. (2) and
+                            # collecting terms yields the following expression.
+                            x = (.5*(sum_pT**2 - sum_pTsq) - M*(N - 1)*sum_pT + M**2*Npairs)/Npairs
+                            meanC, stdC = weighted_mean_std(x, Npairs)
+                            obs[i] = np.sqrt(meanC)/M
+                            obs_err[i] = stdC*.5/np.sqrt(meanC)/M
+                        else :
+                            obs[i] = 0.
+                            obs_err[i] = 0.
 
         return {'Name': 'dNch_deta', 'cenM': cenM, 'pTM' : None,
                         'obs': obs, 'err': obs_err}
