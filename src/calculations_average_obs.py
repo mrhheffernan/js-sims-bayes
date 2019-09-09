@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import h5py
+#import h5py
 import sys, os, glob
 # Input data format
 from calculations_file_format_single_event import *
@@ -95,7 +95,7 @@ def calculate_mean_pT_fluct(ds, exp, cen, idf):
 
                         Npairs = .5*N*(N - 1)
 
-                        if (N > 0):
+                        if ( sum_pT.sum() > 0. ):
                             M = sum_pT.sum() / N.sum()
                             # This is equivalent to the sum over pairs in Eq. (2).  It may be derived
                             # by using that, in general,
@@ -178,8 +178,7 @@ def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
 
 def load_and_compute(inputfile, system):
 
-    #expt_type = 'ALICE'
-    expt_type = 'STAR'
+    expt_type = expt_for_system[system]
 
     entry = np.zeros(1, dtype=np.dtype(bayes_dtype))
 
@@ -260,8 +259,7 @@ def load_and_compute(inputfile, system):
 
 if __name__ == '__main__':
 
-    #system = 'Pb-Pb-2760'
-    system = 'Au-Au-200'
+    system = system_strs[0]
 
     print("Computing observables for all design points")
     print("System = " + system)
