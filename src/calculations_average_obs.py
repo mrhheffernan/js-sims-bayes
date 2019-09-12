@@ -230,7 +230,7 @@ def load_and_compute(inputfile, system):
                 cenb=np.array(obs_cent_list[system]['mean_pT_'+s])
                 info = calculate_mean_pT(res, expt_type, cenb, idf)
                 entry[system]['mean_pT_'+s]['mean'][:,idf] = info['obs'][s]
-                entry[system]['dN_dy_'+s]['err'][:,idf] = info['err'][s]
+                entry[system]['mean_pT_'+s]['err'][:,idf] = info['err'][s]
             except KeyError:
                 pass
 
