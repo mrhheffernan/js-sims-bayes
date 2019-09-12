@@ -3,8 +3,7 @@ import os, logging
 import pandas as pd
 from pathlib import Path
 import numpy as np
-from sklearn import svm
-#import matplotlib.pyplot as plt
+#from sklearn import svm
 from scipy.interpolate import interp1d
 from bins_and_cuts import obs_cent_list, obs_range_list
 
@@ -16,22 +15,16 @@ float_t = '<f8'
 int_t = '<i8'
 complex_t = '<c16'
 
+#fix the random seed if doing cross validation, that sets are deleted consistently
+np.random.seed(1)
+
 #how many versions of the model are run, for instance
 # 4 versions of delta-f with SMASH and a fifth model with UrQMD totals 5
 number_of_models_per_run = 4
 
 #the Collision systems
-#systems = [('Pb', 'Pb', 2760)]
-systems = [('Au', 'Au', 200)]
-
-"""
-systems = [
-            ('Au', 'Au', 200),
-            ('Pb', 'Pb', 2760),
-            ('Pb', 'Pb', 5200),
-            ('Xe', 'Xe', 5440)
-            ]
-"""
+systems = [('Pb', 'Pb', 2760)]
+#systems = [('Au', 'Au', 200)]
 
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
 
@@ -57,10 +50,11 @@ idf_label = {
             }
 
 #the number of design points
-n_design_pts_main = 100
-n_design_pts_validation = 100
+n_design_pts_main = 500
+n_design_pts_validation = 500
 
-runid = "check_AuAu_prior"
+#runid = "check_AuAu_prior_2"
+runid = "run_Pb_Pb_500pt_w_v42"
 
 f_events_main = str(workdir/'model_calculations/{:s}/Events/main/'.format(runid))
 f_events_validation = str(workdir/'model_calculations/{:s}/Events/validation/'.format(runid))
@@ -74,19 +68,32 @@ design_dir =  str(workdir/'design_pts') #folder containing design points
 idf = 3 # the choice of viscous correction
 
 # Design points to delete
-delete_design_pts_set = [324]
-
+delete_design_pts_set = []
 
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
-validation = False
+validation = True
 
-#if validation is True, this is the point in design that will be used as pseudo-data
-validation_pt = 5
+#if true, we will validate emulator against points in the training set
+pseudovalidation = False
+
+#if true, we will omit 100 points from the training design when training emulator
+crossvalidation = False
+
+cross_validation_pts = np.random.choice(n_design_pts_main, n_design_pts_main // 5, replace = False) #omit 20% of design points from training
+if crossvalidation:
+    delete_design_pts_set = cross_validation_pts #omit these points from training
+
+#if validation is True, this is the point in design that will be used as pseudo-data for parameter estimation
+validation_pt = 0
+
+#if this switch is turned on, the emulator will be trained on the values of eta/s (T_i) and zeta/s (T_i),
+# where T_i are a grid of temperatures, rather than the parameters such as slope, width, etc...
+do_transform_design = True
 
 #if this switch is turned on, the emulator will be trained on log(1 + dY_dx)
 #where dY_dx includes dET_deta, dNch_deta, dN_dy_pion, etc...
-transform_multiplicities = True
+transform_multiplicities = False
 
 #do we want bayes_dtype to include the observables that we don't use for calibration ?
 bayes_dtype = [    (s,
@@ -98,36 +105,19 @@ bayes_dtype = [    (s,
                  for s in system_strs
             ]
 
-"""
-calibration_bayes_dtype = [    (s,
-                  [(obs, [("mean", float_t, len(cent_list)),
-                          ("err", float_t, len(cent_list))]) \
-                    for obs, cent_list in calibration_obs_cent_list[s].items() ],
-                  number_of_models_per_run
-                 ) \
-                 for s in system_strs
-            ]
-"""
-
 # The active ones used in Bayes analysis (MCMC)
 active_obs_list = {
    sys: list(obs_cent_list[sys].keys()) for sys in system_strs
 }
 
-"""
-calibration_active_obs_list = {
-   sys: list(calibration_obs_cent_list[sys].keys()) for sys in system_strs
-}
-"""
-
-def zetas(T, zmax, T0, width, asym):
+def zeta_over_s(T, zmax, T0, width, asym):
     DeltaT = T - T0
     sign = 1 if DeltaT>0 else -1
     x = DeltaT/(width*(1.+asym*sign))
     return zmax/(1.+x**2)
-zetas = np.vectorize(zetas)
+zeta_over_s = np.vectorize(zeta_over_s)
 
-def etas(T, T_k, alow, ahigh, etas_k):
+def eta_over_s(T, T_k, alow, ahigh, etas_k):
     if T < T_k:
         y = etas_k + alow*(T-T_k)
     else:
@@ -136,10 +126,10 @@ def etas(T, T_k, alow, ahigh, etas_k):
         return y
     else:
         return 0.
-etas = np.vectorize(etas)
+eta_over_s = np.vectorize(eta_over_s)
 
 def taupi(T, T_k, alow, ahigh, etas_k, bpi):
-    return bpi*etas(T, T_k, alow, ahigh, etas_k)/T
+    return bpi*eta_over_s(T, T_k, alow, ahigh, etas_k)/T
 taupi = np.vectorize(taupi)
 
 
@@ -175,24 +165,19 @@ def load_design(system, pset = 'main'): # or validation
 # 14                       15                      16
 # zeta_over_s_lambda_asymm shear_relax_time_factor Tswitch
 
+#right now this depends on the ordering of parameters
+#we should write a version instead that uses labels in case ordering changes
 def transform_design(X):
-    e1 = etas(.15,
-              X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e2 = etas(.2,
-              X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e3 = etas(.3,
-              X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e4 = etas(.4,
-              X[:, 7], X[:, 8], X[:, 9], X[:, 10])
 
-    z1 = zetas(.15,
-               X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z2 = zetas(.2,
-               X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z3 = zetas(.3,
-               X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z4 = zetas(.4,
-               X[:, 11], X[:, 12], X[:, 13], X[:, 14])
+    e1 = eta_over_s(.15, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
+    e2 = eta_over_s(.2, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
+    e3 = eta_over_s(.3, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
+    e4 = eta_over_s(.4, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
+
+    z1 = zeta_over_s(.15, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
+    z2 = zeta_over_s(.2, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
+    z3 = zeta_over_s(.3, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
+    z4 = zeta_over_s(.4, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
 
     X[:, 7] = e1
     X[:, 8] = e2
@@ -209,8 +194,10 @@ def transform_design(X):
 def prepare_emu_design(system_in):
     design, design_max, design_min, labels = load_design(system=system_in, pset='main')
 
-    #not transforming design of any parameters right now
-    design = transform_design(design.values)
+    #transformation of design for viscosities
+    if do_transform_design:
+        print("Note : Transforming design of viscosities")
+        design = transform_design(design.values)
 
     design_max = np.max(design, axis=0)
     design_min = np.min(design, axis=0)

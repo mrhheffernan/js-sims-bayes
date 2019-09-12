@@ -28,7 +28,7 @@ from sklearn.gaussian_process import kernels
 from sklearn.preprocessing import StandardScaler
 
 from configurations import *
-from calculations_load import trimmed_model_data 
+from calculations_load import trimmed_model_data
 
 ###########################################################
 ############### Emulator and help functions ###############
@@ -267,7 +267,8 @@ class Emulator:
         may either be a scalar or an array-like of length nsamples.
 
         """
-        X = transform_design(X)
+        if do_transform_design:
+            X = transform_design(X)
 
         gp_mean = [gp.predict(X, return_cov=return_cov) for gp in self.gps]
 
