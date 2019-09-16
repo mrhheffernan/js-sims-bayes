@@ -59,7 +59,7 @@ def write_module_inputs(
     #delta-f mode will be overwritten by the run-events script
     delta_f_mode = 4 # 1: 14 moment, 2: C.E., 3: McNelis feq_mod, 4: Bernhard feq_mod
     rap_max = 2.0    # dN/dY sampled is flat for y in (-rap_max, rap_max) and zero outside
-    min_num_hadrons = 100000
+    min_num_hadrons = 50000
     max_num_samples = 2000
     set_T_switch = 0 #if on, iS3D will use Tc read in iS3D_parameters.dat as temperature
 
@@ -110,6 +110,11 @@ def write_module_inputs(
     #TRENTo parameters
     cent_low = 0
     cent_high = 100
+
+    #For Xenon, we want to use the deformed nucleus in TRENTo
+    if projectile == 'Xe':
+        projectile = 'Xe2'
+        target = 'Xe2'
 
     #write appropriate input files
 
