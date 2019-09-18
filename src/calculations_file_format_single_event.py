@@ -37,6 +37,7 @@ Nharmonic_diff = 5
 # results "array" (one element)
 # to be overwritten for each event
 # four entries for four 'delta-f' options
+number_of_viscous_corrections=4
 result_dtype=[
 ('initial_entropy', float_t, 1),
 ('impact_parameter', float_t, 1),
@@ -68,14 +69,11 @@ result_dtype=[
                 # 6) Q vector, pT[0.2, 5.0], eta [-0.8, 0.8], charged
                 ('flow', [      ('N', int_t, 1),
                                         ('Qn', complex_t, Nharmonic)], 1),
-                # 7) Q vector, diff-flow eta[-0.8, 0.8], pi, K, p
-                # It uses #6 as its reference Q vector
-                #('d_flow_chg', [('N', int_t, NpT),
-                #                               ('Qn', complex_t, [NpT, Nharmonic_diff])], 1),
-                ('d_flow_pid', [(name, [('N', int_t, Qn_diff_NpT),
+        ], number_of_viscous_corrections),
+# Q vector, diff-flow, identified charged hadrons
+('d_flow_pid', [(name, [('N', int_t, Qn_diff_NpT),
                                                                 ('Qn', complex_t, [Qn_diff_NpT, Nharmonic_diff])], 1)
-                                                for (name,_) in Qn_species      ], 1),
-        ], 4)
+                                for (name,_) in Qn_species      ], number_of_viscous_corrections),
 ]
 
 """
