@@ -25,8 +25,8 @@ for design_pt in range(n_design_pts_main): # loop over all design points
         mean_pT_odd_any_df=False
 
         # Get centrality bins
-        cent_list=obs_cent_list[system_str][obs][:,0]
-        cent_list_mid=np.array([ (cent_list[i]+ cent_list[i+1])/2. for i in range(len(cent_list)-1)])
+        cent_list=obs_cent_list[system_str][obs][:]
+        cent_list_mid=np.array([(a+b)/2 for (a,b) in  cent_list])
 
         # Nevermind NaN's in very peripheral events
         nan_centrality_cut=60
@@ -35,7 +35,12 @@ for design_pt in range(n_design_pts_main): # loop over all design points
         #for df_index in [idf]:
             values = np.array( model_data[system_str][design_pt, df_index][obs]['mean'])
 
-            nan_cent_i_max=np.argmin(cent_list_mid<nan_centrality_cut)-1
+            cent_sel_bool=cent_list_mid<nan_centrality_cut
+            if (np.all(cent_sel_bool)):
+                nan_cent_i_max=len(cent_list_mid)
+            else:
+                nan_cent_i_max=np.argmin(cent_sel_bool)
+                
             nan_vals=values[:nan_cent_i_max]
 
             # Check for NaN's in any observables
