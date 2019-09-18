@@ -14,11 +14,13 @@ data = np.fromfile(filename, dtype=result_dtype)
 
 system = 'Pb-Pb-2760'
 
+Qn_rap_range=2.
+
 mid_pT_bins=[(Qn_diff_pT_cuts[i]+Qn_diff_pT_cuts[i+1])/2. for i in range(0,len(Qn_diff_pT_cuts)-1)]
 
 print(data['ALICE'].dtype)
 
-Qn_diff=data['ALICE']['d_flow_pid']
+Qn_diff=data['d_flow_pid']
 
 #print(v1)
 #
@@ -83,8 +85,8 @@ for species, pid in Qn_species:
         if (pT<pTminCut):
             continue
         rapidity_to_pseudorapidity_jacobian=integrated_jacobian(masses[species],pT,etaCut)
-        Qn_ch['N']+=Qn_diff[species]['N'][0][:,i]*weight*rapidity_to_pseudorapidity_jacobian
-        Qn_ch['Qn']+=Qn_diff[species]['Qn'][0][:,i]*weight*rapidity_to_pseudorapidity_jacobian
+        Qn_ch['N']+=Qn_diff[species]['N'][0][:,i]/Qn_rap_range*weight*rapidity_to_pseudorapidity_jacobian
+        Qn_ch['Qn']+=Qn_diff[species]['Qn'][0][:,i]/Qn_rap_range*weight*rapidity_to_pseudorapidity_jacobian
         #print(i,pT,Qn_diff[species]['Qn'][0,:,i])
 
 #    tmp_Qn_id=Qn_diff[species]
@@ -102,7 +104,7 @@ for species, pid in Qn_species:
     if (species== 'Sigma'):
         alt='Sigma0'
 
-    print('mult ',species,": ",data['ALICE']['dN_dy'][alt],np.divide(np.sum(Qn_diff[species]['N'],axis=2),data['ALICE']['nsamples']))
+    print('mult ',species,": ",data['ALICE']['dN_dy'][alt],np.divide(np.sum(Qn_diff[species]['N'],axis=2)/Qn_rap_range,data['ALICE']['nsamples']))
     print('mean pT ', species,": ",data['ALICE']['mean_pT'][alt],
     np.divide(np.sum(np.multiply(Qn_diff[species]['N'],mid_pT_bins),axis=2),np.sum(Qn_diff[species]['N'],axis=2)))
 #    np.sum(np.multiply(Qn_diff[species]['N'],mid_pT_bins),axis=2)/np.sum(Qn_diff[species]['N'],axis=2) )
