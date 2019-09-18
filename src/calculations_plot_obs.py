@@ -18,11 +18,15 @@ design_pt_to_plot=2
 
 # This is the input:
 # Specifies how observables are grouped according to these regular expression
+# Also specify if they should be plotted on a linear or a log scale
 regex_obs_to_group_list=[
-(r'$\pi$/K/p dN/dy',"dN_dy_(pion|kaon|proton)"),
-(r'$\pi$/K/p $\langle p_T \rangle$',"mean_pT_(pion|kaon|proton)"),
-(r'$\Lambda/\Omega/\Xi$ dN/dy',"dN_dy_(Lambda|Omega|Xi)"),  
-(r'$v_n\{2\}$',"v[2-5+]2") 
+(r'$\pi$/K/p dN/dy',"dN_dy_(pion|kaon|proton)",'log'),
+(r'$\pi$/K/p $\langle p_T \rangle$',"mean_pT_(pion|kaon|proton)",'linear'),
+(r'$\Lambda/\Omega/\Xi$ dN/dy',"dN_dy_(Lambda|Omega|Xi)",'log'),  
+(r'$v_n\{2\}$',"v[2-5+]2",'linear'),
+(r'$dN_{ch}/d\eta$',"dNch_deta",'log'),
+(r'$dE_T/d\eta$',"dET_deta",'log'),
+(r'$\langle p_T \rangle$ fluct',"pT_fluct",'linear'),
 ]
 
 # This parts figures out how to group observables based on the regular expressions
@@ -34,7 +38,7 @@ for system in system_strs:
     obs_to_group[system]={}
     for obs_name in obs_cent_list[system]:
         found_match=False
-        for regex_id, (regex_label, regex_obs_to_group) in enumerate(regex_obs_to_group_list):
+        for regex_id, (regex_label, regex_obs_to_group, plot_scale) in enumerate(regex_obs_to_group_list):
             r = re.compile(regex_obs_to_group)
             match=r.match(obs_name)
             # No match means nothing to group
@@ -45,7 +49,7 @@ for system in system_strs:
                 else:
                     found_match=True
 
-                    obs_to_group[system][obs_name]=(regex_id, regex_label)
+                    obs_to_group[system][obs_name]=(regex_id, regex_label, plot_scale)
 
         if (not found_match):
             obs_to_group[system][obs_name]=None
@@ -89,11 +93,12 @@ def plot(calcs):
 
         #Loop over grouped observables
         #for n, (obs, cent) in enumerate(obs_cent_list.items()):
-        for n, ((regex_id, obs_name), obs_list) in enumerate(final_obs_grouping[system].items()):
+        for n, ((regex_id, obs_name, plot_scale), obs_list) in enumerate(final_obs_grouping[system].items()):
 
             plt.subplot(nb_of_rows,nb_of_cols,n+1)
             plt.xlabel(r'Centrality (%)', fontsize=10)
             plt.ylabel(obs_name, fontsize=10)
+            plt.yscale(plot_scale)
 
             # Loop over observable group
             for obs, color in zip(obs_list,'rgbrgbrgb'):
@@ -111,7 +116,8 @@ def plot(calcs):
                     line_type,_,_ = plt.errorbar(mid_centrality, mean_values, yerr=stat_uncert, fmt=line, color=color, markersize=4)
                     line_list.append(line_type)
 
-            plt.ylim(ymin=0)
+            if (plot_scale != "log"):
+                plt.ylim(ymin=0)
 
             # Plot legend in first subplot only
             if (0 == n):
