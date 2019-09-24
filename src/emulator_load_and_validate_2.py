@@ -9,7 +9,7 @@ from configurations import *
 from emulator import *
 from calculations_load import validation_data, trimmed_model_data
 
-def plot_residuals(system_str, emu, design, cent_bin, observables):
+def plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols):
     """
     Plot a histogram of the percent difference between the emulator
     prediction and the model at design points in either training or validation sets.
@@ -17,7 +17,7 @@ def plot_residuals(system_str, emu, design, cent_bin, observables):
 
     print("Plotting emulator residuals")
 
-    fig, axes = plt.subplots(figsize=(10,8), ncols=5, nrows=3)
+    fig, axes = plt.subplots(figsize=(10,8), ncols=ncols, nrows=nrows)
     for obs, ax in zip(observables, axes.flatten()):
         Y_true = []
         Y_emu = []
@@ -66,7 +66,7 @@ def plot_residuals(system_str, emu, design, cent_bin, observables):
 
     #plt.show()
 
-def plot_scatter(system_str, emu, design, cent_bin, observables):
+def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
     """
     Plot a scatter plot of the emulator prediction vs the model prediction at
     design points in either training or testing set.
@@ -74,7 +74,7 @@ def plot_scatter(system_str, emu, design, cent_bin, observables):
 
     print("Plotting scatter plot of emulator vs model")
 
-    fig, axes = plt.subplots(figsize=(10,8), ncols=5, nrows=3)
+    fig, axes = plt.subplots(figsize=(10,8), ncols=ncols, nrows=nrows)
     for obs, ax in zip(observables, axes.flatten()):
         Y_true = []
         Y_emu = []
@@ -125,13 +125,13 @@ def plot_scatter(system_str, emu, design, cent_bin, observables):
 
     #plt.show()
 
-def plot_model_stat_uncertainty(system_str, design, cent_bin, observables):
+def plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows, ncols):
     """
     Plot the model uncertainty for all observables
     """
     print("Plotting model stat. uncertainty")
 
-    fig, axes = plt.subplots(figsize=(10,8), ncols=3, nrows=2)
+    fig, axes = plt.subplots(figsize=(10,8), ncols=ncols, nrows=nrows)
     for obs, ax in zip(observables, axes.flatten()):
 
 
@@ -150,7 +150,7 @@ def plot_model_stat_uncertainty(system_str, design, cent_bin, observables):
                     print("nan")
                 else :
                     rel_errors.append(err / val)
-        
+
         rel_errors = np.array(rel_errors)
         std = np.sqrt( np.var(rel_errors) )
         mean = np.mean(rel_errors)
@@ -178,7 +178,8 @@ def main():
         for obs, cent_list in obs_cent_list[system_str].items():
             observables.append(obs)
 
-        observables = ['dNch_deta', 'dET_deta', 'v22', 'v32', 'v42']
+        nrows = 3
+        ncols = 3
 
         if pseudovalidation:
             #using training points as testing points
@@ -189,17 +190,17 @@ def main():
         print("Validation design set shape : (Npoints, Nparams) =  ", design.shape)
 
         #load the dill'ed emulator from emulator file
-        print("Loading emulators from emulator/emu-" + system_str + '.dill' )
-        emu = dill.load(open('emulator/emu-' + system_str + '.dill', "rb"))
+        print("Loading emulators from emulator/emulator-" + system_str + '-idf-' + str(idf) + '.dill' )
+        emu = dill.load(open('emulator/emulator-' + system_str + '-idf-' + str(idf) + '.dill', "rb"))
         print("NPC = " + str(emu.npc))
         print("idf = " + str(idf))
 
         #make a plot of the residuals ; percent difference between emulator and model
-        #plot_residuals(system_str, emu, design, cent_bin, observables)
+        plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols)
         #make a scatter plot of emulator prediction vs model prediction
-        #plot_scatter(system_str, emu, design, cent_bin, observables)
+        plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols)
         #make a histogram to check the model statistical uncertainty
-        plot_model_stat_uncertainty(system_str, design, cent_bin, observables)
+        plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows, ncols)
 
 
 if __name__ == "__main__":
