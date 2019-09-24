@@ -317,9 +317,10 @@ def _observables(posterior=False):
 
     highlight_sets =  []
 
-    fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10,6), sharex=True)
+    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(10,6), sharex=True)
     for system in system_strs:
         for obs, ax in zip(active_obs_list[system], axes.flatten()):
+            print(obs)
             xbins = np.array(obs_cent_list[system][obs])
             x = (xbins[:,0]+xbins[:,1])/2.
             if posterior:
