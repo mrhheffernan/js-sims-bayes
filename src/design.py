@@ -145,12 +145,32 @@ class Design:
         self.min, self.max = map(np.array, zip(*self.range))
         self.points = [str(i) for i in range(npoints)]
 
+        #define different seeds for each system
+        main_seeds = {
+                    'AuAu-200' : 450829120,
+                    'PbPb-2760': 450829121,
+                    'PbPb-5020': 450829122,
+                    'XeXe-5440': 450829123,
+                    }
+        validation_seeds = {
+                    'AuAu-200' : 751783496,
+                    'PbPb-2760': 751783497,
+                    'PbPb-5020': 751783498,
+                    'XeXe-5440': 751783499,
+                    }
+
         #The seed is fixed here, which fixes the design points
-        if seed is None:
-            seed = 751783496 if validation else 450829120
-        self.array = self.min + (self.max - self.min)*generate_lhs(
-            npoints=npoints, ndim=self.ndim, seed=seed
-        )
+        #if seed is None:
+        #    seed = 751783496 if validation else 450829120
+
+        #this fixes a different seed for each ystem s.t. each system samples
+        #different points in the parameter space
+        if validation :
+            seed = validation_seeds[self.system]
+        else :
+            seed = main_seeds[self.system]
+
+        self.array = self.min + (self.max - self.min)*generate_lhs(npoints=npoints, ndim=self.ndim, seed=seed)
 
     def __array__(self):
         return self.array
