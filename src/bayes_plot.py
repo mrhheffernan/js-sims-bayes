@@ -717,7 +717,7 @@ def etas_prior():
 				design['eta_over_s_high_T_slope_in_GeV'],
 				design['eta_over_s_at_kink'],
                 design['shear_relax_time_factor']):
-        y = etas(T, Tk, al, ah, ek)
+        y = eta_over_s(T, Tk, al, ah, ek)
         ax.plot(T, y, 'b-', alpha=0.3)
         axt.plot(T, T*taupi(T, bpi, Tk, al, ah, ek), 'b-', alpha=0.3)
     ax.set_ylabel(r"$\eta/s$")
@@ -779,7 +779,7 @@ def zetas_prior():
 				design['zeta_over_s_lambda_asymm'],
                 design['bulk_relax_time_factor'],
                 design['bulk_relax_time_power']):
-        y = zetas(T, zm, T0, w, asym)
+        y = zeta_over_s(T, zm, T0, w, asym)
         ax.plot(T, y, 'b-', alpha=0.3)
         axt.plot(T, tauPi(T, bPi, zm, T0, w, asym, q)/5.026, 'b-', alpha=0.3)
     ax.set_ylabel(r"$\zeta/s$")
@@ -813,7 +813,7 @@ def viscous_posterior():
 				design['zeta_over_s_width_in_GeV'],
 				design['zeta_over_s_lambda_asymm'],
                 ):
-        prior_zetas.append(zetas(T, zm, T0, w, asym))
+        prior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
 
     axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3)
     posterior_zetas = []
@@ -823,7 +823,7 @@ def viscous_posterior():
 				samples[:,13],
 				samples[:,14],
                ):
-        posterior_zetas.append(zetas(T, zm, T0, w, asym))
+        posterior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
     axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0), np.percentile(posterior_zetas, 95, axis=0), color=cr, alpha=0.3)
     axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0), np.percentile(posterior_zetas, 80, axis=0), color=cr, alpha=0.3)
     axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)
@@ -831,11 +831,11 @@ def viscous_posterior():
     ##########################
     prior_etas = []
     for d in design.values:
-        prior_etas.append(etas(T, *d[7:11]))
+        prior_etas.append(eta_over_s(T, *d[7:11]))
     axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3)
     posterior_etas = []
     for d in samples:
-        posterior_etas.append(etas(T, *d[7:11]))
+        posterior_etas.append(eta_over_s(T, *d[7:11]))
     axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),np.percentile(posterior_etas, 95, axis=0),color=cr, alpha=0.3)
     axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),np.percentile(posterior_etas, 80, axis=0),color=cr, alpha=0.3)
     axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)
@@ -856,7 +856,7 @@ def zetas_validation():
     # prior
     design, _, _, _ = prepare_design()
     T = np.linspace(0.15, 0.37, 100)
-    prior = np.array([zetas(T, *truth) for truth in design.values])
+    prior = np.array([zeta_over_s(T, *truth) for truth in design.values])
 
 
     fig, axes = plt.subplots(
@@ -870,7 +870,7 @@ def zetas_validation():
         f = "./validate/{:d}.dat".format(iv)
         t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
 
-        true = zetas(T, *design[iv])
+        true = zeta_over_s(T, *design[iv])
         ax.plot(T, true, ls="--", c=".3")
         Ttest = [.155, .175, .2, .25, .35]
         ax.errorbar(Ttest, m[10:], yerr=[m[10:]-l2[10:],h2[10:]-m[10:]], color=cr,fmt='o', linewidth=.5)
