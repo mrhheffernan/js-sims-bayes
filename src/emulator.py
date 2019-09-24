@@ -368,7 +368,7 @@ def main():
 
         #dill the emulator to be loaded later
         system_str = "{:s}-{:s}-{:d}".format(*s)
-        with open('emulator/emu-' + system_str +'.dill', 'wb') as file:
+        with open('emulator/emulator-' + system_str + '-idf-' + str(idf) + '.dill', 'wb') as file:
             dill.dump(emu, file)
 
 
@@ -377,4 +377,4 @@ if __name__ == "__main__":
 
 Trained_Emulators = {}
 for s in system_strs:
-    Trained_Emulators[s] = dill.load(open('emulator/emu-' + s + '.dill', "rb"))
+    Trained_Emulators[s] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
