@@ -23,8 +23,10 @@ np.random.seed(1)
 number_of_models_per_run = 4
 
 #the Collision systems
-systems = [('Pb', 'Pb', 2760)]
-#systems = [('Au', 'Au', 200)]
+systems = [('Au', 'Au', 200)]
+#systems = [('Pb', 'Pb', 2760)]
+#systems = [('Pb', 'Pb', 5020)]
+#systems = [('Xe', 'Xe', 5440)]
 
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
 
@@ -51,10 +53,11 @@ idf_label = {
 
 #the number of design points
 n_design_pts_main = 500
-n_design_pts_validation = 500
+n_design_pts_validation = 100
 
 #runid = "check_AuAu_prior_2"
-runid = "run_Pb_Pb_500pt_w_v42"
+#runid = "run_Pb_Pb_500pt_w_v42"
+runid = "production_500pts_Au_Au_200"
 
 f_events_main = str(workdir/'model_calculations/{:s}/Events/main/'.format(runid))
 f_events_validation = str(workdir/'model_calculations/{:s}/Events/validation/'.format(runid))
@@ -72,7 +75,7 @@ delete_design_pts_set = []
 
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
-validation = True
+validation = False
 
 #if true, we will validate emulator against points in the training set
 pseudovalidation = False
