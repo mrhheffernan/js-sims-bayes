@@ -35,6 +35,8 @@ else :
                     else :
                         expt_data = pd.read_csv(path_to_data + obs + '_+.dat', sep = ' ', skiprows=2, escapechar='#')
 
+                    #our model takes the sum of pi^+ and pi^-, k^+ and k^-, etc...
+                    #the Au Au data are saved separately for particles and antiparticles  
                     entry[system_str][obs]['mean'][:, idf] = expt_data['val'].iloc[:n_bins_bayes] * 2.0
                 else :
                     expt_data = pd.read_csv(path_to_data + obs + '.dat', sep = ' ', skiprows=2, escapechar='#')
