@@ -5,59 +5,10 @@ import numpy as np
 STAR_cent_bins = np.array( [ [0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70], [70,80] ] ) # 9 bins
 #more central bins to use for parameter estimation to avoid including empty events
 central_STAR_cent_bins = np.array( [ [0,5],[5,10],[10,20],[20,30],[30,40],[40,50] ] ) # 6 bins
+#more central bins for some PHENIX measurements
+central_PHENIX_cent_bins = np.array( [ [0,5],[5,10],[10,15],[15,20],[20,30],[30,40],[40,50] ] ) # 7 bins
 #these bins are common to many ALICE observables
 ALICE_cent_bins = np.array( [ [0,5],[5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70] ] ) # 8 bins
-
-#all possible observables
-"""
-obs_cent_list = {
-'Pb-Pb-2760': {
-	'dNch_deta' : ALICE_cent_bins,
-	'dET_deta' : np.array([[0, 2.5], [2.5, 5], [5, 7.5], [7.5, 10],
-		                   [10, 12.5], [12.5, 15], [15, 17.5], [17.5, 20],
-		                   [20, 22.5], [22.5, 25], [25, 27.5], [27.5, 30],
-		                   [30, 32.5], [32.5, 35], [35, 37.5], [37.5, 40],
-		                   [40, 45], [45, 50], [50, 55], [55, 60],
-		                   [60, 65], [65, 70]]), # 22 bins
-	'dN_dy_pion'   : ALICE_cent_bins,
-	'dN_dy_kaon'   : ALICE_cent_bins,
-	'dN_dy_proton' : ALICE_cent_bins,
-	'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), # 5 bins
-	'dN_dy_Omega'  : np.array([[0,10],[10,20],[20,40],[40,60]]), # 4 bins
-	'dN_dy_Xi'     : np.array([[0,10],[10,20],[20,40],[40,60]]), # 4 bins
-	'mean_pT_pion'   : ALICE_cent_bins,
-	'mean_pT_kaon'   : ALICE_cent_bins,
-	'mean_pT_proton' : ALICE_cent_bins,
-	'pT_fluct' : np.array([[0,5],[5,10],[10,15],[15,20],
-		                  [20,25],[25,30],[30,35],[35,40],
-		                  [40,45],[45,50],[50,55],[55,60]]), #12 bins
-	'v22' : ALICE_cent_bins,
-	'v32' : np.array([[0,5],[5,10],[10,20],[20,30], [30,40],[40,50]]), # 6 bins
-	'v42' : np.array([[0,5],[5,10],[10,20],[20,30], [30,40],[40,50]]), # 6 bins
-    },
-
-#STAR doesn't actually publish many of these observables,
-#but we can keep them anyway
-'Au-Au-200': {
-	'dNch_deta' : STAR_cent_bins, #unavailable
-	'dET_deta' : STAR_cent_bins, #unavailable
-	'dN_dy_pion'   : STAR_cent_bins,
-	'dN_dy_kaon'   : STAR_cent_bins,
-	'dN_dy_proton' : STAR_cent_bins,
-	'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), #unavailable
-	'dN_dy_Omega'  : np.array([[0,10],[10,20],[20,40],[40,60]]), #unavailable
-	'dN_dy_Xi'     : np.array([[0,10],[10,20],[20,40],[40,60]]), #unavailable
-	'mean_pT_pion'   : STAR_cent_bins,
-	'mean_pT_kaon'   : STAR_cent_bins,
-	'mean_pT_proton' : STAR_cent_bins,
-	'pT_fluct' : STAR_cent_bins, #unavailable
-	'v22' : STAR_cent_bins,
-	'v32' : STAR_cent_bins,
-	'v42' : STAR_cent_bins,
-    },
-
-}
-"""
 
 #the observables which will be used for parameter estimation
 obs_cent_list = {
@@ -84,7 +35,43 @@ obs_cent_list = {
 		                  [40,45],[45,50],[50,55],[55,60]]), #12 bins
 	'v22' : ALICE_cent_bins,
 	'v32' : np.array([[0,5],[5,10],[10,20],[20,30], [30,40],[40,50]]), # 6 bins
-	#'v42' : np.array([[0,5],[5,10],[10,20],[20,30], [30,40],[40,50]]), # 6 bins
+	'v42' : np.array([[0,5],[5,10],[10,20],[20,30], [30,40],[40,50]]), # 6 bins
+    },
+
+'Pb-Pb-5020': {
+	'dNch_deta' : np.array( [ [0,2.5],[2.5,5],[5,7.5],[7.5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70] ] ),
+	#'dET_deta' : np.array([[0, 2.5], [2.5, 5], [5, 7.5], [7.5, 10],[10, 12.5],[12.5, 15],[15, 17.5],[17.5, 20],[20, 22.5], [22.5, 25], [25, 27.5], [27.5, 30],[30, 32.5], [32.5, 35], [35, 37.5], [37.5, 40],[40, 45], [45, 50], [50, 55], [55, 60],[60, 65], [65, 70]]), # 22 bins
+	#'dN_dy_pion'   : ALICE_cent_bins,
+	#'dN_dy_kaon'   : ALICE_cent_bins,
+	#'dN_dy_proton' : ALICE_cent_bins,
+	#'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), # 5 bins
+	#'dN_dy_Omega'  : np.array([[0,10],[10,20],[20,40],[40,60]]), # 4 bins
+	#'dN_dy_Xi'     : np.array([[0,10],[10,20],[20,40],[40,60]]), # 4 bins
+	#'mean_pT_pion'   : ALICE_cent_bins,
+	#'mean_pT_kaon'   : ALICE_cent_bins,
+	#'mean_pT_proton' : ALICE_cent_bins,
+	#'pT_fluct' : np.array([[0,5],[5,10],[10,15],[15,20], [20,25],[25,30],[30,35],[35,40],[40,45],[45,50],[50,55],[55,60]]), #12 bins
+	'v22' : ALICE_cent_bins,
+	'v32' : np.array([[0,5],[5,10],[10,20],[20,30],[30,40],[40,50]]), # 6 bins
+	'v42' : np.array([[0,5],[5,10],[10,20],[20,30],[30,40],[40,50]]), # 6 bins
+    },
+
+'Xe-Xe-5440': {
+	'dNch_deta' : np.array( [ [0,2.5],[2.5,5],[5,7.5],[7.5,10],[10,20],[20,30],[30,40],[40,50],[50,60],[60,70] ] ),
+	#'dET_deta' : np.array([[0, 2.5], [2.5, 5], [5, 7.5], [7.5, 10],[10, 12.5],[12.5, 15],[15, 17.5],[17.5, 20],[20, 22.5], [22.5, 25], [25, 27.5], [27.5, 30],[30, 32.5], [32.5, 35], [35, 37.5], [37.5, 40],[40, 45], [45, 50], [50, 55], [55, 60],[60, 65], [65, 70]]), # 22 bins
+	#'dN_dy_pion'   : ALICE_cent_bins,
+	#'dN_dy_kaon'   : ALICE_cent_bins,
+	#'dN_dy_proton' : ALICE_cent_bins,
+	#'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), # 5 bins
+	#'dN_dy_Omega'  : np.array([[0,10],[10,20],[20,40],[40,60]]), # 4 bins
+	#'dN_dy_Xi'     : np.array([[0,10],[10,20],[20,40],[40,60]]), # 4 bins
+	#'mean_pT_pion'   : ALICE_cent_bins,
+	#'mean_pT_kaon'   : ALICE_cent_bins,
+	#'mean_pT_proton' : ALICE_cent_bins,
+	#'pT_fluct' : np.array([[0,5],[5,10],[10,15],[15,20], [20,25],[25,30],[30,35],[35,40],[40,45],[45,50],[50,55],[55,60]]), #12 bins
+	'v22' : ALICE_cent_bins,
+	'v32' : ALICE_cent_bins,
+	#'v42' : np.array([[0,5],[5,10],[10,20],[20,30],[30,40],[40,50]]), # 6 bins
     },
 
 'Au-Au-200': {
@@ -92,7 +79,10 @@ obs_cent_list = {
 	#'dET_deta' : STAR_cent_bins, #unavailable
 	'dN_dy_pion'   : central_STAR_cent_bins,
 	'dN_dy_kaon'   : central_STAR_cent_bins,
-	'dN_dy_proton' : central_STAR_cent_bins,
+
+	#'dN_dy_proton' : central_STAR_cent_bins,
+	'dN_dy_proton' : central_PHENIX_cent_bins,
+
 	#'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), #unavailable
 	#'dN_dy_Omega'  : np.array([[0,10],[10,20],[20,40],[40,60]]), #unavailable
 	#'dN_dy_Xi'     : np.array([[0,10],[10,20],[20,40],[40,60]]), #unavailable
