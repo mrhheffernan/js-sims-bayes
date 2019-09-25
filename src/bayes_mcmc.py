@@ -174,24 +174,24 @@ class Chain:
             self._expt_cov[s] = np.empty((nobs, nobs))
 
             for obs1, slc1 in self._slices[s]:
-                #is_mult_1 = ('dN' in obs1) or ('dET' in obs1)
-                #if is_mult_1 and transform_multiplicities:
-                #    self._expt_y[s][slc1] = np.log(Yexp[s][obs1]['mean'][:,idf] + 1.)
-                #    dy1 = Yexp[s][obs1]['err'][:,idf] / (Yexp[s][obs1]['mean'][:,idf] + 1.)
-                #else :
-                self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf]
-                dy1 = Yexp[s][obs1]['err'][:,idf]
+                is_mult_1 = ('dN' in obs1) or ('dET' in obs1)
+                if is_mult_1 and transform_multiplicities:
+                    self._expt_y[s][slc1] = np.log(Yexp[s][obs1]['mean'][:,idf] + 1.)
+                    dy1 = Yexp[s][obs1]['err'][:,idf] / (Yexp[s][obs1]['mean'][:,idf] + 1.)
+                else :
+                    self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf]
+                    dy1 = Yexp[s][obs1]['err'][:,idf]
 
                 #self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf] if not ismult1 else np.log(Yexp[s][obs1]['mean'][:,idf]+1.)
                 #dy1 = Yexp[s][obs1]['err'][:,idf] if not ismult1 else Yexp[s][obs1]['err'][:,idf]/(Yexp[s][obs1]['mean'][:,idf]+1.)
 
                 for obs2, slc2 in self._slices[s]:
-                    #is_mult_2 = ('dN' in obs2) or ('dET' in obs2)
+                    is_mult_2 = ('dN' in obs2) or ('dET' in obs2)
 
-                    #if is_mult_2 and transform_multiplicities:
-                    #    dy2 = Yexp[s][obs2]['err'][:,idf] / (Yexp[s][obs2]['mean'][:,idf] + 1.)
-                    #else :
-                    dy2 = Yexp[s][obs2]['err'][:,idf]
+                    if is_mult_2 and transform_multiplicities:
+                        dy2 = Yexp[s][obs2]['err'][:,idf] / (Yexp[s][obs2]['mean'][:,idf] + 1.)
+                    else :
+                        dy2 = Yexp[s][obs2]['err'][:,idf]
 
                     #dy2 = Yexp[s][obs2]['err'][:,idf] if not ismult2 else Yexp[s][obs2]['err'][:,idf]/(Yexp[s][obs2]['mean'][:,idf]+1.)
                     self._expt_cov[s][slc1, slc2] = compute_cov(s, obs1, obs2, dy1, dy2)
