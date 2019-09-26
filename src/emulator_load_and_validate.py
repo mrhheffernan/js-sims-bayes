@@ -66,6 +66,45 @@ def plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols)
 
     #plt.show()
 
+def plot_residuals_corr(system_str, emu, design, cent_bin, observables):
+    """
+    Plot a histogram of the percent difference between the emulator
+    prediction and the model at design points in either training or validation sets.
+    """
+
+    print("Plotting emulator residuals obs1 vs obs2 ")
+    ncols = nrows = len(observables)
+
+    fig, axes = plt.subplots(figsize=(30,30), ncols=ncols, nrows=nrows)
+    bins = np.linspace(-0.5, 0.5, 31)
+    for row, obs1 in enumerate(observables):
+        for col, obs2 in enumerate(observables):
+            residuals_1 = []
+            residuals_2 = []
+            for pt, params in enumerate(design.values):
+                mean, cov = emu.predict(np.array([params]), return_cov = True)
+                y_true1 = validation_data[system_str][pt, idf][obs1]['mean'][cent_bin]
+                y_emu1 = mean[obs1][0][cent_bin]
+                res_1 = (y_emu1 - y_true1) / y_emu1
+                residuals_1.append(res_1)
+                y_true2 = validation_data[system_str][pt, idf][obs2]['mean'][cent_bin]
+                y_emu2 = mean[obs2][0][cent_bin]
+                res_2 = (y_emu2 - y_true2) / y_emu2
+                residuals_2.append(res_2)
+
+            axes[row,col].scatter(residuals_1, residuals_2)
+            axes[row,col].set_xlabel(obs1)
+            axes[row,col].set_ylabel(obs2)
+            #axes[row, col].set_title(obs2 + " vs " + obs1 + " residuals")
+            #if axes[row,col].is_last_row():
+            #    axes[row,col].set_xlabel("res : " + obs1)
+            #if axes[row,col].is_first_col():
+            #    axes[row,col].set_ylabel("res : " + obs2)
+            #axes[row, col].set_xlim(-0.5, 0.5)
+            #axes[row, col].hist2d(res_1, res_2, bins = [bins, bins], density = True)
+
+    plt.savefig('validation_plots/emulator_residuals_corr.png')
+
 def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
     """
     Plot a scatter plot of the emulator prediction vs the model prediction at
@@ -197,6 +236,8 @@ def main():
 
         #make a plot of the residuals ; percent difference between emulator and model
         plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols)
+        #make a scatter plot to check if residuals between different observables are correlated
+        plot_residuals_corr(system_str, emu, design, cent_bin, observables)
         #make a scatter plot of emulator prediction vs model prediction
         plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols)
         #make a histogram to check the model statistical uncertainty
