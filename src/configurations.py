@@ -23,8 +23,10 @@ np.random.seed(1)
 number_of_models_per_run = 4
 
 #the Collision systems
-systems = [('Pb', 'Pb', 2760)]
-#systems = [('Au', 'Au', 200)]
+systems = [('Au', 'Au', 200)]
+#systems = [('Pb', 'Pb', 2760)]
+#systems = [('Pb', 'Pb', 5020)]
+#systems = [('Xe', 'Xe', 5440)]
 
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
 
@@ -51,10 +53,12 @@ idf_label = {
 
 #the number of design points
 n_design_pts_main = 500
-n_design_pts_validation = 500
+n_design_pts_validation = 100
 
 #runid = "check_AuAu_prior_2"
-runid = "run_Pb_Pb_500pt_w_v42"
+#runid = "run_Pb_Pb_500pt_w_v42"
+runid = "production_500pts_Au_Au_200"
+#runid = "production_500pts_Pb_Pb_2760"
 
 f_events_main = str(workdir/'model_calculations/{:s}/Events/main/'.format(runid))
 f_events_validation = str(workdir/'model_calculations/{:s}/Events/validation/'.format(runid))
@@ -65,19 +69,21 @@ dir_obs_exp = "HIC_experimental_data"
 
 design_dir =  str(workdir/'design_pts') #folder containing design points
 
-idf = 3 # the choice of viscous correction
+idf = 0 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
 
 # Design points to delete
 delete_design_pts_set = []
+#delete_design_pts_set = [285, 447]
+#delete_design_pts_set = [324, 334, 341, 483, 495]
 
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
-validation = True
+validation = False
 
 #if true, we will validate emulator against points in the training set
 pseudovalidation = False
 
-#if true, we will omit 100 points from the training design when training emulator
+#if true, we will omit 20% of the training design when training emulator
 crossvalidation = False
 
 cross_validation_pts = np.random.choice(n_design_pts_main, n_design_pts_main // 5, replace = False) #omit 20% of design points from training
@@ -109,6 +115,17 @@ bayes_dtype = [    (s,
 active_obs_list = {
    sys: list(obs_cent_list[sys].keys()) for sys in system_strs
 }
+
+#try exluding PHENIX dN dy proton from fit
+
+if system_strs[0] == 'Au-Au-200':
+    active_obs_list['Au-Au-200'].remove('dN_dy_proton')
+    active_obs_list['Au-Au-200'].remove('mean_pT_proton')
+    active_obs_list['Au-Au-200'].remove('dN_dy_kaon')
+    active_obs_list['Au-Au-200'].remove('mean_pT_kaon')
+    
+
+print("The active observable list for calibration : " + str(active_obs_list))
 
 def zeta_over_s(T, zmax, T0, width, asym):
     DeltaT = T - T0
@@ -144,6 +161,8 @@ def load_design(system, pset = 'main'): # or validation
     # design
     design = pd.read_csv(design_file)
     design = design.drop("idx", axis=1)
+    print("Summary of design : ")
+    design.describe()
     design_range = pd.read_csv(range_file)
     design_max = design_range['max'].values
     design_min = design_range['min'].values
@@ -167,17 +186,18 @@ def load_design(system, pset = 'main'): # or validation
 
 #right now this depends on the ordering of parameters
 #we should write a version instead that uses labels in case ordering changes
+
 def transform_design(X):
 
     e1 = eta_over_s(.15, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
     e2 = eta_over_s(.2, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e3 = eta_over_s(.3, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e4 = eta_over_s(.4, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
+    e3 = eta_over_s(.25, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
+    e4 = eta_over_s(.3, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
 
     z1 = zeta_over_s(.15, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
     z2 = zeta_over_s(.2, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z3 = zeta_over_s(.3, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z4 = zeta_over_s(.4, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
+    z3 = zeta_over_s(.25, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
+    z4 = zeta_over_s(.3, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
 
     X[:, 7] = e1
     X[:, 8] = e2
@@ -190,6 +210,39 @@ def transform_design(X):
 
     return X
 
+"""
+def transform_design(X):
+
+    print("Using new transformation of design")
+
+    #pop out the viscous parameters
+    indices = [0, 1, 2, 3, 4, 5, 6, 15, 16]
+    new_design_X = X[:, indices]
+
+    #now append the values of eta/s and zeta/s at various temperatures
+    num_T = 10
+    Temperature_grid = np.linspace(0.1, 0.4, num_T)
+    eta_vals = []
+    zeta_vals = []
+    for pt, T in enumerate(Temperature_grid):
+        #new_design_X = np.column_stack( eta_over_s(T, X[:, 7], X[:, 8], X[:, 9], X[:, 10]) )
+        #new_design_X = np.append( new_design_X, eta_over_s(T, X[:, 7], X[:, 8], X[:, 9], X[:, 10]), axis=0 )
+        eta_vals.append( eta_over_s(T, X[:, 7], X[:, 8], X[:, 9], X[:, 10]) )
+    for pt, T in enumerate(Temperature_grid):
+        #new_design_X = np.column_stack( zeta_over_s(T, X[:, 11], X[:, 12], X[:, 13], X[:, 14]) )
+        #new_design_X = np.append( new_design_X, zeta_over_s(T, X[:, 11], X[:, 12], X[:, 13], X[:, 14]), axis=0 )
+        zeta_vals.append( zeta_over_s(T, X[:, 11], X[:, 12], X[:, 13], X[:, 14]) )
+
+    eta_vals = np.array(eta_vals).T
+    zeta_vals = np.array(zeta_vals).T
+
+    #print(" eta_vals.shape = ")
+    #print(eta_vals.shape)
+
+    new_design_X = np.concatenate( (new_design_X, eta_vals), axis=1)
+    new_design_X = np.concatenate( (new_design_X, zeta_vals), axis=1)
+    return new_design_X
+"""
 
 def prepare_emu_design(system_in):
     design, design_max, design_min, labels = load_design(system=system_in, pset='main')
@@ -197,6 +250,7 @@ def prepare_emu_design(system_in):
     #transformation of design for viscosities
     if do_transform_design:
         print("Note : Transforming design of viscosities")
+        #replace this with function that transforms based on labels, not indices
         design = transform_design(design.values)
 
     design_max = np.max(design, axis=0)
