@@ -298,6 +298,7 @@ def _observables(posterior=False):
     """
     if posterior:
         print("Plotting observables drawn from posterior")
+        #is this what we want, what exactly does Chain().samples() return ???
         Ymodel = Chain().samples(100)
     else:
         Ymodel = trimmed_model_data
@@ -320,8 +321,10 @@ def _observables(posterior=False):
     fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(10,6), sharex=True)
     for system in system_strs:
         for obs, ax in zip(active_obs_list[system], axes.flatten()):
+            print("obs = " + obs)
             xbins = np.array(obs_cent_list[system][obs])
             x = (xbins[:,0]+xbins[:,1])/2.
+            print(x)
             if posterior:
                 Y = Ymodel[system][obs]
             else:
@@ -1680,7 +1683,7 @@ def boxplot(
         )
 
 @plot
-def diag_pca(system='Pb-Pb-2760'):
+def diag_pca(system=system_strs[0]):
     """
     Diagnostic: histograms of principal components and scatterplots of pairs.
 
@@ -1690,7 +1693,8 @@ def diag_pca(system='Pb-Pb-2760'):
     ymax = np.ceil(max(np.fabs(y).max() for y in Y))
     lim = (-ymax, ymax)
 
-    fig, axes = plt.subplots(nrows=n, ncols=n, figsize=2*(n,))
+    #fig, axes = plt.subplots(nrows=n, ncols=n, figsize=2*(n,))
+    fig, axes = plt.subplots(nrows=n, ncols=n, figsize=(10,10))
 
     for y, ax in zip(Y, axes.diagonal()):
         ax.hist(y, bins=30)
@@ -1708,8 +1712,10 @@ def diag_pca(system='Pb-Pb-2760'):
         axes[-1][i].set_xlabel(label)
         axes[i][0].set_ylabel(label)
 
+    #plt.tight_layout()
+
 @plot
-def diag_emu(system='Pb-Pb-2760', pcs=None, label_all=True):
+def diag_emu(system=system_strs[0], pcs=None, label_all=True):
     """
     Diagnostic: plots of each principal component vs each input parameter,
     overlaid by emulator predictions at several points in design space.
@@ -1800,6 +1806,33 @@ def diag_emu(system='Pb-Pb-2760', pcs=None, label_all=True):
                 ax.set_ylabel('PC {}'.format(pc + 1))
 
     set_tight(fig, w_pad=.5, h_pad=.25)
+
+
+@plot
+def mcmc_trace(system=systems[0]):
+    design_file = design_dir + \
+           '/design_points_main_{:s}{:s}-{:d}.dat'.format(*system)
+    design = pd.read_csv(design_file)
+    design = design.drop("idx", axis=1)
+    # get range
+    range_file = design_dir + \
+               '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*system)
+    design_range = pd.read_csv(range_file)
+    design_max = design_range['max'].values
+    design_min = design_range['min'].values
+    params = design.keys()
+
+    chain = Chain().load()
+    emcee_trace = chain.T
+    fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(15,15), sharex=True)
+    for (i, param), ax in zip( enumerate(params), axes.flatten() ) :
+        ax.plot(emcee_trace[0], emcee_trace[i], ',k', alpha=0.5);
+        ax.set_xlabel(params[0])
+        ax.set_ylabel(params[i])
+
+    #plt.suptitle("MCMC trace")
+    plt.tight_layout()
+
 
 if __name__ == '__main__':
     import argparse
