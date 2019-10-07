@@ -23,8 +23,8 @@ np.random.seed(1)
 number_of_models_per_run = 4
 
 #the Collision systems
-systems = [('Au', 'Au', 200)]
-#systems = [('Pb', 'Pb', 2760)]
+#systems = [('Au', 'Au', 200)]
+systems = [('Pb', 'Pb', 2760)]
 #systems = [('Pb', 'Pb', 5020)]
 #systems = [('Xe', 'Xe', 5440)]
 
@@ -57,8 +57,8 @@ n_design_pts_validation = 100
 
 #runid = "check_AuAu_prior_2"
 #runid = "run_Pb_Pb_500pt_w_v42"
-runid = "production_500pts_Au_Au_200"
-#runid = "production_500pts_Pb_Pb_2760"
+#runid = "production_500pts_Au_Au_200"
+runid = "production_500pts_Pb_Pb_2760"
 
 f_events_main = str(workdir/'model_calculations/{:s}/Events/main/'.format(runid))
 f_events_validation = str(workdir/'model_calculations/{:s}/Events/validation/'.format(runid))
@@ -69,12 +69,26 @@ dir_obs_exp = "HIC_experimental_data"
 
 design_dir =  str(workdir/'design_pts') #folder containing design points
 
-idf = 0 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
+idf = 3 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
 
 # Design points to delete
-delete_design_pts_set = []
-#delete_design_pts_set = [285, 447]
-#delete_design_pts_set = [324, 334, 341, 483, 495]
+
+#these are problematic points for Pb Pb 2760 run with 500 design points
+nan_design_pts_set = set([60, 285, 322, 324, 341, 377, 432, 447, 464, 468, 482, 483, 495])
+unfinished_events_design_pts_set = set([289, 324, 326, 459, 462, 242, 406, 440, 123])
+strange_features_design_pts_set = set([289, 324, 440, 459, 462])
+
+print("Design points with nans : ")
+print(nan_design_pts_set)
+
+print("Design points with unfinished events : ")
+print(unfinished_events_design_pts_set)
+
+print("Design points with strange features : ")
+print(strange_features_design_pts_set)
+
+delete_design_pts_set = list( nan_design_pts_set.union( unfinished_events_design_pts_set.union( strange_features_design_pts_set) ) )
+delete_design_pts_set.sort()
 
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
@@ -91,7 +105,10 @@ if crossvalidation:
     delete_design_pts_set = cross_validation_pts #omit these points from training
 
 #if validation is True, this is the point in design that will be used as pseudo-data for parameter estimation
-validation_pt = 0
+validation_pt=7
+
+if validation:
+    print("Using validation_pt = " + str(validation_pt))
 
 #if this switch is turned on, the emulator will be trained on the values of eta/s (T_i) and zeta/s (T_i),
 # where T_i are a grid of temperatures, rather than the parameters such as slope, width, etc...
@@ -121,9 +138,13 @@ active_obs_list = {
 if system_strs[0] == 'Au-Au-200':
     active_obs_list['Au-Au-200'].remove('dN_dy_proton')
     active_obs_list['Au-Au-200'].remove('mean_pT_proton')
-    active_obs_list['Au-Au-200'].remove('dN_dy_kaon')
-    active_obs_list['Au-Au-200'].remove('mean_pT_kaon')
-    
+    #active_obs_list['Au-Au-200'].remove('dN_dy_kaon')
+    #active_obs_list['Au-Au-200'].remove('mean_pT_kaon')
+
+if system_strs[0] == 'Pb-Pb-2760':
+    active_obs_list['Pb-Pb-2760'].remove('dN_dy_Lambda')
+    active_obs_list['Pb-Pb-2760'].remove('dN_dy_Omega')
+    active_obs_list['Pb-Pb-2760'].remove('dN_dy_Xi')
 
 print("The active observable list for calibration : " + str(active_obs_list))
 
@@ -252,6 +273,8 @@ def prepare_emu_design(system_in):
         print("Note : Transforming design of viscosities")
         #replace this with function that transforms based on labels, not indices
         design = transform_design(design.values)
+    else :
+        design = design.values
 
     design_max = np.max(design, axis=0)
     design_min = np.min(design, axis=0)
