@@ -138,7 +138,7 @@ class Emulator:
         # noise term is necessary since model calculations contain statistical noise
         k0 = 1. * kernels.RBF(
                       length_scale=ptp,
-                      length_scale_bounds=np.outer(ptp, (1e-1, 1e2)),
+                      length_scale_bounds=np.outer(ptp, (3e-1, 1e2)),
                       #nu = 3.5
                    )
         k1 = kernels.ConstantKernel()
@@ -149,7 +149,7 @@ class Emulator:
 
         #kernel = (k0 + k1 + k2) #this includes a consant kernel
         kernel = (k0 + k2) # this does not
-        
+
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
         print("Fitting a GP to each PC")
         self.gps = [

@@ -92,7 +92,7 @@ delete_design_pts_set.sort()
 
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
-validation = False
+validation = True
 
 #if true, we will validate emulator against points in the training set
 pseudovalidation = False
@@ -105,7 +105,7 @@ if crossvalidation:
     delete_design_pts_set = cross_validation_pts #omit these points from training
 
 #if validation is True, this is the point in design that will be used as pseudo-data for parameter estimation
-validation_pt=7
+validation_pt=2
 
 if validation:
     print("Using validation_pt = " + str(validation_pt))

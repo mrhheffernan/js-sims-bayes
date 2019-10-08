@@ -14,15 +14,18 @@ print("model_data.shape = " + str(model_data.shape))
 events_nan_all_df=[]
 events_nan=[]
 events_mean_pT_odd=[]
+events_mean_pT_increasing=[]
+
 for design_pt in range(n_design_pts_main): # loop over all design points
-    system_str = 'Pb-Pb-2760'
+    system_str = system_strs[0]
     for obs in active_obs_list[system_str]:
         #print(model_data[system_str][:,:][obs]['mean'].shape)
 
-        # 
+        #
         nan_all_df=True
         nan_any_df=False
         mean_pT_odd_any_df=False
+        mean_pT_increasing_any_df=False
 
         # Get centrality bins
         cent_list=obs_cent_list[system_str][obs][:]
@@ -40,7 +43,7 @@ for design_pt in range(n_design_pts_main): # loop over all design points
                 nan_cent_i_max=len(cent_list_mid)
             else:
                 nan_cent_i_max=np.argmin(cent_sel_bool)
-                
+
             nan_vals=values[:nan_cent_i_max]
 
             # Check for NaN's in any observables
@@ -55,11 +58,27 @@ for design_pt in range(n_design_pts_main): # loop over all design points
             if (obs == 'mean_pT_pion'):
                 max_variation=.07
                 # Restrict test to not-too-peripheral centralities
-                centrality_cut=50
+                centrality_cut=80
                 cent_i_max=np.argmin(cent_list_mid<centrality_cut)-1
 
                 cent_mid_vals=np.array(cent_list_mid[:cent_i_max])
                 mean_pT_vals=values[:cent_i_max]
+
+                #print(mean_pT_vals)
+                #check if mean pT is decreasing with centrality
+                mean_pT_vals_sorted = sorted(mean_pT_vals, reverse = True)
+                """
+                if ( (mean_pT_vals == mean_pT_vals_sorted).all() ):
+                    pass
+                else :
+                    mean_pT_increasing_any_df=True
+                """
+                if ( mean_pT_vals[-1] > 1.05 * mean_pT_vals[-2] ):
+                    mean_pT_increasing_any_df=True
+                else :
+                    pass
+
+
 
                 _,_,rvalue,pvalue,_=scipy.stats.linregress(cent_mid_vals, mean_pT_vals)
                 #print(mean_pT_vals,rvalue, pvalue)
@@ -92,17 +111,21 @@ for design_pt in range(n_design_pts_main): # loop over all design points
         if (mean_pT_odd_any_df):
             events_mean_pT_odd.append(design_pt)
 
+        if (mean_pT_increasing_any_df):
+            events_mean_pT_increasing.append(design_pt)
+
         #if np.sum(isnan) > 0:
         # delete Nan dataset
         #isnan = np.isnan(values)
         #if np.sum(isnan) > 0:
         #    model_data[system_str][pt, idf][obs]['mean'][isnan] = np.mean(values[np.logical_not(isnan)])
-        #if 'dN' in obs or 'dET' in obs: 
+        #if 'dN' in obs or 'dET' in obs:
         #    model_data[system_str][pt, idf][obs]['mean'] = np.log(1+values)
 print("------------------------------------------------------------------------")
 print("Events with NaN (centrality<",nan_centrality_cut,"): ",sorted(set(events_nan)))
 print("Events with NaN for all 4 delta-f (centrality<",nan_centrality_cut,"): ",sorted(set(events_nan_all_df)))
 print("Events with large fluctuations in pion mean p_T: ",sorted(set(events_mean_pT_odd)))
+print("Events with non-decreasing pion mean pT: ",sorted(set(events_mean_pT_increasing)))
 print("------------------------------------------------------------------------")
 #
 ## things to drop for validation

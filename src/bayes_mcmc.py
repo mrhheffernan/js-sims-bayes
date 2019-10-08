@@ -224,6 +224,10 @@ class Chain:
 
         extra_std = X[inside, -1]
 
+        #TEMPORARY
+        #turn off model systematic uncertainty
+        extra_std = 0.
+
         nsamples = np.count_nonzero(inside)
         if nsamples > 0:
             pred = self._predict(
@@ -250,7 +254,7 @@ class Chain:
                 lp[inside] += list(map(mvn_loglike, dY, cov))
 
             # add prior for extra_std (model sys error)
-            lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
+            #lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
 
 
         return lp
