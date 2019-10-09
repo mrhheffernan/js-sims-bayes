@@ -20,7 +20,7 @@ for pt in range(n_design_pts_main): # loop over all design points
         values = np.array( model_data[system_str][pt, idf][obs]['mean'])
         # delete Nan dataset
         isnan = np.isnan(values)
-        if np.sum(isnan) > 0:
+        if (np.sum(isnan) > 0)and(not pt in delete_design_pts_set):
             print("WARNING : FOUND NAN IN MODEL DATA : (design pt , obs) = ( {:s} , {:s} )".format( str(pt), obs) )
             model_data[system_str][pt, idf][obs]['mean'][isnan] = np.mean(values[np.logical_not(isnan)])
 
