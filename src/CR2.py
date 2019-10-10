@@ -11,18 +11,21 @@ system = systems[0]
 design, design_min, design_max, labels = load_design(system, pset = 'validation')
 truth = design.values[validation_pt] # true parameter  of a point
 
-X=design.values
-
 chain = Chain()
 data = chain.load().T[:-1]
 ndims, nsamples = data.shape
+
+# Take samples from the chain
+n_sample_from_chain=50000
+sample_id_from_chain=np.random.choice(np.arange(nsamples), size=n_sample_from_chain, replace=False)
+X=data[:,sample_id_from_chain].T
 
 with open("validate/{:d}-original.dat".format(validation_pt),'w') as f:
     # Open chain, and then
     # writes the credible limit of the original parameters
     f.write("# index True, Median, low-5%, low-20%, high-80%, high-95%\n")
     for i in range(ndims):
-        samples = data[i]
+        samples = X[i]
         median = np.median(samples)
         l5 = np.quantile(samples, .05)
         l20 = np.quantile(samples, .2)

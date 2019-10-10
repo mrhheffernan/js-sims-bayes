@@ -857,9 +857,10 @@ def viscous_posterior():
 @plot
 def zetas_validation():
     # prior
-    design, _, _, _ = prepare_design()
+    design,_,_,_ = load_design(systems[0], pset='main')
     T = np.linspace(0.15, 0.37, 100)
-    prior = np.array([zeta_over_s(T, *truth) for truth in design.values])
+    #prior = np.array([zeta_over_s(T, *truth) for truth in design[11:14]])
+    prior = np.array([zeta_over_s(T, X[11], X[12], X[13], X[14]) for X in design.values])
 
 
     fig, axes = plt.subplots(
@@ -868,17 +869,21 @@ def zetas_validation():
     )
 
     # validation
-    design, _, _, _ = prepare_design_validation()
-    for iv, ax in zip(np.random.choice(range(93),25), axes.flatten()):
-        f = "./validate/{:d}.dat".format(iv)
+    #design, _, _, _ = prepare_emu_design(systems[0],pset='validation')
+    design,_,_,_ = load_design(systems[0], pset='validation')
+    #for iv, ax in zip(np.random.choice(range(93),25), axes.flatten()):
+    for iv, ax in zip(range(25), axes.flatten()):
+        f = "./validate/{:d}-zetas.dat".format(iv)
         t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
 
-        true = zeta_over_s(T, *design[iv])
+        X=design.values[iv]
+
+        #true = zeta_over_s(T, *design[iv])
+        true = zeta_over_s(T, X[11], X[12], X[13], X[14])
         ax.plot(T, true, ls="--", c=".3")
-        Ttest = [.155, .175, .2, .25, .35]
-        ax.errorbar(Ttest, m[10:], yerr=[m[10:]-l2[10:],h2[10:]-m[10:]], color=cr,fmt='o', linewidth=.5)
-        #ax.plot(Ttest, M[10:], 'o',color=cr)
-        for iT, im, iy1, iy2 in zip(Ttest, m[10:],l1[10:],h1[10:]):
+        Ttest = t #[.155, .175, .2, .25, .35]
+        ax.errorbar(Ttest, M, yerr=[M-l1,h2-M], color=cr,fmt='o', linewidth=.5)
+        for iT, im, iy1, iy2 in zip(Ttest, M,l2,h1):
             ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
 
         ax.fill_between(T, np.min(prior, axis=0), np.max(prior, axis=0), color='gray', alpha=.3)
