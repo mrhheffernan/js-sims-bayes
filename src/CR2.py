@@ -39,7 +39,8 @@ with open("validate/{:d}-original.dat".format(validation_pt),'w') as f:
 with open("validate/{:d}-etas.dat".format(validation_pt),'w') as f:
     # transform design into eta/s(T_i) and zeta/s(T_i)
     # Ti is chose, e.g, to be
-    Ti = [.155, .175, .2, .25, .35]
+    #Ti = [.155, .175, .2, .25, .35]
+    Ti = np.linspace(.15,.35, num=50)
     f.write("# T, Median, low-5%, low-20%, high-80%, high-95%\n")
     for T in Ti:
         samples = eta_over_s(T, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
@@ -56,7 +57,8 @@ with open("validate/{:d}-etas.dat".format(validation_pt),'w') as f:
 with open("validate/{:d}-zetas.dat".format(validation_pt),'w') as f:
     # transform design into eta/s(T_i) and zeta/s(T_i)
     # Ti is chose, e.g, to be
-    Ti = [.155, .175, .2, .25, .35]
+    #Ti = [.155, .175, .2, .25, .35]
+    Ti = np.linspace(.15,.35, num=50)
     f.write("# T, Median, low-5%, low-20%, high-80%, high-95%\n")
     for T in Ti:
         samples = zeta_over_s(T, X[:, 11], X[:, 12], X[:, 13], X[:, 14])

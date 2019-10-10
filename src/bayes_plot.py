@@ -858,7 +858,7 @@ def viscous_posterior():
 def zetas_validation():
     # prior
     design,_,_,_ = load_design(systems[0], pset='main')
-    T = np.linspace(0.15, 0.37, 100)
+    T = np.linspace(0.15, 0.37, 500)
     #prior = np.array([zeta_over_s(T, *truth) for truth in design[11:14]])
     prior = np.array([zeta_over_s(T, X[11], X[12], X[13], X[14]) for X in design.values])
 
@@ -880,17 +880,62 @@ def zetas_validation():
 
         #true = zeta_over_s(T, *design[iv])
         true = zeta_over_s(T, X[11], X[12], X[13], X[14])
-        ax.plot(T, true, ls="--", c=".3")
+        ax.plot(T, true, ls="--", c=".3", linewidth=2)
         Ttest = t #[.155, .175, .2, .25, .35]
-        ax.errorbar(Ttest, M, yerr=[M-l1,h2-M], color=cr,fmt='o', linewidth=.5)
-        for iT, im, iy1, iy2 in zip(Ttest, M,l2,h1):
-            ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
+        #ax.errorbar(Ttest, M, yerr=[M-l1,h2-M], color=cr,fmt='o', linewidth=.5)
+        ax.fill_between(Ttest, l1, h2, color='blue', alpha=.2)
+        ax.fill_between(Ttest, l2, h1, color='blue', alpha=.4)
+        #for iT, im, iy1, iy2 in zip(Ttest, M,l2,h1):
+        #    ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
 
-        ax.fill_between(T, np.min(prior, axis=0), np.max(prior, axis=0), color='gray', alpha=.3)
+        ax.fill_between(T, np.min(prior, axis=0), np.max(prior, axis=0), color='gray', alpha=.1)
         if ax.is_last_row():
             ax.set_xlabel(r"$T$ [GeV]")
         if ax.is_first_col():
             ax.set_ylabel(r"$\zeta/s$")
+
+    ax.set_xticks([0.15, 0.25,  0.35])
+    ax.set_xticklabels([0.15, 0.25, 0.35])
+    set_tight(fig, rect=[0, 0, 1, 1])
+
+@plot
+def etas_validation():
+    # prior
+    design,_,_,_ = load_design(systems[0], pset='main')
+    T = np.linspace(0.15, 0.37, 500)
+    prior = np.array([eta_over_s(T, X[7], X[8], X[9], X[10]) for X in design.values])
+
+
+    fig, axes = plt.subplots(
+        nrows=5, ncols=5,
+        figsize=(6,6), sharex=True, sharey=True
+    )
+
+    # validation
+    #design, _, _, _ = prepare_emu_design(systems[0],pset='validation')
+    design,_,_,_ = load_design(systems[0], pset='validation')
+    #for iv, ax in zip(np.random.choice(range(93),25), axes.flatten()):
+    for iv, ax in zip(range(25), axes.flatten()):
+        f = "./validate/{:d}-etas.dat".format(iv)
+        t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
+
+        X=design.values[iv]
+
+        #true = zeta_over_s(T, *design[iv])
+        true = eta_over_s(T, X[7], X[8], X[9], X[10])
+        ax.plot(T, true, ls="--", c=".3", linewidth=2)
+        Ttest = t #[.155, .175, .2, .25, .35]
+        #ax.errorbar(Ttest, M, yerr=[M-l1,h2-M], color=cr,fmt='o', linewidth=.5)
+        ax.fill_between(Ttest, l1, h2, color='blue', alpha=.2)
+        ax.fill_between(Ttest, l2, h1, color='blue', alpha=.4)
+        #for iT, im, iy1, iy2 in zip(Ttest, M,l2,h1):
+        #    ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
+
+        ax.fill_between(T, np.min(prior, axis=0), np.max(prior, axis=0), color='gray', alpha=.1)
+        if ax.is_last_row():
+            ax.set_xlabel(r"$T$ [GeV]")
+        if ax.is_first_col():
+            ax.set_ylabel(r"$\eta/s$")
 
     ax.set_xticks([0.15, 0.25,  0.35])
     ax.set_xticklabels([0.15, 0.25, 0.35])
