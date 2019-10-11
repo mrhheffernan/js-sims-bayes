@@ -2,8 +2,8 @@
 
 cd closure_parallel
 
-for i in {0..99}; do
-  {
+for i in {0..26}; do
+  #{
   mkdir $i
   cd $i
   pwd
@@ -18,11 +18,12 @@ for i in {0..99}; do
   mkdir closure_plots
   mkdir plots
   mkdir closure_truth_dob
+  mkdir validate_eta_zeta
 
   #change the validation point
   sed -i .bak "s/validation_pt=.*/validation_pt=$i/g" src/configurations.py
   #perform MCMC
-  ./src/bayes_mcmc.py 2000 --nwalkers 50 --nburnsteps 1000
+  ./src/bayes_mcmc.py 500 --nwalkers 300 --nburnsteps 500
 
   #generate plots
   ./src/bayes_plot.py plots/diag_posterior.png
@@ -30,7 +31,7 @@ for i in {0..99}; do
   #generate file of truth and credibility
   ./src/emulator_load_and_validate.py
   cd ..
-  } &
+  #} &
 done
 
 #wait til all processes have finished
