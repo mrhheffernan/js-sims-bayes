@@ -318,7 +318,7 @@ def _observables(posterior=False):
 
     highlight_sets =  []
 
-    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(10,6), sharex=True)
+    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(10,10), sharex=True)
     for system in system_strs:
         for obs, ax in zip(active_obs_list[system], axes.flatten()):
             print("obs = " + obs)
@@ -363,6 +363,54 @@ def _observables(posterior=False):
                 ax.set_xlabel('Centrality %')
 
             ax.set_ylabel(obs)
+
+    set_tight(fig, rect=[0, 0, .97, 1])
+
+@plot
+def observables_fit():
+    """
+    Model observables at all design points or drawn from the posterior with
+    experimental data points.
+
+    """
+    print("Plotting observables drawn from posterior")
+
+    obs_groups = {
+                'yields' : ['dNch_deta', 'dET_deta', 'dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton'],
+                'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
+                'fluct' : ['mean_pT_fluct'],
+                'flows' : ['v22', 'v32', 'v42']
+                }
+    #is this what we want, what exactly does Chain().samples() return ???
+    Ymodel = Chain().samples(100)
+    Yexp = Y_exp_data
+
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10,10))
+    for system in system_strs:
+        for ax, obs_group in zip(axes.flatten(), obs_groups.keys() ):
+            for obs in obs_group:
+                xbins = np.array(obs_cent_list[system][obs])
+                x = (xbins[:,0]+xbins[:,1])/2.
+                Y = Ymodel[system][obs]
+                for iy, y in enumerate(Y):
+                    lw=0.3
+                    alpha=0.2
+                    is_mult = ('dN' in obs) or ('dET' in obs)
+                    if is_mult and transform_multiplicities:
+                        y = np.exp(y) - 1.0
+
+                    ax.plot(x, y, alpha=alpha, lw=lw, label=obs)
+                try:
+                    exp_mean = Yexp[system][obs]['mean'][:, 0][0]
+                    exp_err = Yexp[system][obs]['err'][:, 0][0]
+                except KeyError:
+                    continue
+                if obs_group == 'yields':
+                    ax.set_yscale('log')
+                ax.errorbar( x, exp_mean, exp_err, fmt='o', color='black')
+
+            if ax.is_last_row():
+                ax.set_xlabel('Centrality %')
 
     set_tight(fig, rect=[0, 0, .97, 1])
 
