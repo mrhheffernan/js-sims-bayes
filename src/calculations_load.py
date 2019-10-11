@@ -51,3 +51,12 @@ if validation:
         print("Loading validation calculations from " + f_obs_validation)
         validation_data = np.fromfile(f_obs_validation, dtype=bayes_dtype)
         print("validation_data.shape = " + str(validation_data.shape))
+
+        for pt in range(n_design_pts_validation): # loop over all design points
+            system_str = system_strs[0]
+            for obs in active_obs_list[system_str]:
+                #transforming yield related observables
+                values = np.array( validation_data[system_str][pt, idf][obs]['mean'])
+                is_mult = ('dN' in obs) or ('dET' in obs)
+                if is_mult and transform_multiplicities:
+                    validation_data[system_str][pt, idf][obs]['mean'] = np.log(1.0 + values)
