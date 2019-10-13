@@ -6,7 +6,7 @@ import numpy as np
 
 #get model calculations at VALIDATION POINTS
 if validation:
-    print("Load calculations from " + f_obs_validation)
+    print("Load calculations from " + SystemsInfo[])
     Y_exp_data_pre = np.fromfile(f_obs_validation, dtype=bayes_dtype)
     Y_exp_data=np.array([Y_exp_data_pre[validation_pt]])
 
@@ -23,7 +23,7 @@ else :
         path_to_PHENIX = 'HIC_experimental_data/' + system_str + '/PHENIX/'
         for obs in list( obs_cent_list[system_str].keys() ):
             #print("Observable : " + obs)
-        #for obs in list( calibration_obs_cent_list[system_str].keys() ):
+            #for obs in list( calibration_obs_cent_list[system_str].keys() ):
             n_bins_bayes = len(obs_cent_list[system_str][obs]) # only using these bins for calibration. Files may contain more bins
             for idf in range(number_of_models_per_run):
 
