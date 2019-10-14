@@ -160,7 +160,7 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
         ax.ticklabel_format(scilimits=(2,1))
 
     plt.tight_layout(True)
-    plt.savefig('validation_plots/emulator_vs_model.png')
+    plt.savefig('validation_plots/{:s}_emu_vs_calc.png'.format(system_str))
 
     #plt.show()
 

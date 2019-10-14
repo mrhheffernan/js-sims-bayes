@@ -39,7 +39,6 @@ from scipy.linalg import lapack
 import matplotlib.pyplot as plt
 from configurations import *
 from emulator import Trained_Emulators, _Covariance
-
 from bayes_exp import Y_exp_data
 
 def mvn_loglike(y, cov):
@@ -155,15 +154,14 @@ class Chain:
         Nsys = len(system_strs)
         for i, s in enumerate(system_strs):
             design, design_min, design_max, labels = \
-                    load_design(system_str, pset='main')
-
+                    load_design(s, pset='main')
             self.sysdep_max.append(design_max[0])
             self.sysdep_min.append(design_min[0])
             self.sysdep_labels.append(labels[0])
-            sys_idx[s] = [i]+list(range(Nsys, Nsys+len(design_max)-1))
+            self.sys_idx[s] = [i]+list(range(Nsys, Nsys+len(design_max)-1))
             if not set_common:
                 self.common_max = np.array(list(design_max[1:])+[.4])
-                self.common_min = np.array(list(design_min[1:])+[.0])
+                self.common_min = np.array(list(design_min[1:])+[1e-3])
                 self.common_labels = list(labels[1:]) + [r'$\sigma_M$']
                 self.common_ndim = len(self.common_max)
                 self.common_range = np.array([self.common_min,
@@ -171,10 +169,10 @@ class Chain:
         self.sysdep_range = np.array([self.sysdep_min,
                                       self.sysdep_max]).T
         self.sysdep_ndim = len(self.sysdep_max)
-        self.max = np.concatenate([self.sysdep_max, sys.common_max])
-        self.min = np.concatenate([self.sysdep_min, sys.common_min])
+        self.max = np.concatenate([self.sysdep_max, self.common_max])
+        self.min = np.concatenate([self.sysdep_min, self.common_min])
         self.range = np.array([self.min, self.max]).T
-        self.labels =  self.sysdep_labels + sys.common_labels
+        self.labels =  self.sysdep_labels + self.common_labels
         self.ndim = self.sysdep_ndim + self.common_ndim
         print("Pre-compute experimental covariance matrix")
         for s in system_strs:
@@ -183,7 +181,7 @@ class Chain:
 
             for obs in active_obs_list[s]:
                 try:
-                    obsdata = Yexp[s][obs]['mean'][:,idf]
+                    obsdata = Yexp[s][obs]['mean'][idf]
                 except KeyError:
                     continue
 
@@ -199,18 +197,18 @@ class Chain:
             for obs1, slc1 in self._slices[s]:
                 is_mult_1 = ('dN' in obs1) or ('dET' in obs1)
                 if is_mult_1 and transform_multiplicities:
-                    self._expt_y[s][slc1] = np.log(Yexp[s][obs1]['mean'][:,idf] + 1.)
-                    dy1 = Yexp[s][obs1]['err'][:,idf] / (Yexp[s][obs1]['mean'][:,idf] + 1.)
+                    self._expt_y[s][slc1] = np.log(Yexp[s][obs1]['mean'][idf] + 1.)
+                    dy1 = Yexp[s][obs1]['err'][idf] / (Yexp[s][obs1]['mean'][idf] + 1.)
                 else :
-                    self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf]
-                    dy1 = Yexp[s][obs1]['err'][:,idf]
+                    self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf]
+                    dy1 = Yexp[s][obs1]['err'][idf]
 
                 for obs2, slc2 in self._slices[s]:
                     is_mult_2 = ('dN' in obs2) or ('dET' in obs2)
                     if is_mult_2 and transform_multiplicities:
-                        dy2 = Yexp[s][obs2]['err'][:,idf] / (Yexp[s][obs2]['mean'][:,idf] + 1.)
+                        dy2 = Yexp[s][obs2]['err'][idf] / (Yexp[s][obs2]['mean'][idf] + 1.)
                     else :
-                        dy2 = Yexp[s][obs2]['err'][:,idf]
+                        dy2 = Yexp[s][obs2]['err'][idf]
 
                     self._expt_cov[s][slc1, slc2] = compute_cov(s, obs1, obs2, dy1, dy2)
 
@@ -224,7 +222,7 @@ class Chain:
                  for s in system_strs
                }
 
-    def log_posterior(self, X, extra_std_prior_scale=0.05):
+    def log_posterior(self, X, extra_std_prior_scale=0.005):
         """
         Evaluate the posterior at `X`.
 
@@ -243,9 +241,6 @@ class Chain:
 
         extra_std = X[inside, -1]
 
-        #TEMPORARY
-        #turn off model systematic uncertainty
-        extra_std = 0.
 
         nsamples = np.count_nonzero(inside)
         if nsamples > 0:
@@ -273,7 +268,7 @@ class Chain:
                 lp[inside] += list(map(mvn_loglike, dY, cov))
 
             # add prior for extra_std (model sys error)
-            #lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
+            lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
 
 
         return lp

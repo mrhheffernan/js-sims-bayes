@@ -17,7 +17,8 @@ complex_t = '<c16'
 np.random.seed(1)
 
 workdir = Path(os.getenv('WORKDIR', '.'))
-design_dir =  str(workdir/'design_pts') #folder containing design points
+design_dir =  str(workdir/\
+            'production_designs/500pts') #folder containing design points
 dir_obs_exp = "HIC_experimental_data"
 
 #only using data from these experimental collabs
@@ -62,19 +63,20 @@ class systems_setting(dict):
         super().__setitem__("proj", A)
         super().__setitem__("targ", B)
         super().__setitem__("sqrts", sqrts)
+        sysdir = "/design_pts_{:s}_{:s}_{:d}_production".format(A, B, sqrts)
         super().__setitem__("main_design_file",
-            design_dir+'/design_points_main_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
+            design_dir+sysdir+'/design_points_main_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
             )
         super().__setitem__("main_range_file",
-            design_dir+'//design_ranges_main_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
+            design_dir+sysdir+'/design_ranges_main_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
             )
         super().__setitem__("validation_design_file",
-            design_dir+'/design_points_validation_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
+            design_dir+sysdir+'/design_points_validation_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
             )
         super().__setitem__("validation_range_file",
-            design_dir+'//design_ranges_validation_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
+            design_dir+sysdir+'//design_ranges_validation_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
             )
-        with open(design_dir+'/design_labels_{:s}{:s}-{:d}.dat'.format(A, B, sqrts), 'r') as f:
+        with open(design_dir+sysdir+'/design_labels_{:s}{:s}-{:d}.dat'.format(A, B, sqrts), 'r') as f:
             labels = [r""+line[:-1] for line in f]
         super().__setitem__("labels", labels)
     def __setitem__(self, key, value):
@@ -94,10 +96,16 @@ class systems_setting(dict):
         else:
             super().__setitem__(key, value)
 
-SystemsInfo = {"Pb-Pb-2760": systems_setting("Pb","Pb", 2760)}
+SystemsInfo = {"Pb-Pb-2760": systems_setting("Pb","Pb", 2760),
+               "Au-Au-200": systems_setting("Au","Au", 200)
+               }
 SystemsInfo["Pb-Pb-2760"]["run_id"] = "production_500pts_Pb_Pb_2760"
 SystemsInfo["Pb-Pb-2760"]["n_design"] = 500
 SystemsInfo["Pb-Pb-2760"]["n_validation"] = 100
+
+SystemsInfo["Au-Au-200"]["run_id"] = "production_500pts_Au_Au_200"
+SystemsInfo["Au-Au-200"]["n_design"] = 500
+SystemsInfo["Au-Au-200"]["n_validation"] = 100
 
 #these are problematic points for Pb Pb 2760 run with 500 design points
 nan_design_pts_set = set([60, 285, 322, 324, 341, 377, 432, 447, 464, 468, 482, 483, 495])
@@ -110,8 +118,8 @@ delete_design_pts_set = nan_design_pts_set.union(
                                         )
                                     )
 SystemsInfo["Pb-Pb-2760"]["design_remove_idx"]=list(delete_design_pts_set)
+SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
 
-print(SystemsInfo)
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
 validation = True
@@ -120,7 +128,7 @@ pseudovalidation = False
 #if true, we will omit 20% of the training design when training emulator
 crossvalidation = False
 #omit 20% of design points from training
-
+fixed_validation_pt=2
 if validation:
     if pseudovalidation:
         print("pseudo-validation")
@@ -132,7 +140,7 @@ if validation:
                                                 replace = False)
         delete_design_pts_set = cross_validation_pts #omit these points from training
     else: # Use #2 calcualtion (for exmaple) of a separete validation set
-        validation_pt = 2
+        validation_pt = fixed_validation_pt
         print("Independent-validation, ysing validation_pt = " + str(validation_pt))
 
 #if this switch is turned on, the emulator will be trained on the values of

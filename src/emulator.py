@@ -107,7 +107,7 @@ class Emulator:
                 #values = np.array(trimmed_model_data[system_str][pt, idf][obs]['mean'][:n_bins_bayes] )
                 values = np.array(data[idf][obs]['mean'])
                 if np.isnan(values).sum() > 0:
-                    print("Warning! found nan in model data!")
+                    print("WARNING! FOUND NAN IN MODEL DATA WHILE BUILDING EMULATOR!")
                     print("Design pt = " + str(pt) + "; Obs = " + obs)
                 row = np.append(row, values)
             Y.append(row)

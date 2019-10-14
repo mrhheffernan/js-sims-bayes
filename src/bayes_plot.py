@@ -41,6 +41,7 @@ from bayes_mcmc import Chain, credible_interval
 from configurations import *
 from emulator import Trained_Emulators
 from calculations_load import trimmed_model_data
+from bayes_exp import Y_exp_data
 
 fontsize = dict(
     large=11,
@@ -119,9 +120,7 @@ plt.rcParams.update({
     'image.interpolation': 'none',
 })
 
-from configurations import *
-from calculations_load import model_data
-from bayes_exp import Y_exp_data
+
 
 
 plotdir = workdir / 'plots'
@@ -318,7 +317,7 @@ def _observables(posterior=False):
 
     highlight_sets =  []
 
-    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(10,6), sharex=True)
+    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(10,10), sharex=True)
     for system in system_strs:
         for obs, ax in zip(active_obs_list[system], axes.flatten()):
             print("obs = " + obs)
@@ -363,6 +362,54 @@ def _observables(posterior=False):
                 ax.set_xlabel('Centrality %')
 
             ax.set_ylabel(obs)
+
+    set_tight(fig, rect=[0, 0, .97, 1])
+
+@plot
+def observables_fit():
+    """
+    Model observables at all design points or drawn from the posterior with
+    experimental data points.
+
+    """
+    print("Plotting observables drawn from posterior")
+
+    obs_groups = {
+                'yields' : ['dNch_deta', 'dET_deta', 'dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton'],
+                'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
+                'fluct' : ['mean_pT_fluct'],
+                'flows' : ['v22', 'v32', 'v42']
+                }
+    #is this what we want, what exactly does Chain().samples() return ???
+    Ymodel = Chain().samples(100)
+    Yexp = Y_exp_data
+
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10,10))
+    for system in system_strs:
+        for ax, obs_group in zip(axes.flatten(), obs_groups.keys() ):
+            for obs in obs_group:
+                xbins = np.array(obs_cent_list[system][obs])
+                x = (xbins[:,0]+xbins[:,1])/2.
+                Y = Ymodel[system][obs]
+                for iy, y in enumerate(Y):
+                    lw=0.3
+                    alpha=0.2
+                    is_mult = ('dN' in obs) or ('dET' in obs)
+                    if is_mult and transform_multiplicities:
+                        y = np.exp(y) - 1.0
+
+                    ax.plot(x, y, alpha=alpha, lw=lw, label=obs)
+                try:
+                    exp_mean = Yexp[system][obs]['mean'][:, 0][0]
+                    exp_err = Yexp[system][obs]['err'][:, 0][0]
+                except KeyError:
+                    continue
+                if obs_group == 'yields':
+                    ax.set_yscale('log')
+                ax.errorbar( x, exp_mean, exp_err, fmt='o', color='black')
+
+            if ax.is_last_row():
+                ax.set_xlabel('Centrality %')
 
     set_tight(fig, rect=[0, 0, .97, 1])
 
@@ -798,15 +845,21 @@ def zetas_prior():
 
 @plot
 def viscous_posterior():
+    T = np.linspace(0.12, 0.3, 20)
+    if validation:
+        v_design, _, _, _ = \
+                load_design(system_strs[0], pset='validation')
+        tp = v_design.values[validation_pt]
+        true_etas = eta_over_s(T, *tp[7:11])
+        true_zetas = zeta_over_s(T, *tp[11:15])
     chain = Chain()
     data = chain.load()
 
     index = np.random.choice(np.arange(data.shape[0]), 2000)
 
-    design, dmin, dmax, labels = load_design(system=systems[0], pset='main')
-    samples = data[index]
+    design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+    samples = data[index, 1:]
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3), sharex=True, sharey=False)
-    T = np.linspace(0.12, 0.3, 20)
 
     prior_zetas = []
     prior_tauPi = []
@@ -820,17 +873,12 @@ def viscous_posterior():
 
     axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3)
     posterior_zetas = []
-    for (zm, T0, w, asym) in zip(
-				samples[:,11],
-				samples[:,12],
-				samples[:,13],
-				samples[:,14],
-               ):
-        posterior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
+    for d in samples:
+        posterior_zetas.append(zeta_over_s(T, *d[11:15]))
     axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0), np.percentile(posterior_zetas, 95, axis=0), color=cr, alpha=0.3)
     axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0), np.percentile(posterior_zetas, 80, axis=0), color=cr, alpha=0.3)
     axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)
-
+    axes[0].plot(T, true_zetas, 'k--')
     ##########################
     prior_etas = []
     for d in design.values:
@@ -842,6 +890,7 @@ def viscous_posterior():
     axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),np.percentile(posterior_etas, 95, axis=0),color=cr, alpha=0.3)
     axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),np.percentile(posterior_etas, 80, axis=0),color=cr, alpha=0.3)
     axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)
+    axes[1].plot(T, true_etas, 'k--')
 
     axes[0].set_ylabel(r"$\zeta/s$")
     axes[0].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
@@ -857,8 +906,8 @@ def viscous_posterior():
 @plot
 def zetas_validation():
     # prior
-    design,_,_,_ = load_design(systems[0], pset='main')
-    T = np.linspace(0.15, 0.37, 500)
+    design,_,_,_ = load_design(system_strs[0], pset='main')
+    T = np.linspace(0.13, 0.37, 500)
     #prior = np.array([zeta_over_s(T, *truth) for truth in design[11:14]])
     prior = np.array([zeta_over_s(T, X[11], X[12], X[13], X[14]) for X in design.values])
 
@@ -870,9 +919,9 @@ def zetas_validation():
 
     # validation
     #design, _, _, _ = prepare_emu_design(systems[0],pset='validation')
-    design,_,_,_ = load_design(systems[0], pset='validation')
+    design,_,_,_ = load_design(system_strs[0], pset='validation')
     #for iv, ax in zip(np.random.choice(range(93),25), axes.flatten()):
-    for iv, ax in zip(range(25), axes.flatten()):
+    for iv, ax in zip([0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17], axes.flatten()):
         f = "./validate/{:d}-zetas.dat".format(iv)
         t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
 
@@ -885,6 +934,11 @@ def zetas_validation():
         #ax.errorbar(Ttest, M, yerr=[M-l1,h2-M], color=cr,fmt='o', linewidth=.5)
         ax.fill_between(Ttest, l1, h2, color='blue', alpha=.2)
         ax.fill_between(Ttest, l2, h1, color='blue', alpha=.4)
+        ax.annotate(r"$\tau_{\pi}: $"+r"${:1.1f}$".format(X[15]),xy=(.3, .9), xycoords="axes fraction")
+        ax.annotate(r"$\tau_0: $"+r"${:1.2f}$".format(X[5]),xy=(.3, .75), xycoords="axes fraction")
+        ax.annotate(r"$\alpha: $"+r"${:1.2f}$".format(X[6]),xy=(.3, .6), xycoords="axes fraction")
+        ax.annotate(r"$\sigma: $"+r"${:1.3f}$".format(X[2]),xy=(.3, .45), xycoords="axes fraction")
+
         #for iT, im, iy1, iy2 in zip(Ttest, M,l2,h1):
         #    ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
 
@@ -901,8 +955,8 @@ def zetas_validation():
 @plot
 def etas_validation():
     # prior
-    design,_,_,_ = load_design(systems[0], pset='main')
-    T = np.linspace(0.15, 0.37, 500)
+    design,_,_,_ = load_design(system_strs[0], pset='main')
+    T = np.linspace(0.13, 0.37, 500)
     prior = np.array([eta_over_s(T, X[7], X[8], X[9], X[10]) for X in design.values])
 
 
@@ -913,9 +967,9 @@ def etas_validation():
 
     # validation
     #design, _, _, _ = prepare_emu_design(systems[0],pset='validation')
-    design,_,_,_ = load_design(systems[0], pset='validation')
+    design,_,_,_ = load_design(system_strs[0], pset='validation')
     #for iv, ax in zip(np.random.choice(range(93),25), axes.flatten()):
-    for iv, ax in zip(range(25), axes.flatten()):
+    for iv, ax in zip([0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17], axes.flatten()):
         f = "./validate/{:d}-etas.dat".format(iv)
         t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
 
@@ -930,6 +984,10 @@ def etas_validation():
         ax.fill_between(Ttest, l2, h1, color='blue', alpha=.4)
         #for iT, im, iy1, iy2 in zip(Ttest, M,l2,h1):
         #    ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
+        ax.annotate(r"$\tau_{\pi}: $"+r"${:1.1f}$".format(X[15]),xy=(.3, .9), xycoords="axes fraction")
+        ax.annotate(r"$\tau_0: $"+r"${:1.2f}$".format(X[5]),xy=(.3, .75), xycoords="axes fraction")
+        ax.annotate(r"$\alpha: $"+r"${:1.2f}$".format(X[6]),xy=(.3, .6), xycoords="axes fraction")
+        ax.annotate(r"$\sigma: $"+r"${:1.3f}$".format(X[2]),xy=(.3, .45), xycoords="axes fraction")
 
         ax.fill_between(T, np.min(prior, axis=0), np.max(prior, axis=0), color='gray', alpha=.1)
         if ax.is_last_row():
@@ -1259,17 +1317,20 @@ def _posterior_diag():
     chain = Chain()
 
     if validation:
+        truths = []
         #get VALIDATION points
-        system = systems[0]
-        design, _, _, _ = load_design(system=system, pset='validation')
+        for s in system_strs:
+            v_design, _, _, _ = \
+                load_design(s, pset='validation')
+            truths.append(v_design.values[validation_pt,0])
+        truths = truths + list(v_design.values[validation_pt,1:]) + [-1]
+
+
         labels = chain.labels
         ranges = chain.range
-
         data = chain.load().T
         ndims, nsamples = data.shape
 
-        truths = list(design.values[validation_pt])+[0.0]
-        ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
 
         cmap = plt.get_cmap('Blues')
         cmap.set_bad('white')

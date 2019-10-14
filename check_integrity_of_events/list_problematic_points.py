@@ -29,5 +29,7 @@ for system in ['Pb_Pb_2760', 'Au_Au_200']:
     set2 = set(all_events[2])
     set3 = set(all_events[3])
     common_set = set3.intersection(set2.intersection(set1.intersection(set0)))
+    common_list = list(common_set)
+    common_list.sort()
     print("Problematic design points common to all delta f : ")
-    print(common_set)
+    print(common_list)

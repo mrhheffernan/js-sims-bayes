@@ -5,6 +5,7 @@ from configurations import *
 import numpy as np
 
 trimmed_model_data = {}
+validation_data = {}
 for i, s in enumerate(system_strs):
     sdtype = [bayes_dtype[i]]
     Ndesign = SystemsInfo[s]['n_design']
@@ -43,12 +44,13 @@ for i, s in enumerate(system_strs):
     #load the validation model calculations
     if validation:
         if pseudovalidation:
-            validation_data = trimmed_model_data
+            validation_data[s] = trimmed_model_data[s]
         elif crossvalidation:
-            validation_data = model_data[cross_validation_pts]
+            validation_data[s] = model_data[cross_validation_pts]
         else:
             print("Loading {:s} validation calculations from ".format(s) \
                     + SystemsInfo[s]['validation_obs_file'])
-            validation_data = np.fromfile(SystemsInfo[s]["validation_obs_file"],
+            dsv = np.fromfile(SystemsInfo[s]["validation_obs_file"],
                                          dtype=sdtype)
-            print("validation_data.shape = " + str(validation_data.shape))
+            validation_data[s] = dsv[s]
+            print("validation_data.shape = " + str(dsv.shape))

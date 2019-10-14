@@ -2,14 +2,12 @@
 #import logging
 from configurations import *
 import numpy as np
+from calculations_load import validation_data
 
 
 #get model calculations at VALIDATION POINTS
 if validation:
-    print("Load calculations from " + SystemsInfo[])
-    Y_exp_data_pre = np.fromfile(f_obs_validation, dtype=bayes_dtype)
-    Y_exp_data=np.array([Y_exp_data_pre[validation_pt]])
-
+    Y_exp_data = {s: validation_data[s][validation_pt] for s in system_strs}
 #get experimental data
 else :
     print("Loading experimental data from " + dir_obs_exp)
