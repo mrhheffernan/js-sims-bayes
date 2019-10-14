@@ -12,13 +12,11 @@ from bins_and_cuts import obs_cent_list, obs_range_list
 float_t = '<f8'
 int_t = '<i8'
 complex_t = '<c16'
-
-#fix the random seed if doing cross validation, that sets are deleted consistently
+#fix the random seed for cross validation, that sets are deleted consistently
 np.random.seed(1)
-
+# Work, Design, and Exp directories
 workdir = Path(os.getenv('WORKDIR', '.'))
-design_dir =  str(workdir/\
-            'production_designs/500pts') #folder containing design points
+design_dir =  str(workdir/'production_designs/500pts')
 dir_obs_exp = "HIC_experimental_data"
 
 #only using data from these experimental collabs
@@ -35,7 +33,6 @@ STAR_id_yields = {
             'dN_dy_proton' : 'dN_dy_proton_+',
 }
 
-
 #how many versions of the model are run, for instance
 # 4 versions of delta-f with SMASH and a fifth model with UrQMD totals 5
 number_of_models_per_run = 4
@@ -48,15 +45,24 @@ idf_label = {
 idf = 0 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
 
 #the Collision systems
-#systems = [('Au', 'Au', 200)]
-#systems = [('Pb', 'Pb', 2760)]
-#systems = [('Pb', 'Pb', 5020)]
-#systems = [('Xe', 'Xe', 5440)]
 systems = [
         ('Pb', 'Pb', 2760),
         ('Au', 'Au', 200),
+        #('Pb', 'Pb', 5020),
+        #('Xe', 'Xe', 5440)
         ]
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
+
+#these are problematic points for Pb Pb 2760 run with 500 design points
+nan_design_pts_set = set([60, 285, 322, 324, 341, 377, 432, 447, 464, 468, 482, 483, 495])
+unfinished_events_design_pts_set = set([289, 324, 326, 459, 462, 242, 406, 440, 123])
+strange_features_design_pts_set = set([289, 324, 440, 459, 462])
+
+delete_design_pts_set = nan_design_pts_set.union(
+                            unfinished_events_design_pts_set.union(
+                                        strange_features_design_pts_set
+                                        )
+                                    )
 
 class systems_setting(dict):
     def __init__(self, A, B, sqrts):
@@ -102,24 +108,15 @@ SystemsInfo = {"Pb-Pb-2760": systems_setting("Pb","Pb", 2760),
 SystemsInfo["Pb-Pb-2760"]["run_id"] = "production_500pts_Pb_Pb_2760"
 SystemsInfo["Pb-Pb-2760"]["n_design"] = 500
 SystemsInfo["Pb-Pb-2760"]["n_validation"] = 100
+SystemsInfo["Pb-Pb-2760"]["design_remove_idx"]=list(delete_design_pts_set)
 
 SystemsInfo["Au-Au-200"]["run_id"] = "production_500pts_Au_Au_200"
 SystemsInfo["Au-Au-200"]["n_design"] = 500
 SystemsInfo["Au-Au-200"]["n_validation"] = 100
-
-#these are problematic points for Pb Pb 2760 run with 500 design points
-nan_design_pts_set = set([60, 285, 322, 324, 341, 377, 432, 447, 464, 468, 482, 483, 495])
-unfinished_events_design_pts_set = set([289, 324, 326, 459, 462, 242, 406, 440, 123])
-strange_features_design_pts_set = set([289, 324, 440, 459, 462])
-
-delete_design_pts_set = nan_design_pts_set.union(
-                            unfinished_events_design_pts_set.union(
-                                        strange_features_design_pts_set
-                                        )
-                                    )
-SystemsInfo["Pb-Pb-2760"]["design_remove_idx"]=list(delete_design_pts_set)
 SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
 
+###############################################################################
+############### BAYES #########################################################
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
 validation = False
