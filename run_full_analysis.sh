@@ -1,11 +1,10 @@
-#remove existing mcmc chains
-rm mcmc/chain.hdf
-
+#
+echo "Check if the mcmc/<chain-name>.hdf is the one you want to append the chain" 
 #average the observables by centrality
 #./src/calculations_average_obs.py
 
 #train the emulator
-./src/emulator.py --retrain --npc 8 --nrestarts 4
+./src/emulator.py --retrain --nrestarts 4
 
 #perform MCMC
 ./src/bayes_mcmc.py 4000 --nwalkers 100 --nburnsteps 500

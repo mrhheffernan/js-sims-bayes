@@ -289,7 +289,7 @@ def obs_label(obs, subobs, differentials=False, full_cumulants=False):
             (r'\{' + str(k) + r'\}') if full_cumulants else ''
         )
 
-def _observables(posterior=False):
+def _observables(posterior=False, ratio=False):
     """
     Model observables at all design points or drawn from the posterior with
     experimental data points.
@@ -327,40 +327,58 @@ def _observables(posterior=False):
         subaxes = axes.flatten()[na_start:na_stop]
         na_start = na_stop
         for obs, ax in zip(active_obs_list[system], subaxes):
-            xbins = np.array(obs_cent_list[system][obs])
+            # sys labels
             ax.annotate(system, xy=(.4, .9), xycoords="axes fraction")
+
+            # Centrality bins
+            xbins = np.array(obs_cent_list[system][obs])
             x = (xbins[:,0]+xbins[:,1])/2.
-            if posterior:
-                Y = Ymodel[system][obs]
-            else:
-                Y = Ymodel[system][obs]['mean'][:, idf]
 
-            for iy, y in enumerate(Y):
-
-                if (iy in highlight_sets):
-                    colour='black'
-                    lw=0.6
-                    alpha=0.3
-                else:
-                    colour=cr
-                    lw=0.3
-                    alpha=0.1
-                #is_mult = ('dN' in obs) or ('dET' in obs)
-                #if is_mult and transform_multiplicities:
-                #    y = np.exp(y) - 1.0
-
-                if posterior:
-                    ax.plot(x, y, color=colour, alpha=alpha, lw=lw)
-                else:
-                    ax.plot(x, y, color=colour, alpha=alpha, lw=lw)
+            # plot exp
             try:
                 exp_mean = Yexp[system][obs]['mean'][idf]
                 exp_err = Yexp[system][obs]['err'][idf]
             except KeyError:
                 continue
-            ax.errorbar(x, exp_mean, exp_err, fmt='ko')
+            ax.errorbar(x, np.ones_like(x) if ratio else exp_mean,
+                        yerr=exp_err/exp_mean if ratio else exp_err,
+                        fmt='ko')
+
+            # plot calc
+            if posterior:
+                Y = Ymodel[system][obs]
+            else:
+                Y = Ymodel[system][obs]['mean'][idf]
+
+            alpha = 0.4
+            lw = 0.15
+            colour = cr
+            if posterior:
+                if ratio:
+                    y = Y/exp_mean
+                    ax.fill_between(x,
+                            np.percentile(y, 5, axis=0),
+                            np.percentile(y, 95, axis=0),
+                            color=colour, alpha=alpha
+                    )
+                    ax.fill_between(x,
+                            np.percentile(y, 20, axis=0),
+                            np.percentile(y, 80, axis=0),
+                            color=colour, alpha=alpha
+                    )
+                else:
+                    ax.plot(x, Y.T, color=colour, alpha=alpha, lw=lw)
+            else:
+                ax.plot(x, (Y/exp_mean).T if ratio else Y.T,
+                        color=colour, alpha=alpha, lw=lw)
+            # axis and limits
             ax.set_xlim(0, 70)
-            ax.set_ylim(*obs_range_list[system][obs])
+            if ratio:
+                ax.set_ylim(0.5, 1.5)
+                ax.plot([0,70],[1,1],'k--', alpha=0.6)
+                ax.fill_between([0,70],[.9,.9], [1.1,1.1],color='k', alpha=0.2)
+            else:
+                ax.set_ylim(*obs_range_list[system][obs])
             auto_ticks(ax, 'x', nbins=5, minor=2)
 
             if ax.is_last_row():
@@ -421,6 +439,10 @@ def observables_fit():
 @plot
 def obs_validation():
     _observables(posterior=True)
+
+@plot
+def obs_validation_ratio():
+    _observables(posterior=True, ratio=True)
 
 @plot
 def obs_prior():

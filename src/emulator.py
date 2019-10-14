@@ -337,10 +337,6 @@ def main():
     )
 
     parser.add_argument(
-        '--npc', type=int,
-        help='number of principal components'
-    )
-    parser.add_argument(
         '--nrestarts', type=int,
         help='number of optimizer restarts'
     )
@@ -354,8 +350,8 @@ def main():
     kwargs = vars(args)
 
     for s in system_strs:
-        print("system = " + str(s))
-        emu = Emulator.build_emu(s, **kwargs)
+        print("system = " + str(s), ", npc = ", SystemsInfo[s]['npc'])
+        emu = Emulator.build_emu(s, npc=SystemsInfo[s]['npc'], **kwargs)
 
         print('{} PCs explain {:.5f} of variance'.format(
             emu.npc,

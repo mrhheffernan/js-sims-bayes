@@ -222,7 +222,7 @@ class Chain:
                  for s in system_strs
                }
 
-    def log_posterior(self, X, extra_std_prior_scale=0.05):
+    def log_posterior(self, X, extra_std_prior_scale=0.001):
         """
         Evaluate the posterior at `X`.
 

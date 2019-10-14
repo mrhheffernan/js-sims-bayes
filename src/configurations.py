@@ -102,18 +102,21 @@ class systems_setting(dict):
         else:
             super().__setitem__(key, value)
 
-SystemsInfo = {"Pb-Pb-2760": systems_setting("Pb","Pb", 2760),
-               "Au-Au-200": systems_setting("Au","Au", 200)
+SystemsInfo = {"{:s}-{:s}-{:d}".format(*s): systems_setting(*s) \
+                for s in systems
                }
 SystemsInfo["Pb-Pb-2760"]["run_id"] = "production_500pts_Pb_Pb_2760"
 SystemsInfo["Pb-Pb-2760"]["n_design"] = 500
 SystemsInfo["Pb-Pb-2760"]["n_validation"] = 100
 SystemsInfo["Pb-Pb-2760"]["design_remove_idx"]=list(delete_design_pts_set)
+SystemsInfo["Pb-Pb-2760"]["npc"]=10
+
 
 SystemsInfo["Au-Au-200"]["run_id"] = "production_500pts_Au_Au_200"
 SystemsInfo["Au-Au-200"]["n_design"] = 500
 SystemsInfo["Au-Au-200"]["n_validation"] = 100
 SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
+SystemsInfo["Au-Au-200"]["npc"] = 6 
 
 ###############################################################################
 ############### BAYES #########################################################
@@ -200,7 +203,6 @@ eta_over_s = np.vectorize(eta_over_s)
 def taupi(T, T_k, alow, ahigh, etas_k, bpi):
     return bpi*eta_over_s(T, T_k, alow, ahigh, etas_k)/T
 taupi = np.vectorize(taupi)
-
 
 # load design for other module
 def load_design(system_str, pset='main'): # or validation
