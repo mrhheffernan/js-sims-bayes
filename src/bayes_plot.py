@@ -926,8 +926,8 @@ def viscous_posterior():
 				samples[:,14],
                ):
         posterior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
-    axes[0].fill_between(T, np.percentile(posterior_zetas, 10, axis=0), np.percentile(posterior_zetas, 90, axis=0), color='blue', alpha=0.3, label='90% degree of belief')
-    axes[0].fill_between(T, np.percentile(posterior_zetas, 30, axis=0), np.percentile(posterior_zetas, 70, axis=0), color='blue', alpha=0.7, label='60% degree of belief')
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 10, axis=0), np.percentile(posterior_zetas, 90, axis=0), color='blue', alpha=0.3, label='90% Confidence Interval')
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 30, axis=0), np.percentile(posterior_zetas, 70, axis=0), color='blue', alpha=0.7, label='60% Confidence Interval')
     #axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color='blue')
     axes[0].legend(fontsize = 9)
 
@@ -939,8 +939,8 @@ def viscous_posterior():
     posterior_etas = []
     for d in samples:
         posterior_etas.append(eta_over_s(T, *d[7:11]))
-    axes[1].fill_between(T, np.percentile(posterior_etas, 10, axis=0),np.percentile(posterior_etas, 90, axis=0),color='blue', alpha=0.3, label='90% degree of belief')
-    axes[1].fill_between(T, np.percentile(posterior_etas, 30, axis=0),np.percentile(posterior_etas, 70, axis=0),color='blue', alpha=0.7, label='60% degree of belief')
+    axes[1].fill_between(T, np.percentile(posterior_etas, 10, axis=0),np.percentile(posterior_etas, 90, axis=0),color='blue', alpha=0.3, label='90% Confidence Interval')
+    axes[1].fill_between(T, np.percentile(posterior_etas, 30, axis=0),np.percentile(posterior_etas, 70, axis=0),color='blue', alpha=0.7, label='60% Confidence Interval')
     #axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color='blue')
     #axes[1].legend(fontsize = 9)
 
