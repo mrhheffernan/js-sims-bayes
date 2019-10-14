@@ -37,12 +37,14 @@ STAR_id_yields = {
 # 4 versions of delta-f with SMASH and a fifth model with UrQMD totals 5
 number_of_models_per_run = 4
 idf_label = {
-            0 : '14 Mom.',
-            1 : 'C.E. R.T.A',
-            2 : 'McNelis',
-            3 : 'Bernhard'
+            0 : 'Grad',
+            1 : 'Chapman-Enskog R.T.A',
+            2 : 'Pratt-McNelis',
+            3 : 'Pratt-Bernhard'
             }
 idf = 3 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
+
+print("Using idf = " + str(idf) + " : " + idf_label[idf])
 
 #the Collision systems
 systems = [
