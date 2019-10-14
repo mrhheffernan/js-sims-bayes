@@ -317,13 +317,19 @@ def _observables(posterior=False):
 
     highlight_sets =  []
 
-    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(10,10), sharex=True)
+    num_of_obs = np.sum([len(active_obs_list[s]) for s in system_strs])
+    print(active_obs_list)
+    fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(10,7), sharex=True)
+    na_start = 0
+    na_stop = 0
     for system in system_strs:
-        for obs, ax in zip(active_obs_list[system], axes.flatten()):
-            print("obs = " + obs)
+        na_stop += len(active_obs_list[system])
+        subaxes = axes.flatten()[na_start:na_stop]
+        na_start = na_stop
+        for obs, ax in zip(active_obs_list[system], subaxes):
             xbins = np.array(obs_cent_list[system][obs])
+            ax.annotate(system, xy=(.4, .9), xycoords="axes fraction")
             x = (xbins[:,0]+xbins[:,1])/2.
-            print(x)
             if posterior:
                 Y = Ymodel[system][obs]
             else:
@@ -348,15 +354,14 @@ def _observables(posterior=False):
                 else:
                     ax.plot(x, y, color=colour, alpha=alpha, lw=lw)
             try:
-                exp_mean = Yexp[system][obs]['mean'][:, 0][0]
-                exp_err = Yexp[system][obs]['err'][:, 0][0]
+                exp_mean = Yexp[system][obs]['mean'][idf]
+                exp_err = Yexp[system][obs]['err'][idf]
             except KeyError:
                 continue
-
-            ax.errorbar( x, exp_mean, exp_err)
-            #ax.set_xlim(0, 70)
-            #ax.set_ylim(*obs_range_list[system][obs])
-            #auto_ticks(ax, 'x', nbins=5, minor=2)
+            ax.errorbar(x, exp_mean, exp_err, fmt='ko')
+            ax.set_xlim(0, 70)
+            ax.set_ylim(*obs_range_list[system][obs])
+            auto_ticks(ax, 'x', nbins=5, minor=2)
 
             if ax.is_last_row():
                 ax.set_xlabel('Centrality %')
@@ -875,10 +880,13 @@ def viscous_posterior():
     posterior_zetas = []
     for d in samples:
         posterior_zetas.append(zeta_over_s(T, *d[11:15]))
+    for sample in posterior_zetas[:8]:
+        axes[0].plot(T, sample, 'k--', alpha=0.5)
     axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0), np.percentile(posterior_zetas, 95, axis=0), color=cr, alpha=0.3)
     axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0), np.percentile(posterior_zetas, 80, axis=0), color=cr, alpha=0.3)
     axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)
-    axes[0].plot(T, true_zetas, 'k--')
+    if validation:
+        axes[0].plot(T, true_zetas, 'k--')
     ##########################
     prior_etas = []
     for d in design.values:
@@ -887,10 +895,13 @@ def viscous_posterior():
     posterior_etas = []
     for d in samples:
         posterior_etas.append(eta_over_s(T, *d[7:11]))
+    for sample in posterior_etas[:8]:
+        axes[1].plot(T, sample, 'k--', alpha=0.5)
     axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),np.percentile(posterior_etas, 95, axis=0),color=cr, alpha=0.3)
     axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),np.percentile(posterior_etas, 80, axis=0),color=cr, alpha=0.3)
     axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)
-    axes[1].plot(T, true_etas, 'k--')
+    if validation:
+        axes[1].plot(T, true_etas, 'k--')
 
     axes[0].set_ylabel(r"$\zeta/s$")
     axes[0].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
@@ -899,6 +910,9 @@ def viscous_posterior():
     axes[1].set_ylabel(r"$\eta/s$")
     axes[1].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
     axes[1].set_ylim(0,.7)
+
+    axes[0].set_xlabel(r"$T$ [GeV]")
+    axes[1].set_xlabel(r"$T$ [GeV]")
 
     set_tight(fig, rect=[0, 0, 1, 1])
 

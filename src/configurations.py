@@ -45,7 +45,7 @@ idf_label = {
             2 : 'McNelis',
             3 : 'Bernhard'
             }
-idf = 3 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
+idf = 0 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
 
 #the Collision systems
 #systems = [('Au', 'Au', 200)]
@@ -122,13 +122,13 @@ SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
 
 # if True : perform emulator validation
 # if False : using experimental data for parameter estimation
-validation = True
+validation = False
 #if true, we will validate emulator against points in the training set
 pseudovalidation = False
 #if true, we will omit 20% of the training design when training emulator
 crossvalidation = False
 #omit 20% of design points from training
-fixed_validation_pt=2
+fixed_validation_pt=2000
 if validation:
     if pseudovalidation:
         print("pseudo-validation")

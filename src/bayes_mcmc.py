@@ -129,7 +129,7 @@ class Chain:
     system designs have the same parameters and ranges (except for the norms).
 
     """
-    def __init__(self, path=workdir / 'mcmc' / 'chain.hdf'):
+    def __init__(self, path=workdir/'mcmc'/'chain-idf-{:d}.hdf'.format(idf)):
         self.path = path
         self.path.parent.mkdir(exist_ok=True)
 
@@ -222,7 +222,7 @@ class Chain:
                  for s in system_strs
                }
 
-    def log_posterior(self, X, extra_std_prior_scale=0.005):
+    def log_posterior(self, X, extra_std_prior_scale=0.05):
         """
         Evaluate the posterior at `X`.
 
