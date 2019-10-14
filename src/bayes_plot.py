@@ -141,8 +141,10 @@ def plot(f):
 
         fig = plt.gcf()
 
+        """
         if not fig.get_tight_layout():
             set_tight(fig)
+        """
 
         plotfile = plotdir / '{}.png'.format(f.__name__)
         fig.savefig(str(plotfile), dpi=300)
@@ -901,7 +903,8 @@ def viscous_posterior():
 
     design, dmin, dmax, labels = load_design(system=systems[0], pset='main')
     samples = data[index]
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3), sharex=True, sharey=False)
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3), sharex=False, sharey=False, constrained_layout=True)
+    fig.suptitle("Posterior : " + idf_label[idf] + " Visc. Correction ")
     T = np.linspace(0.12, 0.3, 20)
 
     prior_zetas = []
@@ -914,7 +917,7 @@ def viscous_posterior():
                 ):
         prior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
 
-    axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3)
+    axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3, label='Prior')
     posterior_zetas = []
     for (zm, T0, w, asym) in zip(
 				samples[:,11],
@@ -923,31 +926,36 @@ def viscous_posterior():
 				samples[:,14],
                ):
         posterior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
-    axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0), np.percentile(posterior_zetas, 95, axis=0), color=cr, alpha=0.3)
-    axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0), np.percentile(posterior_zetas, 80, axis=0), color=cr, alpha=0.3)
-    axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color=cr)
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 10, axis=0), np.percentile(posterior_zetas, 90, axis=0), color='blue', alpha=0.3, label='90% degree of belief')
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 30, axis=0), np.percentile(posterior_zetas, 70, axis=0), color='blue', alpha=0.7, label='60% degree of belief')
+    #axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color='blue')
+    axes[0].legend(fontsize = 9)
 
     ##########################
     prior_etas = []
     for d in design.values:
         prior_etas.append(eta_over_s(T, *d[7:11]))
-    axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3)
+    axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3, label='Prior')
     posterior_etas = []
     for d in samples:
         posterior_etas.append(eta_over_s(T, *d[7:11]))
-    axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),np.percentile(posterior_etas, 95, axis=0),color=cr, alpha=0.3)
-    axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),np.percentile(posterior_etas, 80, axis=0),color=cr, alpha=0.3)
-    axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color=cr)
+    axes[1].fill_between(T, np.percentile(posterior_etas, 10, axis=0),np.percentile(posterior_etas, 90, axis=0),color='blue', alpha=0.3, label='90% degree of belief')
+    axes[1].fill_between(T, np.percentile(posterior_etas, 30, axis=0),np.percentile(posterior_etas, 70, axis=0),color='blue', alpha=0.7, label='60% degree of belief')
+    #axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color='blue')
+    #axes[1].legend(fontsize = 9)
 
     axes[0].set_ylabel(r"$\zeta/s$")
+    axes[0].set_xlabel(r"$T$ [GeV]")
     axes[0].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
     axes[0].set_ylim(0,.35)
 
     axes[1].set_ylabel(r"$\eta/s$")
+    axes[1].set_xlabel(r"$T$ [GeV]")
     axes[1].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
     axes[1].set_ylim(0,.7)
 
-    set_tight(fig, rect=[0, 0, 1, 1])
+    #fig.tight_layout(rect=[0, 0, 1, 0.85])
+    #set_tight(fig, rect=[0, 0, 1, 1])
 
 
 @plot
