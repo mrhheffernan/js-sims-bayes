@@ -42,7 +42,7 @@ idf_label = {
             2 : 'McNelis',
             3 : 'Bernhard'
             }
-idf = 0 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
+idf = 3 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
 
 #the Collision systems
 systems = [
@@ -116,7 +116,7 @@ SystemsInfo["Au-Au-200"]["run_id"] = "production_500pts_Au_Au_200"
 SystemsInfo["Au-Au-200"]["n_design"] = 500
 SystemsInfo["Au-Au-200"]["n_validation"] = 100
 SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
-SystemsInfo["Au-Au-200"]["npc"] = 6 
+SystemsInfo["Au-Au-200"]["npc"] = 6
 
 ###############################################################################
 ############### BAYES #########################################################
