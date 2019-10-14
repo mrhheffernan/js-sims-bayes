@@ -42,6 +42,7 @@ from bayes_mcmc import Chain, credible_interval
 from configurations import *
 from emulator import Trained_Emulators
 from calculations_load import trimmed_model_data
+from bayes_exp import Y_exp_data
 
 fontsize = dict(
     large=11,
@@ -120,9 +121,7 @@ plt.rcParams.update({
     'image.interpolation': 'none',
 })
 
-from configurations import *
-from calculations_load import model_data
-from bayes_exp import Y_exp_data
+
 
 
 plotdir = workdir / 'plots'
@@ -293,7 +292,7 @@ def obs_label(obs, subobs, differentials=False, full_cumulants=False):
             (r'\{' + str(k) + r'\}') if full_cumulants else ''
         )
 
-def _observables(posterior=False):
+def _observables(posterior=False, ratio=False):
     """
     Model observables at all design points or drawn from the posterior with
     experimental data points.
@@ -321,46 +320,69 @@ def _observables(posterior=False):
 
     highlight_sets =  []
 
-    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(10,10), sharex=True)
+    num_of_obs = np.sum([len(active_obs_list[s]) for s in system_strs])
+    print(active_obs_list)
+    fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(10,7), sharex=True)
+    na_start = 0
+    na_stop = 0
     for system in system_strs:
-        for obs, ax in zip(active_obs_list[system], axes.flatten()):
-            print("obs = " + obs)
+        na_stop += len(active_obs_list[system])
+        subaxes = axes.flatten()[na_start:na_stop]
+        na_start = na_stop
+        for obs, ax in zip(active_obs_list[system], subaxes):
+            # sys labels
+            ax.annotate(system, xy=(.4, .9), xycoords="axes fraction")
+
+            # Centrality bins
             xbins = np.array(obs_cent_list[system][obs])
             x = (xbins[:,0]+xbins[:,1])/2.
-            print(x)
+
+            # plot exp
+            try:
+                exp_mean = Yexp[system][obs]['mean'][idf]
+                exp_err = Yexp[system][obs]['err'][idf]
+            except KeyError:
+                continue
+            ax.errorbar(x, np.ones_like(x) if ratio else exp_mean,
+                        yerr=exp_err/exp_mean if ratio else exp_err,
+                        fmt='ko')
+
+            # plot calc
             if posterior:
                 Y = Ymodel[system][obs]
             else:
-                Y = Ymodel[system][obs]['mean'][:, idf]
+                Y = Ymodel[system][obs]['mean'][idf]
 
-            for iy, y in enumerate(Y):
-
-                if (iy in highlight_sets):
-                    colour='black'
-                    lw=0.6
-                    alpha=0.3
+            alpha = 0.4
+            lw = 0.15
+            colour = cr
+            if posterior:
+                if ratio:
+                    y = Y/exp_mean
+                    ax.fill_between(x,
+                            np.percentile(y, 5, axis=0),
+                            np.percentile(y, 95, axis=0),
+                            color=colour, alpha=alpha
+                    )
+                    ax.fill_between(x,
+                            np.percentile(y, 20, axis=0),
+                            np.percentile(y, 80, axis=0),
+                            color=colour, alpha=alpha
+                    )
                 else:
-                    colour=cr
-                    lw=0.3
-                    alpha=0.1
-                #is_mult = ('dN' in obs) or ('dET' in obs)
-                #if is_mult and transform_multiplicities:
-                #    y = np.exp(y) - 1.0
-
-                if posterior:
-                    ax.plot(x, y, color=colour, alpha=alpha, lw=lw)
-                else:
-                    ax.plot(x, y, color=colour, alpha=alpha, lw=lw)
-            try:
-                exp_mean = Yexp[system][obs]['mean'][:, 0][0]
-                exp_err = Yexp[system][obs]['err'][:, 0][0]
-            except KeyError:
-                continue
-
-            ax.errorbar( x, exp_mean, exp_err)
-            #ax.set_xlim(0, 70)
-            #ax.set_ylim(*obs_range_list[system][obs])
-            #auto_ticks(ax, 'x', nbins=5, minor=2)
+                    ax.plot(x, Y.T, color=colour, alpha=alpha, lw=lw)
+            else:
+                ax.plot(x, (Y/exp_mean).T if ratio else Y.T,
+                        color=colour, alpha=alpha, lw=lw)
+            # axis and limits
+            ax.set_xlim(0, 70)
+            if ratio:
+                ax.set_ylim(0.5, 1.5)
+                ax.plot([0,70],[1,1],'k--', alpha=0.6)
+                ax.fill_between([0,70],[.9,.9], [1.1,1.1],color='k', alpha=0.2)
+            else:
+                ax.set_ylim(*obs_range_list[system][obs])
+            auto_ticks(ax, 'x', nbins=5, minor=2)
 
             if ax.is_last_row():
                 ax.set_xlabel('Centrality %')
@@ -467,6 +489,10 @@ def observables_fit():
 @plot
 def obs_validation():
     _observables(posterior=True)
+
+@plot
+def obs_validation_ratio():
+    _observables(posterior=True, ratio=True)
 
 @plot
 def obs_prior():
@@ -896,14 +922,22 @@ def zetas_prior():
 
 @plot
 def viscous_posterior():
+    T = np.linspace(0.12, 0.3, 20)
+    if validation:
+        v_design, _, _, _ = \
+                load_design(system_strs[0], pset='validation')
+        tp = v_design.values[validation_pt]
+        true_etas = eta_over_s(T, *tp[7:11])
+        true_zetas = zeta_over_s(T, *tp[11:15])
     chain = Chain()
     data = chain.load()
 
     index = np.random.choice(np.arange(data.shape[0]), 2000)
 
-    design, dmin, dmax, labels = load_design(system=systems[0], pset='main')
-    samples = data[index]
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3), sharex=False, sharey=False, constrained_layout=True)
+    design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+    samples = data[index, 1:]
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
+                    sharex=False, sharey=False, constrained_layout=True)
     fig.suptitle("Posterior : " + idf_label[idf] + " Visc. Correction ")
     T = np.linspace(0.12, 0.3, 20)
 
@@ -918,31 +952,39 @@ def viscous_posterior():
         prior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
 
     axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3, label='Prior')
-    posterior_zetas = []
-    for (zm, T0, w, asym) in zip(
-				samples[:,11],
-				samples[:,12],
-				samples[:,13],
-				samples[:,14],
-               ):
-        posterior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
-    axes[0].fill_between(T, np.percentile(posterior_zetas, 10, axis=0), np.percentile(posterior_zetas, 90, axis=0), color='blue', alpha=0.3, label='90% Confidence Interval')
-    axes[0].fill_between(T, np.percentile(posterior_zetas, 30, axis=0), np.percentile(posterior_zetas, 70, axis=0), color='blue', alpha=0.7, label='60% Confidence Interval')
-    #axes[0].plot(T, np.percentile(posterior_zetas, 50, axis=0), color='blue')
-    axes[0].legend(fontsize = 9)
 
+    posterior_zetas = [ zeta_over_s(T, *d[11:15]) for d in samples ]
+    for sample in posterior_zetas[:8]:
+        axes[0].plot(T, sample, 'k--', alpha=0.5)
+    if validation:
+        axes[0].plot(T, true_zetas, 'k--')
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0),
+                            np.percentile(posterior_zetas, 95, axis=0),
+                            color='blue', alpha=0.3,
+                            label='90% Confidence Interval')
+    axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0),
+                            np.percentile(posterior_zetas, 80, axis=0),
+                            color='blue', alpha=0.7,
+                            label='60% Confidence Interval')
+    axes[0].legend(loc=(.05, .75), fontsize=9)
     ##########################
     prior_etas = []
     for d in design.values:
         prior_etas.append(eta_over_s(T, *d[7:11]))
     axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3, label='Prior')
-    posterior_etas = []
-    for d in samples:
-        posterior_etas.append(eta_over_s(T, *d[7:11]))
-    axes[1].fill_between(T, np.percentile(posterior_etas, 10, axis=0),np.percentile(posterior_etas, 90, axis=0),color='blue', alpha=0.3, label='90% Confidence Interval')
-    axes[1].fill_between(T, np.percentile(posterior_etas, 30, axis=0),np.percentile(posterior_etas, 70, axis=0),color='blue', alpha=0.7, label='60% Confidence Interval')
-    #axes[1].plot(T, np.percentile(posterior_etas, 50, axis=0), color='blue')
-    #axes[1].legend(fontsize = 9)
+    posterior_etas = [ eta_over_s(T, *d[7:11]) for d in samples ]
+    for sample in posterior_etas[:8]:
+        axes[1].plot(T, sample, 'k--', alpha=0.5)
+    if validation:
+        axes[1].plot(T, true_etas, 'k--')
+    axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),
+                            np.percentile(posterior_etas, 95, axis=0),
+                            color='blue', alpha=0.3,
+                            label='90% Confidence Interval')
+    axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),
+                            np.percentile(posterior_etas, 80, axis=0),
+                            color='blue', alpha=0.7,
+                            label='60% Confidence Interval')
 
     axes[0].set_ylabel(r"$\zeta/s$")
     axes[0].set_xlabel(r"$T$ [GeV]")
@@ -954,15 +996,19 @@ def viscous_posterior():
     axes[1].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
     axes[1].set_ylim(0,.7)
 
-    #fig.tight_layout(rect=[0, 0, 1, 0.85])
-    #set_tight(fig, rect=[0, 0, 1, 1])
+    axes[0].set_xlabel(r"$T$ [GeV]")
+    axes[1].set_xlabel(r"$T$ [GeV]")
+
+    plt.tight_layout(True)
+    set_tight(fig, rect=[0, 0, 1, .9])
+
 
 
 @plot
 def zetas_validation():
     # prior
-    design,_,_,_ = load_design(systems[0], pset='main')
-    T = np.linspace(0.15, 0.37, 500)
+    design,_,_,_ = load_design(system_strs[0], pset='main')
+    T = np.linspace(0.13, 0.37, 500)
     #prior = np.array([zeta_over_s(T, *truth) for truth in design[11:14]])
     prior = np.array([zeta_over_s(T, X[11], X[12], X[13], X[14]) for X in design.values])
 
@@ -974,9 +1020,9 @@ def zetas_validation():
 
     # validation
     #design, _, _, _ = prepare_emu_design(systems[0],pset='validation')
-    design,_,_,_ = load_design(systems[0], pset='validation')
+    design,_,_,_ = load_design(system_strs[0], pset='validation')
     #for iv, ax in zip(np.random.choice(range(93),25), axes.flatten()):
-    for iv, ax in zip(range(25), axes.flatten()):
+    for iv, ax in zip([0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17], axes.flatten()):
         f = "./validate/{:d}-zetas.dat".format(iv)
         t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
 
@@ -989,6 +1035,11 @@ def zetas_validation():
         #ax.errorbar(Ttest, M, yerr=[M-l1,h2-M], color=cr,fmt='o', linewidth=.5)
         ax.fill_between(Ttest, l1, h2, color='blue', alpha=.2)
         ax.fill_between(Ttest, l2, h1, color='blue', alpha=.4)
+        ax.annotate(r"$\tau_{\pi}: $"+r"${:1.1f}$".format(X[15]),xy=(.3, .9), xycoords="axes fraction")
+        ax.annotate(r"$\tau_0: $"+r"${:1.2f}$".format(X[5]),xy=(.3, .75), xycoords="axes fraction")
+        ax.annotate(r"$\alpha: $"+r"${:1.2f}$".format(X[6]),xy=(.3, .6), xycoords="axes fraction")
+        ax.annotate(r"$\sigma: $"+r"${:1.3f}$".format(X[2]),xy=(.3, .45), xycoords="axes fraction")
+
         #for iT, im, iy1, iy2 in zip(Ttest, M,l2,h1):
         #    ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
 
@@ -1005,8 +1056,8 @@ def zetas_validation():
 @plot
 def etas_validation():
     # prior
-    design,_,_,_ = load_design(systems[0], pset='main')
-    T = np.linspace(0.15, 0.37, 500)
+    design,_,_,_ = load_design(system_strs[0], pset='main')
+    T = np.linspace(0.13, 0.37, 500)
     prior = np.array([eta_over_s(T, X[7], X[8], X[9], X[10]) for X in design.values])
 
 
@@ -1017,9 +1068,9 @@ def etas_validation():
 
     # validation
     #design, _, _, _ = prepare_emu_design(systems[0],pset='validation')
-    design,_,_,_ = load_design(systems[0], pset='validation')
+    design,_,_,_ = load_design(system_strs[0], pset='validation')
     #for iv, ax in zip(np.random.choice(range(93),25), axes.flatten()):
-    for iv, ax in zip(range(25), axes.flatten()):
+    for iv, ax in zip([0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17], axes.flatten()):
         f = "./validate/{:d}-etas.dat".format(iv)
         t, m, M, l1, l2, h1, h2 = np.loadtxt(f).T
 
@@ -1034,6 +1085,10 @@ def etas_validation():
         ax.fill_between(Ttest, l2, h1, color='blue', alpha=.4)
         #for iT, im, iy1, iy2 in zip(Ttest, M,l2,h1):
         #    ax.fill_between([iT-.01, iT+.01], [iy1, iy1], [iy2, iy2], edgecolor=cr, linewidth=.5, facecolor='none')
+        ax.annotate(r"$\tau_{\pi}: $"+r"${:1.1f}$".format(X[15]),xy=(.3, .9), xycoords="axes fraction")
+        ax.annotate(r"$\tau_0: $"+r"${:1.2f}$".format(X[5]),xy=(.3, .75), xycoords="axes fraction")
+        ax.annotate(r"$\alpha: $"+r"${:1.2f}$".format(X[6]),xy=(.3, .6), xycoords="axes fraction")
+        ax.annotate(r"$\sigma: $"+r"${:1.3f}$".format(X[2]),xy=(.3, .45), xycoords="axes fraction")
 
         ax.fill_between(T, np.min(prior, axis=0), np.max(prior, axis=0), color='gray', alpha=.1)
         if ax.is_last_row():
@@ -1363,17 +1418,20 @@ def _posterior_diag():
     chain = Chain()
 
     if validation:
+        truths = []
         #get VALIDATION points
-        system = systems[0]
-        design, _, _, _ = load_design(system=system, pset='validation')
+        for s in system_strs:
+            v_design, _, _, _ = \
+                load_design(s, pset='validation')
+            truths.append(v_design.values[validation_pt,0])
+        truths = truths + list(v_design.values[validation_pt,1:]) + [-1]
+
+
         labels = chain.labels
         ranges = chain.range
-
         data = chain.load().T
         ndims, nsamples = data.shape
 
-        truths = list(design.values[validation_pt])+[0.0]
-        ranges = np.array([np.min(data, axis=1), np.max(data, axis=1)]).T
 
         cmap = plt.get_cmap('Blues')
         cmap.set_bad('white')

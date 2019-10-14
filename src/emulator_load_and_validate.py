@@ -122,8 +122,8 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
             for pt in cross_validation_pts:
                 params = design.iloc[pt].values
                 mean, cov = emu.predict(np.array([params]), return_cov = True)
-                y_true = validation_data[system_str][pt, idf][obs]['mean'][cent_bin]
-                y_emu = mean[obs][0][cent_bin]
+                y_true = validation_data[system_str][pt, idf][obs]['mean']#[cent_bin]
+                y_emu = mean[obs][0]#[cent_bin]
                 is_mult = ('dN' in obs) or ('dET' in obs)
                 if is_mult and transform_multiplicities:
                     y_emu = np.exp(y_emu) - 1.
@@ -135,8 +135,8 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
         else :
             for pt, params in enumerate(design.values):
                 mean, cov = emu.predict(np.array([params]), return_cov = True)
-                y_true = validation_data[system_str][pt, idf][obs]['mean'][cent_bin]
-                y_emu = mean[obs][0][cent_bin]
+                y_true = validation_data[system_str][pt, idf][obs]['mean']#[cent_bin]
+                y_emu = mean[obs][0]#[cent_bin]
                 is_mult = ('dN' in obs) or ('dET' in obs)
                 if is_mult and transform_multiplicities:
                     y_emu = np.exp(y_emu) - 1.
@@ -145,8 +145,8 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
                 Y_true.append(y_true)
                 Y_emu.append(y_emu)
 
-        Y_true = np.array(Y_true)
-        Y_emu = np.array(Y_emu)
+        Y_true = np.array(Y_true).flatten()
+        Y_emu = np.array(Y_emu).flatten()
         ym, yM = np.min(Y_emu), np.max(Y_emu)
         h = ax.hist2d(Y_emu, Y_true, bins=31, cmap='coolwarm', range=[(ym, yM),(ym, yM)])
         ym, yM = ym-(yM-ym)*.05, yM+(yM-ym)*.05
@@ -160,7 +160,7 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
         ax.ticklabel_format(scilimits=(2,1))
 
     plt.tight_layout(True)
-    plt.savefig('validation_plots/emulator_vs_model.png')
+    plt.savefig('validation_plots/{:s}_emu_vs_calc.png'.format(system_str))
 
     #plt.show()
 
@@ -210,11 +210,9 @@ def main():
 
     cent_bin = 3
 
-    for s in systems:
-        system_str = "{:s}-{:s}-{:d}".format(*s)
-
+    for s in system_strs:
         observables = []
-        for obs, cent_list in obs_cent_list[system_str].items():
+        for obs, cent_list in obs_cent_list[s].items():
             observables.append(obs)
 
         nrows = 3
@@ -222,26 +220,28 @@ def main():
 
         if pseudovalidation:
             #using training points as testing points
-            design, design_max, design_min, labels = load_design(system = s, pset='main')
+            design, design_max, design_min, labels = \
+                        load_design(system_str=s, pset='main')
         else :
-            design, design_max, design_min, labels = load_design(system = s, pset='validation')
+            design, design_max, design_min, labels = \
+                        load_design(system_str=s, pset='validation')
 
         print("Validation design set shape : (Npoints, Nparams) =  ", design.shape)
 
         #load the dill'ed emulator from emulator file
-        print("Loading emulators from emulator/emulator-" + system_str + '-idf-' + str(idf) + '.dill' )
-        emu = dill.load(open('emulator/emulator-' + system_str + '-idf-' + str(idf) + '.dill', "rb"))
+        print("Loading emulators from emulator/emulator-" + s + '-idf-' + str(idf) + '.dill' )
+        emu = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
         print("NPC = " + str(emu.npc))
         print("idf = " + str(idf))
 
         #make a plot of the residuals ; percent difference between emulator and model
-        plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols)
+        #plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols)
         #make a scatter plot to check if residuals between different observables are correlated
-        plot_residuals_corr(system_str, emu, design, cent_bin, observables)
+        #plot_residuals_corr(system_str, emu, design, cent_bin, observables)
         #make a scatter plot of emulator prediction vs model prediction
-        plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols)
+        plot_scatter(s, emu, design, cent_bin, observables, nrows, ncols)
         #make a histogram to check the model statistical uncertainty
-        plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows, ncols)
+        #plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows, ncols)
 
 
 if __name__ == "__main__":

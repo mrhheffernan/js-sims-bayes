@@ -39,7 +39,6 @@ from scipy.linalg import lapack
 import matplotlib.pyplot as plt
 from configurations import *
 from emulator import Trained_Emulators, _Covariance
-
 from bayes_exp import Y_exp_data
 
 def mvn_loglike(y, cov):
@@ -130,7 +129,7 @@ class Chain:
     system designs have the same parameters and ranges (except for the norms).
 
     """
-    def __init__(self, path=workdir / 'mcmc' / 'chain.hdf'):
+    def __init__(self, path=workdir/'mcmc'/'chain-idf-{:d}.hdf'.format(idf)):
         self.path = path
         self.path.parent.mkdir(exist_ok=True)
 
@@ -140,27 +139,49 @@ class Chain:
 
         Yexp = Y_exp_data
 
-        system = systems[0]
-
-        design, design_min, design_max, labels = load_design(system, pset='main')
-        # with an extra model uncertainty parameter (0, 0.4)
-        self.max = np.array(list(design_max)+[.4])
-        self.min = np.array(list(design_min)+[.0])
-        self.ndim = len(self.max)
-        self.keys = list(labels) + ['sigmaM']
-        self.labels = list(labels) + [r'$\sigma_M$']
+        # For multi-system calibration, we need to specify what parameters
+        # are considered universal (the same across all system), and what
+        # parameters are allowed to be a function of projectile / target /
+        # collision energy
+        # Now, for simplicity, I only let the energy density normalization
+        # of the initial condition to be system-dependent, while others are
+        # universal in the high-energy limit
+        set_common = False
+        self.sysdep_max = []
+        self.sysdep_min = []
+        self.sysdep_labels = []
+        self.sys_idx = {} # keep track what parameters are used for each system
+        Nsys = len(system_strs)
+        for i, s in enumerate(system_strs):
+            design, design_min, design_max, labels = \
+                    load_design(s, pset='main')
+            self.sysdep_max.append(design_max[0])
+            self.sysdep_min.append(design_min[0])
+            self.sysdep_labels.append(labels[0])
+            self.sys_idx[s] = [i]+list(range(Nsys, Nsys+len(design_max)-1))
+            if not set_common:
+                self.common_max = np.array(list(design_max[1:])+[.4])
+                self.common_min = np.array(list(design_min[1:])+[1e-3])
+                self.common_labels = list(labels[1:]) + [r'$\sigma_M$']
+                self.common_ndim = len(self.common_max)
+                self.common_range = np.array([self.common_min,
+                                                self.common_max]).T
+        self.sysdep_range = np.array([self.sysdep_min,
+                                      self.sysdep_max]).T
+        self.sysdep_ndim = len(self.sysdep_max)
+        self.max = np.concatenate([self.sysdep_max, self.common_max])
+        self.min = np.concatenate([self.sysdep_min, self.common_min])
         self.range = np.array([self.min, self.max]).T
-
+        self.labels =  self.sysdep_labels + self.common_labels
+        self.ndim = self.sysdep_ndim + self.common_ndim
         print("Pre-compute experimental covariance matrix")
         for s in system_strs:
             nobs = 0
             self._slices[s] = []
 
             for obs in active_obs_list[s]:
-            #for obs in calibration_obs_cent_list[s]:
                 try:
-                    #obsdata = Yexp[s][obs]['mean'][idf,:]
-                    obsdata = Yexp[s][obs]['mean'][:,idf]
+                    obsdata = Yexp[s][obs]['mean'][idf]
                 except KeyError:
                     continue
 
@@ -176,24 +197,19 @@ class Chain:
             for obs1, slc1 in self._slices[s]:
                 is_mult_1 = ('dN' in obs1) or ('dET' in obs1)
                 if is_mult_1 and transform_multiplicities:
-                    self._expt_y[s][slc1] = np.log(Yexp[s][obs1]['mean'][:,idf] + 1.)
-                    dy1 = Yexp[s][obs1]['err'][:,idf] / (Yexp[s][obs1]['mean'][:,idf] + 1.)
+                    self._expt_y[s][slc1] = np.log(Yexp[s][obs1]['mean'][idf] + 1.)
+                    dy1 = Yexp[s][obs1]['err'][idf] / (Yexp[s][obs1]['mean'][idf] + 1.)
                 else :
-                    self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf]
-                    dy1 = Yexp[s][obs1]['err'][:,idf]
-
-                #self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][:,idf] if not ismult1 else np.log(Yexp[s][obs1]['mean'][:,idf]+1.)
-                #dy1 = Yexp[s][obs1]['err'][:,idf] if not ismult1 else Yexp[s][obs1]['err'][:,idf]/(Yexp[s][obs1]['mean'][:,idf]+1.)
+                    self._expt_y[s][slc1] = Yexp[s][obs1]['mean'][idf]
+                    dy1 = Yexp[s][obs1]['err'][idf]
 
                 for obs2, slc2 in self._slices[s]:
                     is_mult_2 = ('dN' in obs2) or ('dET' in obs2)
-
                     if is_mult_2 and transform_multiplicities:
-                        dy2 = Yexp[s][obs2]['err'][:,idf] / (Yexp[s][obs2]['mean'][:,idf] + 1.)
+                        dy2 = Yexp[s][obs2]['err'][idf] / (Yexp[s][obs2]['mean'][idf] + 1.)
                     else :
-                        dy2 = Yexp[s][obs2]['err'][:,idf]
+                        dy2 = Yexp[s][obs2]['err'][idf]
 
-                    #dy2 = Yexp[s][obs2]['err'][:,idf] if not ismult2 else Yexp[s][obs2]['err'][:,idf]/(Yexp[s][obs2]['mean'][:,idf]+1.)
                     self._expt_cov[s][slc1, slc2] = compute_cov(s, obs1, obs2, dy1, dy2)
 
     def _predict(self, X, **kwargs):
@@ -201,11 +217,12 @@ class Chain:
         Call each system emulator to predict model output at X.
 
         """
-        return { s: Trained_Emulators[s].predict(X[:,:-1], **kwargs) \
+        return { s: Trained_Emulators[s].predict(X[:,self.sys_idx[s]],
+                                                 **kwargs) \
                  for s in system_strs
                }
 
-    def log_posterior(self, X, extra_std_prior_scale=0.05):
+    def log_posterior(self, X, extra_std_prior_scale=0.001):
         """
         Evaluate the posterior at `X`.
 
@@ -224,9 +241,6 @@ class Chain:
 
         extra_std = X[inside, -1]
 
-        #TEMPORARY
-        #turn off model systematic uncertainty
-        extra_std = 0.
 
         nsamples = np.count_nonzero(inside)
         if nsamples > 0:
@@ -254,7 +268,7 @@ class Chain:
                 lp[inside] += list(map(mvn_loglike, dY, cov))
 
             # add prior for extra_std (model sys error)
-            #lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
+            lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
 
 
         return lp

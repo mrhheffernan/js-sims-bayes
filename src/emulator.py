@@ -72,9 +72,7 @@ class Emulator:
 
     """
 
-    def __init__(self, system, npc, nrestarts=2):
-
-        system_str = "{:s}-{:s}-{:d}".format(*system)
+    def __init__(self, system_str, npc, nrestarts=2):
         print("Emulators for system " + system_str)
         print("with viscous correction type {:d}".format(idf))
         print("NPC : " + str(npc) )
@@ -95,18 +93,19 @@ class Emulator:
 
         print("self.nobs = " + str(self.nobs))
         #read in the model data from file
-        print("Loading model calculations from " + f_obs_main)
+        print("Loading model calculations from " \
+               + SystemsInfo[system_str]['main_obs_file'])
 
         # things to drop
         delete = []
         # build a matrix of dimension (num design pts) x (number of observables)
         Y = []
-        for pt in range(n_design_pts_main - len(delete_design_pts_set)):
+        for ipt, data in enumerate(trimmed_model_data[system_str]):
             row = np.array([])
             for obs in self.observables:
                 #n_bins_bayes = len(calibration_obs_cent_list[system_str][obs]) # only using these bins for calibration
                 #values = np.array(trimmed_model_data[system_str][pt, idf][obs]['mean'][:n_bins_bayes] )
-                values = np.array(trimmed_model_data[system_str][pt, idf][obs]['mean'])
+                values = np.array(data[idf][obs]['mean'])
                 if np.isnan(values).sum() > 0:
                     print("WARNING! FOUND NAN IN MODEL DATA WHILE BUILDING EMULATOR!")
                     print("Design pt = " + str(pt) + "; Obs = " + obs)
@@ -124,7 +123,7 @@ class Emulator:
         # `npc` components but save the full PC transformation for later.
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
 
-        design, design_max, design_min, labels = prepare_emu_design(system)
+        design, design_max, design_min, labels = prepare_emu_design(system_str)
 
         #delete undesirable data
         if len(delete_design_pts_set) > 0:
@@ -138,12 +137,12 @@ class Emulator:
         # noise term is necessary since model calculations contain statistical noise
         k0 = 1. * kernels.RBF(
                       length_scale=ptp,
-                      length_scale_bounds=np.outer(ptp, (3e-1, 1e2)),
+                      length_scale_bounds=np.outer(ptp, (4e-1, 1e2)),
                       #nu = 3.5
                    )
         k1 = kernels.ConstantKernel()
         k2 = kernels.WhiteKernel(
-                                 noise_level=.3,
+                                 noise_level=.1,
                                  noise_level_bounds=(1e-2, 1e2)
                                  )
 
@@ -151,16 +150,18 @@ class Emulator:
         kernel = (k0 + k2) # this does not
 
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
-        print("Fitting a GP to each PC")
-        self.gps = [
-            GPR(
-            kernel=kernel,
-            alpha=0.1,
-            n_restarts_optimizer=nrestarts,
-            copy_X_train=False
-            ).fit(design, z)
-            for i, z in enumerate(Z.T)
-        ]
+
+        self.gps = []
+        for i, z in enumerate(Z.T):
+            print("Fitting PC #", i)
+            self.gps.append(
+                GPR(
+                kernel=kernel,
+                alpha=0.1,
+                n_restarts_optimizer=nrestarts,
+                copy_X_train=False
+                ).fit(design, z)
+            )
 
         for n, (z, gp) in enumerate(zip(Z.T, self.gps)):
             print("GP " + str(n) + " score : " + str(gp.score(design, z)))
@@ -336,10 +337,6 @@ def main():
     )
 
     parser.add_argument(
-        '--npc', type=int,
-        help='number of principal components'
-    )
-    parser.add_argument(
         '--nrestarts', type=int,
         help='number of optimizer restarts'
     )
@@ -352,9 +349,9 @@ def main():
     args = parser.parse_args()
     kwargs = vars(args)
 
-    for s in systems:
-        print("system = " + str(s))
-        emu = Emulator.build_emu(s, **kwargs)
+    for s in system_strs:
+        print("system = " + str(s), ", npc = ", SystemsInfo[s]['npc'])
+        emu = Emulator.build_emu(s, npc=SystemsInfo[s]['npc'], **kwargs)
 
         print('{} PCs explain {:.5f} of variance'.format(
             emu.npc,
@@ -370,8 +367,7 @@ def main():
             )
 
         #dill the emulator to be loaded later
-        system_str = "{:s}-{:s}-{:d}".format(*s)
-        with open('emulator/emulator-' + system_str + '-idf-' + str(idf) + '.dill', 'wb') as file:
+        with open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', 'wb') as file:
             dill.dump(emu, file)
 
 

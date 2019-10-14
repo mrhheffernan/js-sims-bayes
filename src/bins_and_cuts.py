@@ -82,7 +82,7 @@ obs_cent_list = {
 
 	#current calculations use STAR centrality bins
 	'dN_dy_proton' : central_STAR_cent_bins,
-	#need to perform centrality average again with PHENIX bins 
+	#need to perform centrality average again with PHENIX bins
 	#'dN_dy_proton' : central_PHENIX_cent_bins,
 
 	#'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), #unavailable
@@ -122,8 +122,8 @@ obs_range_list = {
 	'Au-Au-200': {
 		'dNch_deta': [0,1000],
 		'dET_deta': [0,1200],
-		'dN_dy_pion': [0,700],
-		'dN_dy_kaon': [0,100],
+		'dN_dy_pion': [0,800],
+		'dN_dy_kaon': [0,120],
 		'dN_dy_proton': [0,40],
 		'dN_dy_Lambda': [0,40],
 		'dN_dy_Omega': [0,2],
