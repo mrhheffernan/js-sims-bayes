@@ -20,36 +20,36 @@ else :
         path_to_data = 'HIC_experimental_data/' + s + '/' + expt_for_system[s] + '/'
         path_to_PHENIX = 'HIC_experimental_data/' + s + '/PHENIX/'
         for obs in list( obs_cent_list[s].keys() ):
-            #print("Observable : " + obs)
-            #for obs in list( calibration_obs_cent_list[system_str].keys() ):
             n_bins_bayes = len(obs_cent_list[s][obs]) # only using these bins for calibration. Files may contain more bins
             for idf in range(number_of_models_per_run):
-                #for STAR identified yields we have the positively charged particles only, not the sum of pos. + neg.
+
+                #for yields measured for RHIC Au Au @ 200 GeV
                 if (obs in STAR_id_yields.keys() and s == 'Au-Au-200'):
                     #for proton dN/dy use the PHENIX data rather than star,
                     #for all other observables use STAR
+
                     if (obs == 'dN_dy_proton'):
-                        expt_data = pd.read_csv(path_to_PHENIX + obs + '_+.dat', sep = ' ', skiprows=2, escapechar='#')
+                        expt_data_pos = pd.read_csv(path_to_PHENIX + obs + '_+.dat', sep = ' ', skiprows=2, escapechar='#')
+                        expt_data_neg = pd.read_csv(path_to_PHENIX + obs + '_-.dat', sep = ' ', skiprows=2, escapechar='#')
                     else :
-                        expt_data = pd.read_csv(path_to_data + obs + '_+.dat', sep = ' ', skiprows=2, escapechar='#')
+                        expt_data_pos = pd.read_csv(path_to_data + obs + '_+.dat', sep = ' ', skiprows=2, escapechar='#')
+                        expt_data_neg = pd.read_csv(path_to_data + obs + '_-.dat', sep = ' ', skiprows=2, escapechar='#')
 
                     #our model takes the sum of pi^+ and pi^-, k^+ and k^-, etc...
                     #the Au Au data are saved separately for particles and antiparticles
-                    entry[s][obs]['mean'][:, idf] = expt_data['val'].iloc[:n_bins_bayes] * 2.0
+                    entry[s][obs]['mean'][:, idf] = expt_data_pos['val'].iloc[:n_bins_bayes] + expt_data_neg['val'].iloc[:n_bins_bayes]
+                    entry[s][obs]['err'][:, idf] = np.sqrt( expt_data_pos['err'].iloc[:n_bins_bayes]**2 + expt_data_neg['err'].iloc[:n_bins_bayes] )
+
+                #for all other observables
                 else :
                     expt_data = pd.read_csv(path_to_data + obs + '.dat', sep = ' ', skiprows=2, escapechar='#')
                     entry[s][obs]['mean'][:, idf] = expt_data['val'].iloc[:n_bins_bayes]
-
-                try :
-                    err_expt = expt_data['err'].iloc[:n_bins_bayes]
-                except KeyError :
-                    stat = expt_data['stat_err'].iloc[:n_bins_bayes]
-                    sys = expt_data['sys_err'].iloc[:n_bins_bayes]
-                    err_expt = np.sqrt(stat**2 + sys**2)
-
-                if (obs in STAR_id_yields.keys() and s == 'Au-Au-200'):
-                    err_expt *= np.sqrt(2.0)
-
-                entry[s][obs]['err'][:, idf] = err_expt
+                    try :
+                        err_expt = expt_data['err'].iloc[:n_bins_bayes]
+                    except KeyError :
+                        stat = expt_data['stat_err'].iloc[:n_bins_bayes]
+                        sys = expt_data['sys_err'].iloc[:n_bins_bayes]
+                        err_expt = np.sqrt(stat**2 + sys**2)
+                    entry[s][obs]['err'][:, idf] = err_expt
 
     Y_exp_data = entry[0]
