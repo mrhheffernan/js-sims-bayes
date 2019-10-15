@@ -38,7 +38,7 @@ else :
                     #our model takes the sum of pi^+ and pi^-, k^+ and k^-, etc...
                     #the Au Au data are saved separately for particles and antiparticles
                     entry[s][obs]['mean'][:, idf] = expt_data_pos['val'].iloc[:n_bins_bayes] + expt_data_neg['val'].iloc[:n_bins_bayes]
-                    entry[s][obs]['err'][:, idf] = np.sqrt( expt_data_pos['err'].iloc[:n_bins_bayes]**2 + expt_data_neg['err'].iloc[:n_bins_bayes] )
+                    entry[s][obs]['err'][:, idf] = np.sqrt( expt_data_pos['err'].iloc[:n_bins_bayes]**2 + expt_data_neg['err'].iloc[:n_bins_bayes]**2 )
 
                 #for all other observables
                 else :
