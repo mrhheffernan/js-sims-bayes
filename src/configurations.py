@@ -56,7 +56,16 @@ systems = [
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
 
 #these are problematic points for Pb Pb 2760 run with 500 design points
-nan_design_pts_set = set([60, 285, 322, 324, 341, 377, 432, 447, 464, 468, 482, 483, 495])
+
+nan_sets_by_deltaf = {
+                        0 : set([334, 341, 377, 429, 447, 483]),
+                        1 : set([285, 334, 341, 447, 483, 495]),
+                        2 : set([209, 280, 322, 334, 341, 412, 421, 424, 429, 432, 446, 447, 453, 468, 483, 495]),
+                        3 : set([60, 232, 280, 285, 322, 324, 341, 377, 432, 447, 464, 468, 482, 483, 485, 495])
+                    }
+nan_design_pts_set = nan_sets_by_deltaf[idf]
+
+#nan_design_pts_set = set([60, 285, 322, 324, 341, 377, 432, 447, 464, 468, 482, 483, 495])
 unfinished_events_design_pts_set = set([289, 324, 326, 459, 462, 242, 406, 440, 123])
 strange_features_design_pts_set = set([289, 324, 440, 459, 462])
 

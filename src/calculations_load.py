@@ -25,8 +25,7 @@ for i, s in enumerate(system_strs):
             if (np.sum(isnan) > 0) and (not pt in delete_design_pts_set):
                 print("WARNING : FOUND NAN IN MODEL DATA : (design pt , obs)"\
                       +" = ( {:s} , {:s} )".format( str(pt), obs) )
-                ds[s][pt, idf][obs]['mean'][isnan] = \
-                                        np.mean(values[np.logical_not(isnan)])
+                #ds[s][pt, idf][obs]['mean'][isnan] = np.mean(values[np.logical_not(isnan)])
                 #transforming yield related observables
                 is_mult = ('dN' in obs) or ('dET' in obs)
                 if is_mult and transform_multiplicities:
