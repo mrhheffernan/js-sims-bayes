@@ -430,61 +430,69 @@ def observables_fit():
 
     }
     colors = ['b', 'g', 'r', 'c', 'm']
-    #is this what we want, what exactly does Chain().samples() return ???
     Ymodel = Chain().samples(100)
     Yexp = Y_exp_data
+    n_systems = len(system_strs)
+    fig, axes = plt.subplots(nrows=4, ncols=n_systems, figsize=(5*n_systems,15), squeeze=False)
+    fig.suptitle("Observables Posterior : " + idf_label[idf] + " Visc. Correction ")
+    for row, obs_group in enumerate( obs_groups.keys() ):
+        for obs, color in zip(obs_groups[obs_group], colors):
+            for col, system in enumerate(system_strs):
 
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10,10))
-    for system in system_strs:
-        for ax, obs_group in zip(axes.flatten(), obs_groups.keys() ):
-            for obs, color in zip(obs_groups[obs_group], colors):
-                if obs_group == 'yields':
-                    ax.set_yscale('log')
-                scale = 1.0
-                if obs == 'dET_deta':
-                    scale = 20.
-                if obs == 'dNch_deta':
-                    scale = 5.
-                ax.set_ylabel(obs_group_labels[obs_group], fontsize=font_size)
+                if obs in active_obs_list[system]:
+                    if obs_group == 'yields':
+                        axes[row][col].set_yscale('log')
+                    scale = 1.0
+                    if obs == 'dET_deta':
+                        scale = 20.
+                    if obs == 'dNch_deta':
+                        scale = 5.
+                    try :
+                        axes[row][col].set_ylabel(obs_group_labels[obs_group], fontsize=font_size)
+                        xbins = np.array(obs_cent_list[system][obs])
+                        x = (xbins[:,0]+xbins[:,1])/2.
+                        Y = Ymodel[system][obs]
+                        for iy, y in enumerate(Y):
+                            is_mult = ('dN' in obs) or ('dET' in obs)
+                            if is_mult and transform_multiplicities:
+                                y = np.exp(y) - 1.0
+                            label = None
+                            if iy == 0:
+                                label=obs_tex_labels[obs]
+                            axes[row][col].plot(x, y*scale, alpha=0.3, lw=0.3, color=color, label=label)
+                        try:
+                            #exp_mean = Yexp[system][obs]['mean'][:, 0][0]
+                            #exp_err = Yexp[system][obs]['err'][:, 0][0]
+                            exp_mean = Yexp[system][obs]['mean'][idf]
+                            exp_err = Yexp[system][obs]['err'][idf]
+                        except KeyError:
+                            continue
+                        axes[row][col].errorbar( x, exp_mean*scale, exp_err, fmt='o', color='black')
+                    except KeyError :
+                        continue
 
-                xbins = np.array(obs_cent_list[system][obs])
-                x = (xbins[:,0]+xbins[:,1])/2.
-                Y = Ymodel[system][obs]
-                for iy, y in enumerate(Y):
-                    is_mult = ('dN' in obs) or ('dET' in obs)
-                    if is_mult and transform_multiplicities:
-                        y = np.exp(y) - 1.0
-                    label = None
-                    if iy == 0:
-                        label=obs_tex_labels[obs]
-                    ax.plot(x, y*scale, alpha=0.3, lw=0.3, color=color, label=label)
-                try:
-                    exp_mean = Yexp[system][obs]['mean'][:, 0][0]
-                    exp_err = Yexp[system][obs]['err'][:, 0][0]
-                except KeyError:
+                    leg = axes[row][col].legend(fontsize=font_size)
+                    for legobj in leg.legendHandles:
+                        legobj.set_linewidth(2.0)
+                        legobj.set_alpha(1.0)
+
+                    if system == 'Au-Au-200':
+                        axes[row][col].set_xlim(0, 60)
+                    else :
+                        axes[row][col].set_xlim(0, 80)
+                    if obs_group == 'mean_pT':
+                        axes[row][col].set_ylim(0.0, 1.5)
+                    if obs_group == 'fluct':
+                        axes[row][col].set_ylim(0.0, 0.04)
+                    if obs_group == 'flows':
+                        axes[row][col].set_ylim(0.0, 0.12)
+                    if axes[row][col].is_last_row():
+                        axes[row][col].set_xlabel('Centrality %', fontsize=font_size)
+                else :
                     continue
-
-                ax.errorbar( x, exp_mean*scale, exp_err, fmt='o', color='black')
-
-                leg = ax.legend(fontsize=font_size)
-                for legobj in leg.legendHandles:
-                    legobj.set_linewidth(2.0)
-                    legobj.set_alpha(1.0)
-
-                ax.set_xlim(0, 80)
-                if obs_group == 'mean_pT':
-                    ax.set_ylim(0.0, 1.5)
-                if obs_group == 'fluct':
-                    ax.set_ylim(0.0, 0.04)
-                if obs_group == 'flows':
-                    ax.set_ylim(0.0, 0.12)
-                #ax.text(2,4,'This text starts at point (2,4)')
-
-
-            if ax.is_last_row():
-                ax.set_xlabel('Centrality %', fontsize=font_size)
-
-    set_tight(fig, rect=[0, 0, .97, 1])
+    plt.tight_layout(True)
+    set_tight(fig, rect=[0, 0, 1, .9])
+    #set_tight(fig, rect=[0, 0, .97, 1])
 
 @plot
 def obs_validation():
@@ -938,7 +946,7 @@ def viscous_posterior():
     samples = data[index, 1:]
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
                     sharex=False, sharey=False, constrained_layout=True)
-    fig.suptitle("Posterior : " + idf_label[idf] + " Visc. Correction ")
+    fig.suptitle("Visosity Posterior : " + idf_label[idf] + " Visc. Correction ")
     T = np.linspace(0.12, 0.3, 20)
 
     prior_zetas = []
@@ -1437,6 +1445,7 @@ def _posterior_diag():
         cmap.set_bad('white')
 
         fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(8, 6) )
+        fig.suptitle("Parameters Posterior : " + idf_label[idf] + " Visc. Correction ")
 
         for ax, x, xlabel, xlim, truth in zip(axes.flatten(), data, labels, ranges, truths):
 
@@ -1457,7 +1466,9 @@ def _posterior_diag():
                                     " {:1.2f}".format(xlim[1])], fontsize=6)
 
                 plt.subplots_adjust(wspace=0.05, hspace=0.1)
-        set_tight(pad=.0, h_pad=.1, w_pad=.05, rect=(.01, 0, 1, 1))
+        #set_tight(pad=.0, h_pad=.1, w_pad=.05, rect=(.01, 0, 1, .9))
+        plt.tight_layout(True)
+        set_tight(fig, rect=[0, 0, 1, .9])
 
     else :
         labels = chain.labels
