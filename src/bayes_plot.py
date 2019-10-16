@@ -940,13 +940,16 @@ def viscous_posterior():
     chain = Chain()
     data = chain.load()
 
+    print("data.shape = ")
+    print(data.shape)
+
     index = np.random.choice(np.arange(data.shape[0]), 2000)
 
     design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
     samples = data[index, 1:]
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
                     sharex=False, sharey=False, constrained_layout=True)
-    fig.suptitle("Visosity Posterior : " + idf_label[idf] + " Visc. Correction ")
+    fig.suptitle("Viscosity Posterior : " + idf_label[idf] + " Visc. Correction ")
     T = np.linspace(0.12, 0.3, 20)
 
     prior_zetas = []
@@ -961,7 +964,11 @@ def viscous_posterior():
 
     axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3, label='Prior')
 
-    posterior_zetas = [ zeta_over_s(T, *d[11:15]) for d in samples ]
+    if num_systems == 1:
+        posterior_zetas = [ zeta_over_s(T, *d[10:14]) for d in samples ]
+    elif num_systems == 2:
+        posterior_zetas = [ zeta_over_s(T, *d[11:15]) for d in samples ]
+
     for sample in posterior_zetas[:8]:
         axes[0].plot(T, sample, 'k--', alpha=0.5)
     if validation:
@@ -977,10 +984,22 @@ def viscous_posterior():
     axes[0].legend(loc=(.05, .75), fontsize=9)
     ##########################
     prior_etas = []
-    for d in design.values:
-        prior_etas.append(eta_over_s(T, *d[7:11]))
+    #for d in design.values:
+    #    prior_etas.append(eta_over_s(T, *d[7:11]))
+    for (T_k, alow, ahigh, etas_k) in zip(
+				design['eta_over_s_T_kink_in_GeV'],
+				design['eta_over_s_low_T_slope_in_GeV'],
+				design['eta_over_s_high_T_slope_in_GeV'],
+				design['eta_over_s_at_kink'],
+                ):
+        prior_etas.append(eta_over_s(T, T_k, alow, ahigh, etas_k))
+
     axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3, label='Prior')
-    posterior_etas = [ eta_over_s(T, *d[7:11]) for d in samples ]
+    if num_systems == 1:
+        posterior_etas = [ eta_over_s(T, *d[6:10]) for d in samples ]
+    elif num_systems == 2:
+        posterior_etas = [ eta_over_s(T, *d[7:11]) for d in samples ]
+        
     for sample in posterior_etas[:8]:
         axes[1].plot(T, sample, 'k--', alpha=0.5)
     if validation:

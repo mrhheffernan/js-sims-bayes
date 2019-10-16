@@ -42,7 +42,7 @@ idf_label = {
             2 : 'Pratt-McNelis',
             3 : 'Pratt-Bernhard'
             }
-idf = 3 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
+idf = 0 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
 
 print("Using idf = " + str(idf) + " : " + idf_label[idf])
 
@@ -54,6 +54,8 @@ systems = [
         #('Xe', 'Xe', 5440)
         ]
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
+
+num_systems = len(system_strs)
 
 #these are problematic points for Pb Pb 2760 run with 500 design points
 
@@ -116,18 +118,21 @@ class systems_setting(dict):
 SystemsInfo = {"{:s}-{:s}-{:d}".format(*s): systems_setting(*s) \
                 for s in systems
                }
-SystemsInfo["Pb-Pb-2760"]["run_id"] = "production_500pts_Pb_Pb_2760"
-SystemsInfo["Pb-Pb-2760"]["n_design"] = 500
-SystemsInfo["Pb-Pb-2760"]["n_validation"] = 100
-SystemsInfo["Pb-Pb-2760"]["design_remove_idx"]=list(delete_design_pts_set)
-SystemsInfo["Pb-Pb-2760"]["npc"]=10
 
+if 'Pb-Pb-2760' in system_strs:
+    SystemsInfo["Pb-Pb-2760"]["run_id"] = "production_500pts_Pb_Pb_2760"
+    SystemsInfo["Pb-Pb-2760"]["n_design"] = 500
+    SystemsInfo["Pb-Pb-2760"]["n_validation"] = 100
+    SystemsInfo["Pb-Pb-2760"]["design_remove_idx"]=list(delete_design_pts_set)
+    SystemsInfo["Pb-Pb-2760"]["npc"]=10
 
-SystemsInfo["Au-Au-200"]["run_id"] = "production_500pts_Au_Au_200"
-SystemsInfo["Au-Au-200"]["n_design"] = 500
-SystemsInfo["Au-Au-200"]["n_validation"] = 100
-SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
-SystemsInfo["Au-Au-200"]["npc"] = 6
+if 'Au-Au-200' in system_strs:
+    SystemsInfo["Au-Au-200"]["run_id"] = "production_500pts_Au_Au_200"
+    SystemsInfo["Au-Au-200"]["n_design"] = 500
+    SystemsInfo["Au-Au-200"]["n_validation"] = 100
+    SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
+    SystemsInfo["Au-Au-200"]["npc"] = 6
+
 
 ###############################################################################
 ############### BAYES #########################################################
@@ -180,11 +185,9 @@ active_obs_list = {
 
 #try exluding PHENIX dN dy proton from fit
 for s in system_strs:
-    if s == 'Au-Au-200':
-        active_obs_list[s].remove('dN_dy_proton')
-        active_obs_list[s].remove('mean_pT_proton')
-        #active_obs_list[s].remove('dN_dy_kaon')
-        #active_obs_list[s].remove('mean_pT_kaon')
+    #if s == 'Au-Au-200':
+        #active_obs_list[s].remove('dN_dy_proton')
+        #active_obs_list[s].remove('mean_pT_proton')
 
     if s == 'Pb-Pb-2760':
         active_obs_list[s].remove('dN_dy_Lambda')
