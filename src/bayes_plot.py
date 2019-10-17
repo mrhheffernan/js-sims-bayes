@@ -51,6 +51,9 @@ fontsize = dict(
     tiny=8,
 )
 
+qm_font_large = 11
+qm_font_small = 9
+
 cb,co,cg,cr = plt.cm.Blues(.6), \
     plt.cm.Oranges(.6), plt.cm.Greens(.6), plt.cm.Reds(.6)
 offblack = '#262626'
@@ -400,13 +403,11 @@ def observables_fit():
     """
     print("Plotting observables drawn from posterior")
 
-    font_size = 12
-
     obs_groups = {
-                'yields' : ['dNch_deta', 'dET_deta', 'dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton'],
+                'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dNch_deta', 'dET_deta'],
                 'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
-                'fluct' : ['pT_fluct'],
-                'flows' : ['v22', 'v32', 'v42']
+                'flows' : ['v22', 'v32', 'v42'],
+                'fluct' : ['pT_fluct']
                 }
     obs_group_labels = {
                 'yields' : r'$dN_{ch}/d\eta$ , $dN/dy$, $dE_T/d\eta$ [GeV]',
@@ -433,22 +434,30 @@ def observables_fit():
     Ymodel = Chain().samples(100)
     Yexp = Y_exp_data
     n_systems = len(system_strs)
-    fig, axes = plt.subplots(nrows=4, ncols=n_systems, figsize=(5*n_systems,15), squeeze=False)
+    fig, axes = plt.subplots(nrows=4, ncols=n_systems, figsize=(2.5*n_systems,9), squeeze=False, gridspec_kw={'height_ratios': [1.8, 1.2, 1.5, 1.]})
     fig.suptitle("Observables Posterior : " + idf_label[idf] + " Visc. Correction ")
     for row, obs_group in enumerate( obs_groups.keys() ):
         for obs, color in zip(obs_groups[obs_group], colors):
             for col, system in enumerate(system_strs):
+                if system == 'Pb-Pb-2760' or system == 'Xe-Xe-5440':
+                    expt_label='ALICE'
+                    expt_marker='v'
+                if system == 'Au-Au-200':
+                    expt_label='STAR'
+                    expt_marker='.'
+
+                axes[row][col].tick_params(labelsize=11)
 
                 if obs in active_obs_list[system]:
                     if obs_group == 'yields':
                         axes[row][col].set_yscale('log')
                     scale = 1.0
                     if obs == 'dET_deta':
-                        scale = 20.
-                    if obs == 'dNch_deta':
                         scale = 5.
+                    if obs == 'dNch_deta':
+                        scale = 2.
                     try :
-                        axes[row][col].set_ylabel(obs_group_labels[obs_group], fontsize=font_size)
+                        axes[row][col].set_ylabel(obs_group_labels[obs_group], fontsize=qm_font_large)
                         xbins = np.array(obs_cent_list[system][obs])
                         x = (xbins[:,0]+xbins[:,1])/2.
                         Y = Ymodel[system][obs]
@@ -458,7 +467,10 @@ def observables_fit():
                                 y = np.exp(y) - 1.0
                             label = None
                             if iy == 0:
-                                label=obs_tex_labels[obs]
+                                if scale == 1.0 :
+                                    label=obs_tex_labels[obs]
+                                else :
+                                    label=obs_tex_labels[obs] + 'x' + str(scale)
                             axes[row][col].plot(x, y*scale, alpha=0.3, lw=0.3, color=color, label=label)
                         try:
                             #exp_mean = Yexp[system][obs]['mean'][:, 0][0]
@@ -467,32 +479,44 @@ def observables_fit():
                             exp_err = Yexp[system][obs]['err'][idf]
                         except KeyError:
                             continue
-                        axes[row][col].errorbar( x, exp_mean*scale, exp_err, fmt='o', color='black')
+
+                        if system=='Pb-Pb-2760':
+                            l1 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+                        elif system=='Au-Au-200':
+                            l2 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+
                     except KeyError :
                         continue
 
-                    leg = axes[row][col].legend(fontsize=font_size)
+                    leg = axes[row][col].legend(fontsize=qm_font_small, borderpad=0, labelspacing=0, handlelength=1, handletextpad=0.2)
                     for legobj in leg.legendHandles:
                         legobj.set_linewidth(2.0)
                         legobj.set_alpha(1.0)
 
                     if system == 'Au-Au-200':
-                        axes[row][col].set_xlim(0, 60)
+                        axes[row][col].set_xlim(0, 50)
                     else :
-                        axes[row][col].set_xlim(0, 80)
+                        axes[row][col].set_xlim(0, 70)
+
+                    if obs_group == 'yields':
+                        axes[row][col].set_ylim(1, 1e5)
                     if obs_group == 'mean_pT':
-                        axes[row][col].set_ylim(0.0, 1.5)
+                        axes[row][col].set_ylim(0., 1.5)
                     if obs_group == 'fluct':
                         axes[row][col].set_ylim(0.0, 0.04)
                     if obs_group == 'flows':
                         axes[row][col].set_ylim(0.0, 0.12)
                     if axes[row][col].is_last_row():
-                        axes[row][col].set_xlabel('Centrality %', fontsize=font_size)
+                        axes[row][col].set_xlabel('Centrality %', fontsize=qm_font_large)
                 else :
                     continue
+
+    if num_systems == 2:
+        fig.delaxes(axes[3][1])
     plt.tight_layout(True)
-    set_tight(fig, rect=[0, 0, 1, .9])
+    set_tight(fig, rect=[0, 0, 1, .95])
     #set_tight(fig, rect=[0, 0, .97, 1])
+    #axes[2][1].legend(handles = [l1,l2], labels=['ALICE', 'STAR'], bbox_to_anchor=(0.5, -0.3), fontsize=qm_font_large)
 
 @plot
 def obs_validation():
@@ -928,9 +952,12 @@ def zetas_prior():
     axt.set_xlim(0.1, 0.45)
     set_tight(fig, rect=[0, 0, 1, 1])
 
-@plot
-def viscous_posterior():
+#@plot
+def viscous_posterior(plot_samples = False):
+
     T = np.linspace(0.12, 0.3, 20)
+    nsamples = 5
+
     if validation:
         v_design, _, _, _ = \
                 load_design(system_strs[0], pset='validation')
@@ -949,7 +976,7 @@ def viscous_posterior():
     samples = data[index, 1:]
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
                     sharex=False, sharey=False, constrained_layout=True)
-    fig.suptitle("Viscosity Posterior : " + idf_label[idf] + " Visc. Correction ")
+    fig.suptitle("Viscosity Posterior : " + idf_label[idf] + " Visc. Correction ", fontsize=qm_font_large)
     T = np.linspace(0.12, 0.3, 20)
 
     prior_zetas = []
@@ -969,8 +996,9 @@ def viscous_posterior():
     elif num_systems == 2:
         posterior_zetas = [ zeta_over_s(T, *d[11:15]) for d in samples ]
 
-    for sample in posterior_zetas[:8]:
-        axes[0].plot(T, sample, 'k--', alpha=0.5)
+    if plot_samples:
+        for sample in posterior_zetas[:nsamples]:
+            axes[0].plot(T, sample, 'r--', alpha=1.0, lw=1.5)
     if validation:
         axes[0].plot(T, true_zetas, 'k--')
     axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0),
@@ -981,7 +1009,7 @@ def viscous_posterior():
                             np.percentile(posterior_zetas, 80, axis=0),
                             color='blue', alpha=0.7,
                             label='60% Confidence Interval')
-    axes[0].legend(loc=(.05, .75), fontsize=9)
+    axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
     ##########################
     prior_etas = []
     #for d in design.values:
@@ -999,9 +1027,10 @@ def viscous_posterior():
         posterior_etas = [ eta_over_s(T, *d[6:10]) for d in samples ]
     elif num_systems == 2:
         posterior_etas = [ eta_over_s(T, *d[7:11]) for d in samples ]
-        
-    for sample in posterior_etas[:8]:
-        axes[1].plot(T, sample, 'k--', alpha=0.5)
+
+    if plot_samples:
+        for sample in posterior_etas[:nsamples]:
+            axes[1].plot(T, sample, 'r--', alpha=1.0, lw=1.5)
     if validation:
         axes[1].plot(T, true_etas, 'k--')
     axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),
@@ -1021,7 +1050,7 @@ def viscous_posterior():
     axes[1].set_ylabel(r"$\eta/s$")
     axes[1].set_xlabel(r"$T$ [GeV]")
     axes[1].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
-    axes[1].set_ylim(0,.7)
+    axes[1].set_ylim(0,.55)
 
     axes[0].set_xlabel(r"$T$ [GeV]")
     axes[1].set_xlabel(r"$T$ [GeV]")
@@ -1029,7 +1058,12 @@ def viscous_posterior():
     plt.tight_layout(True)
     set_tight(fig, rect=[0, 0, 1, .9])
 
-
+@plot
+def viscous_posterior_w_samples():
+    viscous_posterior(plot_samples=True)
+@plot
+def viscous_posterior_wo_samples():
+    viscous_posterior(plot_samples=False)
 
 @plot
 def zetas_validation():
