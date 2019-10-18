@@ -958,6 +958,11 @@ def viscous_posterior(plot_samples = False):
     T = np.linspace(0.12, 0.3, 20)
     nsamples = 5
 
+    color_CI = 'blue'
+    if plot_samples:
+        color_CI = 'gray'
+
+
     if validation:
         v_design, _, _, _ = \
                 load_design(system_strs[0], pset='validation')
@@ -989,7 +994,8 @@ def viscous_posterior(plot_samples = False):
                 ):
         prior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
 
-    axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3, label='Prior')
+    if not plot_samples:
+        axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3, label='Prior')
 
     if num_systems == 1:
         posterior_zetas = [ zeta_over_s(T, *d[10:14]) for d in samples ]
@@ -997,17 +1003,17 @@ def viscous_posterior(plot_samples = False):
         posterior_zetas = [ zeta_over_s(T, *d[11:15]) for d in samples ]
 
     if plot_samples:
-        for sample in posterior_zetas[:nsamples]:
-            axes[0].plot(T, sample, 'r--', alpha=1.0, lw=1.5)
+        for sample, ls in zip(posterior_zetas[:nsamples], ['-', '--', '-.', ':']):
+            axes[0].plot(T, sample, '--', alpha=1.0, lw=1.5, zorder=10, ls=ls, color='red')
     if validation:
         axes[0].plot(T, true_zetas, 'k--')
     axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0),
                             np.percentile(posterior_zetas, 95, axis=0),
-                            color='blue', alpha=0.3,
+                            color=color_CI, alpha=0.3,
                             label='90% Confidence Interval')
     axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0),
                             np.percentile(posterior_zetas, 80, axis=0),
-                            color='blue', alpha=0.7,
+                            color=color_CI, alpha=0.7,
                             label='60% Confidence Interval')
     axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
     ##########################
@@ -1022,24 +1028,25 @@ def viscous_posterior(plot_samples = False):
                 ):
         prior_etas.append(eta_over_s(T, T_k, alow, ahigh, etas_k))
 
-    axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3, label='Prior')
+    if not plot_samples:
+        axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3, label='Prior')
     if num_systems == 1:
         posterior_etas = [ eta_over_s(T, *d[6:10]) for d in samples ]
     elif num_systems == 2:
         posterior_etas = [ eta_over_s(T, *d[7:11]) for d in samples ]
 
     if plot_samples:
-        for sample in posterior_etas[:nsamples]:
-            axes[1].plot(T, sample, 'r--', alpha=1.0, lw=1.5)
+        for sample, ls in zip(posterior_etas[:nsamples], ['-', '--', '-.', ':']):
+            axes[1].plot(T, sample, '--', alpha=1.0, lw=1.5, zorder=10, ls=ls, color='red')
     if validation:
         axes[1].plot(T, true_etas, 'k--')
     axes[1].fill_between(T, np.percentile(posterior_etas, 5, axis=0),
                             np.percentile(posterior_etas, 95, axis=0),
-                            color='blue', alpha=0.3,
+                            color=color_CI, alpha=0.3,
                             label='90% Confidence Interval')
     axes[1].fill_between(T, np.percentile(posterior_etas, 20, axis=0),
                             np.percentile(posterior_etas, 80, axis=0),
-                            color='blue', alpha=0.7,
+                            color=color_CI, alpha=0.7,
                             label='60% Confidence Interval')
 
     axes[0].set_ylabel(r"$\zeta/s$")
