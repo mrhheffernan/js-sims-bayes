@@ -37,6 +37,7 @@ from matplotlib import ticker
 from scipy import special
 from scipy.interpolate import PchipInterpolator
 import pandas as pd
+from textwrap import fill
 
 from bayes_mcmc import Chain, credible_interval
 from configurations import *
@@ -434,8 +435,15 @@ def observables_fit():
     Ymodel = Chain().samples(100)
     Yexp = Y_exp_data
     n_systems = len(system_strs)
-    fig, axes = plt.subplots(nrows=4, ncols=n_systems, figsize=(2.5*n_systems,9), squeeze=False, gridspec_kw={'height_ratios': [1.8, 1.2, 1.5, 1.]})
-    fig.suptitle("Observables Posterior : " + idf_label[idf] + " Visc. Correction ")
+    nrows = 4
+    height_ratios = [1.8, 1.2, 1.5, 1.]
+    if system_strs == ['Au-Au-200']:
+        nrows = 3
+        height_ratios = [1.8, 1.2, 1.5]
+        del obs_groups['fluct']
+
+    fig, axes = plt.subplots(nrows=nrows, ncols=n_systems, figsize=(2.5*n_systems,9), squeeze=False, gridspec_kw={'height_ratios': height_ratios})
+    #fig.suptitle("Observables Posterior : " + idf_label[idf] + " \n Visc. Correction ")
     for row, obs_group in enumerate( obs_groups.keys() ):
         for obs, color in zip(obs_groups[obs_group], colors):
             for col, system in enumerate(system_strs):
@@ -514,7 +522,8 @@ def observables_fit():
     if num_systems == 2:
         fig.delaxes(axes[3][1])
     plt.tight_layout(True)
-    set_tight(fig, rect=[0, 0, 1, .95])
+    set_tight(fig, rect=[0, 0, 1, .93])
+    fig.suptitle("Observables Posterior : " + idf_label[idf], wrap=True)
     #set_tight(fig, rect=[0, 0, .97, 1])
     #axes[2][1].legend(handles = [l1,l2], labels=['ALICE', 'STAR'], bbox_to_anchor=(0.5, -0.3), fontsize=qm_font_large)
 
@@ -962,7 +971,6 @@ def viscous_posterior(plot_samples = False):
     if plot_samples:
         color_CI = 'gray'
 
-
     if validation:
         v_design, _, _, _ = \
                 load_design(system_strs[0], pset='validation')
@@ -981,7 +989,7 @@ def viscous_posterior(plot_samples = False):
     samples = data[index, 1:]
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
                     sharex=False, sharey=False, constrained_layout=True)
-    fig.suptitle("Viscosity Posterior : " + idf_label[idf] + " Visc. Correction ", fontsize=qm_font_large)
+    fig.suptitle("Viscosity Posterior : " + idf_label[idf], fontsize=qm_font_large, wrap=True)
     T = np.linspace(0.12, 0.3, 20)
 
     prior_zetas = []
@@ -995,7 +1003,11 @@ def viscous_posterior(plot_samples = False):
         prior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
 
     if not plot_samples:
-        axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3, label='Prior')
+        #axes[0].fill_between(T, np.min(prior_zetas, axis=0), np.max(prior_zetas, axis=0), color='k', alpha=0.3, label='Prior')
+        axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
+                             np.percentile(prior_zetas, 95, axis=0),
+                             color='gray', alpha=0.3, label='90% Conf. (Prior)'
+                             )
 
     if num_systems == 1:
         posterior_zetas = [ zeta_over_s(T, *d[10:14]) for d in samples ]
@@ -1010,11 +1022,11 @@ def viscous_posterior(plot_samples = False):
     axes[0].fill_between(T, np.percentile(posterior_zetas, 5, axis=0),
                             np.percentile(posterior_zetas, 95, axis=0),
                             color=color_CI, alpha=0.3,
-                            label='90% Confidence Interval')
+                            label='90% Conf. (Posterior)')
     axes[0].fill_between(T, np.percentile(posterior_zetas, 20, axis=0),
                             np.percentile(posterior_zetas, 80, axis=0),
                             color=color_CI, alpha=0.7,
-                            label='60% Confidence Interval')
+                            label='60% Conf. (Posterior)')
     axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
     ##########################
     prior_etas = []
@@ -1029,7 +1041,11 @@ def viscous_posterior(plot_samples = False):
         prior_etas.append(eta_over_s(T, T_k, alow, ahigh, etas_k))
 
     if not plot_samples:
-        axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3, label='Prior')
+        #axes[1].fill_between(T, np.min(prior_etas, axis=0), np.max(prior_etas, axis=0), color='k', alpha=0.3, label='Prior')
+        axes[1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
+                             np.percentile(prior_etas, 95, axis=0),
+                             color='gray', alpha=0.3,
+                             )
     if num_systems == 1:
         posterior_etas = [ eta_over_s(T, *d[6:10]) for d in samples ]
     elif num_systems == 2:
@@ -1064,6 +1080,117 @@ def viscous_posterior(plot_samples = False):
 
     plt.tight_layout(True)
     set_tight(fig, rect=[0, 0, 1, .9])
+
+@plot
+def viscous_posterior_overlay():
+
+    T = np.linspace(0.12, 0.3, 20)
+
+
+    #specify which systems/deltaf to compare here by the chain filenames
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_LHC_RHIC.hdf'.format(0))
+    data1 = chain1.load_wo_reshape()
+    data1 = data1.reshape(-1, 19)
+
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_LHC_RHIC.hdf'.format(idf))
+    data2 = chain2.load_wo_reshape()
+    data2 = data2.reshape(-1, 19)
+
+    #chain3 = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_RHIC_no_proton.hdf'.format(idf))
+    #data3 = chain3.load_wo_reshape()
+    #data3 = data3.reshape(-1, 18)
+
+    print("data1.shape = ")
+    print(data1.shape)
+
+    print("data2.shape = ")
+    print(data2.shape)
+
+    #print("data3.shape = ")
+    #print(data3.shape)
+
+    index1 = np.random.choice(np.arange(data1.shape[0]), 2000)
+    index2 = np.random.choice(np.arange(data2.shape[0]), 2000)
+    #index3 = np.random.choice(np.arange(data3.shape[0]), 2000)
+
+    #design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+    samples1 = data1[index1, 1:]
+    samples2 = data2[index2, 1:]
+    #samples3 = data3[index3, 1:]
+
+    #the prior density
+
+
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
+                    sharex=False, sharey=False, constrained_layout=True)
+    #fig.suptitle("Viscosity Posterior : " + idf_label[idf], fontsize=qm_font_large, wrap=True)
+    fig.suptitle("Viscosity Posterior : Grad and " + idf_label[idf], fontsize=qm_font_large, wrap=True)
+    T = np.linspace(0.12, 0.3, 20)
+
+    posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1 ]
+    posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
+    #posterior_zetas_3 = [ zeta_over_s(T, *d[10:14]) for d in samples3 ]
+
+    axes[0].fill_between(T, np.percentile(posterior_zetas_1, 5, axis=0),
+                            np.percentile(posterior_zetas_1, 95, axis=0),
+                            facecolor='None', edgecolor='black', lw=1.5,
+                            label=r'90% Confidence Grad')
+
+    """
+    axes[0].fill_between(T, np.percentile(posterior_zetas_3, 5, axis=0),
+                            np.percentile(posterior_zetas_3, 95, axis=0),
+                            facecolor="None", edgecolor='red', lw=1.5,
+                            label=r'90% Confidence RHIC')
+    """
+
+
+    axes[0].fill_between(T, np.percentile(posterior_zetas_2, 5, axis=0),
+                            np.percentile(posterior_zetas_2, 95, axis=0),
+                            color='blue', alpha=0.5,
+                            label=r'90% Confidence ' + idf_label_short[idf] )
+
+
+    axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
+    ##########################
+
+    posterior_etas_1 = [ eta_over_s(T, *d[7:11]) for d in samples1 ]
+    posterior_etas_2 = [ eta_over_s(T, *d[7:11]) for d in samples2 ]
+    #posterior_etas_3 = [ eta_over_s(T, *d[6:10]) for d in samples3 ]
+
+    axes[1].fill_between(T, np.percentile(posterior_etas_1, 5, axis=0),
+                            np.percentile(posterior_etas_1, 95, axis=0),
+                            facecolor='None', edgecolor='black', lw=1.5,
+                            label='90% Confidence LHC')
+
+    """
+    axes[1].fill_between(T, np.percentile(posterior_etas_3, 5, axis=0),
+                            np.percentile(posterior_etas_3, 95, axis=0),
+                            facecolor="None", edgecolor='red', lw=1.5,
+                            label=r'90% Confidence RHIC')
+    """
+
+    axes[1].fill_between(T, np.percentile(posterior_etas_2, 5, axis=0),
+                            np.percentile(posterior_etas_2, 95, axis=0),
+                            color='blue', alpha=0.5,
+                            label='90% Confidence LHC+RHIC')
+
+
+    axes[0].set_ylabel(r"$\zeta/s$")
+    axes[0].set_xlabel(r"$T$ [GeV]")
+    axes[0].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
+    axes[0].set_ylim(0,.35)
+
+    axes[1].set_ylabel(r"$\eta/s$")
+    axes[1].set_xlabel(r"$T$ [GeV]")
+    axes[1].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
+    axes[1].set_ylim(0,.55)
+
+    axes[0].set_xlabel(r"$T$ [GeV]")
+    axes[1].set_xlabel(r"$T$ [GeV]")
+
+    plt.tight_layout(True)
+    set_tight(fig, rect=[0, 0, 1, .9])
+
 
 @plot
 def viscous_posterior_w_samples():

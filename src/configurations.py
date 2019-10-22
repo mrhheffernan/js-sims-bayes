@@ -42,6 +42,12 @@ idf_label = {
             2 : 'Pratt-McNelis',
             3 : 'Pratt-Bernhard'
             }
+idf_label_short = {
+            0 : 'Grad',
+            1 : 'C.E.',
+            2 : 'P.M.',
+            3 : 'P.B.'
+            }
 idf = 0 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
 
 print("Using idf = " + str(idf) + " : " + idf_label[idf])
@@ -185,9 +191,9 @@ active_obs_list = {
 
 #try exluding PHENIX dN dy proton from fit
 for s in system_strs:
-    #if s == 'Au-Au-200':
-        #active_obs_list[s].remove('dN_dy_proton')
-        #active_obs_list[s].remove('mean_pT_proton')
+    if s == 'Au-Au-200':
+        active_obs_list[s].remove('dN_dy_proton')
+        active_obs_list[s].remove('mean_pT_proton')
 
     if s == 'Pb-Pb-2760':
         active_obs_list[s].remove('dN_dy_Lambda')
