@@ -114,7 +114,7 @@ class Design:
         ('trento_p', r'$p$',                  ( -0.7,   0.7 )),
         ('sigma_k', r'$\sigma_k$',            ( 0.3,    2.0 )),
         ('nucleon_width', r'$w$ [fm]',        ( 0.5,    1.5 )),
-        ('dmin3', r'$d_{\mathrm{min}}$ [fm]', ( 0.0, 1.7**3 )),
+        ('dmin3', r'$d_{\mathrm{min}}^3$ [fm]', ( 0.0, 1.7**3 )),
 
         #freestreaming
         ('tau_R', r'$\tau_R$ [fm/$c$]', (  0.3, 2.0 )),
