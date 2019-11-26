@@ -6,8 +6,11 @@ import numpy as np
 
 trimmed_model_data = {}
 validation_data = {}
+MAP_data = {}
+
 for i, s in enumerate(system_strs):
     sdtype = [bayes_dtype[i]]
+    #sdtype = [bayes_dtype[s]]
     Ndesign = SystemsInfo[s]['n_design']
     Ndelete = len(SystemsInfo[s]['design_remove_idx'])
 
@@ -49,7 +52,16 @@ for i, s in enumerate(system_strs):
         else:
             print("Loading {:s} validation calculations from ".format(s) \
                     + SystemsInfo[s]['validation_obs_file'])
-            dsv = np.fromfile(SystemsInfo[s]["validation_obs_file"],
-                                         dtype=sdtype)
+            dsv = np.fromfile(SystemsInfo[s]["validation_obs_file"], dtype=sdtype)
             validation_data[s] = dsv[s]
+            #validation_data[s] = np.delete(dsv[s], delete_design_pts_validation_set, 0)
             print("validation_data.shape = " + str(dsv.shape))
+
+    #load the MAP calculations
+    print("Loading {:s} MAP calculations from ".format(s) + SystemsInfo[s]['MAP_obs_file'])
+    try:
+        dsMAP = np.fromfile(SystemsInfo[s]["MAP_obs_file"], dtype=sdtype)
+        MAP_data[s] = dsMAP[s]
+        print("MAP_data.shape = " + str(dsMAP.shape))
+    except:
+        print("No MAP calculations found for system " + s)

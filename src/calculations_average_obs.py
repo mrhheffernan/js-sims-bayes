@@ -106,7 +106,8 @@ def calculate_mean_pT_fluct(ds, exp, cen, idf):
                             # the sum of a_i and sum of squares a_i^2.  Applying this to Eq. (2) and
                             # collecting terms yields the following expression.
                             x = (.5*(sum_pT**2 - sum_pTsq) - M*(N - 1)*sum_pT + M**2*Npairs)/Npairs
-                            meanC, stdC = weighted_mean_std(x, Npairs)
+                            #meanC, stdC = weighted_mean_std(x, Npairs)
+                            meanC, stdC = weighted_mean_std(x)
                             obs[i] = np.sqrt(meanC)/M
                             obs_err[i] = stdC*.5/np.sqrt(meanC)/M
                         else :
@@ -179,10 +180,9 @@ def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
 def load_and_compute(inputfile, system):
 
     expt_type = expt_for_system[system]
-
     entry = np.zeros(1, dtype=np.dtype(bayes_dtype))
-
-    res_unsort = np.fromfile(inputfile, dtype=result_dtype)
+    #res_unsort = np.fromfile(inputfile, dtype=result_dtype)
+    res_unsort = np.fromfile(inputfile, dtype=return_result_dtype(expt_type))
 
     for idf in [0,1,2,3]:
         print("----------------------")

@@ -79,12 +79,9 @@ obs_cent_list = {
 	#'dET_deta' : STAR_cent_bins, #unavailable
 	'dN_dy_pion'   : central_STAR_cent_bins,
 	'dN_dy_kaon'   : central_STAR_cent_bins,
-
 	#current calculations use STAR centrality bins
+	#NOTE that the model calculations need to be re-averaged using the PHENIX cent bins if we want to include proton 
 	'dN_dy_proton' : central_STAR_cent_bins,
-	#need to perform centrality average again with PHENIX bins
-	#'dN_dy_proton' : central_PHENIX_cent_bins,
-
 	#'dN_dy_Lambda' : np.array([[0,5],[5,10],[10,20],[20,40],[40,60]]), #unavailable
 	#'dN_dy_Omega'  : np.array([[0,10],[10,20],[20,40],[40,60]]), #unavailable
 	#'dN_dy_Xi'     : np.array([[0,10],[10,20],[20,40],[40,60]]), #unavailable
