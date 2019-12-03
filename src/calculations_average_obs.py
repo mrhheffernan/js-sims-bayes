@@ -106,8 +106,7 @@ def calculate_mean_pT_fluct(ds, exp, cen, idf):
                             # the sum of a_i and sum of squares a_i^2.  Applying this to Eq. (2) and
                             # collecting terms yields the following expression.
                             x = (.5*(sum_pT**2 - sum_pTsq) - M*(N - 1)*sum_pT + M**2*Npairs)/Npairs
-                            #meanC, stdC = weighted_mean_std(x, Npairs)
-                            meanC, stdC = weighted_mean_std(x)
+                            meanC, stdC = weighted_mean_std(x, Npairs)
                             obs[i] = np.sqrt(meanC)/M
                             obs_err[i] = stdC*.5/np.sqrt(meanC)/M
                         else :
@@ -214,7 +213,7 @@ def load_and_compute(inputfile, system):
 
 
         # dN(pid)/dy
-        for s in ['pion','kaon','proton','Lambda', 'Omega','Xi']:
+        for s in ['pion', 'kaon', 'proton', 'Lambda', 'Omega', 'Xi', 'd']:
             try :
                 cenb=np.array(obs_cent_list[system]['dN_dy_'+s])
                 info = calculate_dNdy(res, expt_type, cenb, idf)
