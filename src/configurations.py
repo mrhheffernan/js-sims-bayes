@@ -19,6 +19,9 @@ workdir = Path(os.getenv('WORKDIR', '.'))
 design_dir =  str(workdir/'production_designs/500pts')
 dir_obs_exp = "HIC_experimental_data"
 
+####################################
+### USEFUL LABELS / DICTIONARIES ###
+####################################
 #only using data from these experimental collabs
 expt_for_system = { 'Au-Au-200' : 'STAR',
                     'Pb-Pb-2760' : 'ALICE',
@@ -33,9 +36,6 @@ STAR_id_yields = {
             'dN_dy_proton' : 'dN_dy_proton_+',
 }
 
-#how many versions of the model are run, for instance
-# 4 versions of delta-f with SMASH and a fifth model with UrQMD totals 5
-number_of_models_per_run = 4
 idf_label = {
             0 : 'Grad',
             1 : 'Chapman-Enskog R.T.A',
@@ -48,23 +48,30 @@ idf_label_short = {
             2 : 'P.M.',
             3 : 'P.B.'
             }
-idf = 0 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
 
+####################################
+### SWITCHES AND OPTIONS !!!!!!! ###
+####################################
+
+#how many versions of the model are run, for instance
+# 4 versions of delta-f with SMASH and a fifth model with UrQMD totals 5
+number_of_models_per_run = 4
+
+# the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
+idf = 0
 print("Using idf = " + str(idf) + " : " + idf_label[idf])
 
 #the Collision systems
 systems = [
         ('Pb', 'Pb', 2760),
-        ('Au', 'Au', 200),
+        #('Au', 'Au', 200),
         #('Pb', 'Pb', 5020),
         #('Xe', 'Xe', 5440)
         ]
 system_strs = ['{:s}-{:s}-{:d}'.format(*s) for s in systems]
-
 num_systems = len(system_strs)
 
 #these are problematic points for Pb Pb 2760 run with 500 design points
-
 nan_sets_by_deltaf = {
                         0 : set([334, 341, 377, 429, 447, 483]),
                         1 : set([285, 334, 341, 447, 483, 495]),
@@ -82,6 +89,8 @@ delete_design_pts_set = nan_design_pts_set.union(
                                         strange_features_design_pts_set
                                         )
                                     )
+
+delete_design_pts_validation_set = [10, 68, 93] # idf 0
 
 class systems_setting(dict):
     def __init__(self, A, B, sqrts):
@@ -131,6 +140,8 @@ if 'Pb-Pb-2760' in system_strs:
     SystemsInfo["Pb-Pb-2760"]["n_validation"] = 100
     SystemsInfo["Pb-Pb-2760"]["design_remove_idx"]=list(delete_design_pts_set)
     SystemsInfo["Pb-Pb-2760"]["npc"]=10
+    SystemsInfo["Pb-Pb-2760"]["MAP_obs_file"]=str(workdir/'model_calculations/MAP') + '/' + idf_label_short[idf] + '/Obs/obs_Pb-Pb-2760.dat'
+
 
 if 'Au-Au-200' in system_strs:
     SystemsInfo["Au-Au-200"]["run_id"] = "production_500pts_Au_Au_200"
@@ -138,19 +149,19 @@ if 'Au-Au-200' in system_strs:
     SystemsInfo["Au-Au-200"]["n_validation"] = 100
     SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
     SystemsInfo["Au-Au-200"]["npc"] = 6
+    SystemsInfo["Au-Au-200"]["MAP_obs_file"]=str(workdir/'model_calculations/MAP') + '/' + idf_label_short[idf] + '/Obs/obs_Au-Au-200.dat'
 
 
 ###############################################################################
 ############### BAYES #########################################################
 # if True : perform emulator validation
-# if False : using experimental data for parameter estimation
+# if False : use experimental data for parameter estimation
 validation = False
 #if true, we will validate emulator against points in the training set
 pseudovalidation = False
 #if true, we will omit 20% of the training design when training emulator
 crossvalidation = False
-#omit 20% of design points from training
-fixed_validation_pt=2000
+fixed_validation_pt=0
 if validation:
     if pseudovalidation:
         print("pseudo-validation")
@@ -161,9 +172,22 @@ if validation:
                                                 n_design_pts_main // 5,
                                                 replace = False)
         delete_design_pts_set = cross_validation_pts #omit these points from training
-    else: # Use #2 calcualtion (for exmaple) of a separete validation set
+    else:
         validation_pt = fixed_validation_pt
-        print("Independent-validation, ysing validation_pt = " + str(validation_pt))
+        print("Independent-validation, using validation_pt = " + str(validation_pt))
+
+#if this switch is True, all experimental errors will be set to zero
+set_exp_error_to_zero = False
+
+#if this switch is turned on, some parameters will be fixed
+#to certain values in the bayesian analysis. see bayes_mcmc.py
+hold_parameters = True
+# hold are pairs of parameter (index, value)
+# count the index correctly when have multiple systems!!!
+# e.g [(1, 10.5), (5, 0.3)] will hold parameter[1] at 10.5, and parameter[5] at 0.3
+#hold_parameters_set = [(7, 0.0), (8, 0.154), (9, 0.0), (15, 0.0), (16, 5.0)] #these should hold the parameters to Jonah's prior for LHC+RHIC
+#hold_parameters_set = [(6, 0.0), (7, 0.154), (8, 0.0), (14, 0.0), (15, 5.0)] #these should hold the parameters to Jonah's prior for LHC only
+hold_parameters_set = [(16, 8.0)] #this will fix the shear relaxation time factor for LHC+RHIC
 
 #if this switch is turned on, the emulator will be trained on the values of
 # eta/s (T_i) and zeta/s (T_i), where T_i are a grid of temperatures, rather
@@ -174,7 +198,10 @@ do_transform_design = True
 #where dY_dx includes dET_deta, dNch_deta, dN_dy_pion, etc...
 transform_multiplicities = False
 
-#do we want bayes_dtype to include the observables that we don't use for calibration ?
+#this switches on/off parameterized experimental covariance btw. centrality bins
+assume_corr_exp_error = False
+cent_corr_length = 0.5 #this is the correlation length between centrality bins
+
 bayes_dtype = [    (s,
                   [(obs, [("mean",float_t,len(cent_list)),
                           ("err",float_t,len(cent_list))]) \
@@ -243,7 +270,7 @@ def load_design(system_str, pset='main'): # or validation
     design_min = design_range['min'].values
     return design, design_min, design_max, labels
 
-# A spectially transformed design for the emulators
+# A specially transformed design for the emulators
 # 0    1        2       3             4
 # norm trento_p sigma_k nucleon_width dmin3
 #
@@ -261,35 +288,8 @@ def load_design(system_str, pset='main'): # or validation
 
 #right now this depends on the ordering of parameters
 #we should write a version instead that uses labels in case ordering changes
-"""
-def transform_design(X):
-
-    e1 = eta_over_s(.15, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e2 = eta_over_s(.2, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e3 = eta_over_s(.25, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-    e4 = eta_over_s(.3, X[:, 7], X[:, 8], X[:, 9], X[:, 10])
-
-    z1 = zeta_over_s(.15, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z2 = zeta_over_s(.2, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z3 = zeta_over_s(.25, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-    z4 = zeta_over_s(.3, X[:, 11], X[:, 12], X[:, 13], X[:, 14])
-
-    X[:, 7] = e1
-    X[:, 8] = e2
-    X[:, 9] = e3
-    X[:, 10] = e4
-    X[:, 11] = z1
-    X[:, 12] = z2
-    X[:, 13] = z3
-    X[:, 14] = z4
-
-    return X
-"""
 
 def transform_design(X):
-
-    #print("Using new transformation of design")
-
     #pop out the viscous parameters
     indices = [0, 1, 2, 3, 4, 5, 6, 15, 16]
     new_design_X = X[:, indices]
@@ -300,19 +300,12 @@ def transform_design(X):
     eta_vals = []
     zeta_vals = []
     for pt, T in enumerate(Temperature_grid):
-        #new_design_X = np.column_stack( eta_over_s(T, X[:, 7], X[:, 8], X[:, 9], X[:, 10]) )
-        #new_design_X = np.append( new_design_X, eta_over_s(T, X[:, 7], X[:, 8], X[:, 9], X[:, 10]), axis=0 )
         eta_vals.append( eta_over_s(T, X[:, 7], X[:, 8], X[:, 9], X[:, 10]) )
     for pt, T in enumerate(Temperature_grid):
-        #new_design_X = np.column_stack( zeta_over_s(T, X[:, 11], X[:, 12], X[:, 13], X[:, 14]) )
-        #new_design_X = np.append( new_design_X, zeta_over_s(T, X[:, 11], X[:, 12], X[:, 13], X[:, 14]), axis=0 )
         zeta_vals.append( zeta_over_s(T, X[:, 11], X[:, 12], X[:, 13], X[:, 14]) )
 
     eta_vals = np.array(eta_vals).T
     zeta_vals = np.array(zeta_vals).T
-
-    #print(" eta_vals.shape = ")
-    #print(eta_vals.shape)
 
     new_design_X = np.concatenate( (new_design_X, eta_vals), axis=1)
     new_design_X = np.concatenate( (new_design_X, zeta_vals), axis=1)
