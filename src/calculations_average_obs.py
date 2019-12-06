@@ -224,7 +224,7 @@ def load_and_compute(inputfile, system):
 
 
         # mean-pT
-        for s in ['pion','kaon','proton']:
+        for s in ['pion','kaon','proton', 'd']:
             try :
                 cenb=np.array(obs_cent_list[system]['mean_pT_'+s])
                 info = calculate_mean_pT(res, expt_type, cenb, idf)

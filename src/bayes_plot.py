@@ -38,6 +38,7 @@ from scipy import special
 from scipy.interpolate import PchipInterpolator
 import pandas as pd
 from textwrap import fill
+import dill
 
 from bayes_mcmc import Chain, credible_interval
 from configurations import *
@@ -304,10 +305,12 @@ obs_tex_labels = {
                     'dN_dy_Lambda' : r'$dN_{\Lambda}/dy$',
                     'dN_dy_Omega' : r'$dN_{\Omega}/dy$',
                     'dN_dy_Xi' : r'$dN_{\Xi}/dy$',
+                    'dN_dy_d' : r'$dN_{d}/dy$',
                     'dET_deta' : r'$dE_{T}/d\eta$',
                     'mean_pT_pion' : r'$\pi$',
                     'mean_pT_kaon' : r'$k$',
                     'mean_pT_proton' : r'$p$',
+                    'mean_pT_d' : r'$d$',
                     'pT_fluct' : None,
                     'v22' : r'$v_2\{2\}$',
                     'v32' : r'$v_3\{2\}$',
@@ -556,11 +559,15 @@ def observables_fit_MAP():
     """
     print("Plotting observables calculated at MAP params by hybrid model")
 
+    plot_exp = True # if True, plot experimental data. if False, plot emu mean prediction
+
     obs_groups = {
-                'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dNch_deta', 'dET_deta'],
-                'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
+                #'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dNch_deta', 'dET_deta'],
+                'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dN_dy_d'],
+                #'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
+                'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton', 'mean_pT_d'],
                 'flows' : ['v22', 'v32', 'v42'],
-                'fluct' : ['pT_fluct']
+                #'fluct' : ['pT_fluct']
                 }
     obs_group_labels = {
                 'yields' : r'$dN_{ch}/d\eta$ , $dN/dy$, $dE_T/d\eta$ [GeV]',
@@ -569,12 +576,13 @@ def observables_fit_MAP():
                 'flows' : r'$v_n \{ 2 \} $'
                 }
 
-    colors = ['b', 'g', 'r', 'c', 'm']
+    colors = ['b', 'g', 'r', 'c', 'm', 'tan', 'gray']
     Ymodel = MAP_data
     Yexp = Y_exp_data
     n_systems = len(system_strs)
-    nrows = 4
-    height_ratios = [1.8, 1.2, 1.5, 1.]
+    nrows = 3
+    height_ratios = [1.8, 1.2, 1.5]
+    #height_ratios = [1.8, 1.2, 1.5, 1.]
     if system_strs == ['Au-Au-200']:
         nrows = 3
         height_ratios = [1.8, 1.2, 1.5]
@@ -591,10 +599,21 @@ def observables_fit_MAP():
                 if system == 'Au-Au-200':
                     expt_label='STAR'
                     expt_marker='.'
+                emu = dill.load(open('emulator/emulator-' + system + '-idf-' + str(idf) + '.dill', "rb"))
+
+                #the MAP parameters for Grad
+                MAP_params = {
+                            'Pb-Pb-2760': [14.128, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136],
+                            'Au-Au-200' : [5.821, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136]
+                }
 
                 axes[row][col].tick_params(labelsize=11)
 
                 if obs in active_obs_list[system]:
+
+                    #Yemu_mean = emu.predict( np.array( [MAP_params[system]] ) )
+                    #y_emu = Yemu_mean[obs][0]
+
                     if obs_group == 'yields':
                         axes[row][col].set_yscale('log')
                     scale = 1.0
@@ -602,6 +621,8 @@ def observables_fit_MAP():
                         scale = 5.
                     if obs == 'dNch_deta':
                         scale = 2.
+                    if obs == 'dN_dy_d':
+                        scale = 200.
                     try :
                         axes[row][col].set_ylabel(obs_group_labels[obs_group], fontsize=qm_font_large)
                         xbins = np.array(obs_cent_list[system][obs])
@@ -616,6 +637,8 @@ def observables_fit_MAP():
                         else :
                             label=obs_tex_labels[obs] + 'x' + str(scale)
                         axes[row][col].plot(x, Y*scale, color=color, label=label, lw=2.0)
+                        if not plot_exp:
+                            axes[row][col].scatter(x, y_emu*scale, color=color, marker='o', lw=2.0)
                         axes[row][col].fill_between(x, (Y-Yerr)*scale, (Y+Yerr)*scale, color=color, alpha=0.3)
                         try:
                             exp_mean = Yexp[system][obs]['mean'][idf]
@@ -623,10 +646,11 @@ def observables_fit_MAP():
                         except KeyError:
                             pass
 
-                        if system=='Pb-Pb-2760':
-                            l1 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
-                        elif system=='Au-Au-200':
-                            l2 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+                        if plot_exp:
+                            if system=='Pb-Pb-2760':
+                                l1 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+                            elif system=='Au-Au-200':
+                                l2 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
 
                     except KeyError :
                         pass
@@ -642,9 +666,9 @@ def observables_fit_MAP():
                         axes[row][col].set_xlim(0, 70)
 
                     if obs_group == 'yields':
-                        axes[row][col].set_ylim(1, 1e5)
+                        axes[row][col].set_ylim(1, 1e4)
                     if obs_group == 'mean_pT':
-                        axes[row][col].set_ylim(0., 1.5)
+                        axes[row][col].set_ylim(0., 2.5)
                     if obs_group == 'fluct':
                         axes[row][col].set_ylim(0.0, 0.04)
                     if obs_group == 'flows':
@@ -658,7 +682,7 @@ def observables_fit_MAP():
         fig.delaxes(axes[3][1])
     plt.tight_layout(True)
     set_tight(fig, rect=[0, 0, 1, .93])
-    fig.suptitle("Observables Posterior : " + idf_label[idf], wrap=True)
+    fig.suptitle("Observables at MAP : " + idf_label[idf], wrap=True)
 
 @plot
 def obs_validation():
@@ -1237,13 +1261,13 @@ def viscous_posterior_overlay():
     data1 = chain1.load_wo_reshape()
     data1 = data1.reshape(-1, 19)
 
-    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_LHC_RHIC_half_PCs.hdf'.format(idf))
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_LHC_RHIC_fix_bpi_3.hdf'.format(idf))
     data2 = chain2.load_wo_reshape()
     data2 = data2.reshape(-1, 19)
 
-    #chain3 = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_RHIC_no_proton.hdf'.format(idf))
-    #data3 = chain3.load_wo_reshape()
-    #data3 = data3.reshape(-1, 18)
+    chain3 = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_LHC_RHIC_fix_bpi_8.hdf'.format(idf))
+    data3 = chain3.load_wo_reshape()
+    data3 = data3.reshape(-1, 19)
 
     print("data1.shape = ")
     print(data1.shape)
@@ -1251,40 +1275,39 @@ def viscous_posterior_overlay():
     print("data2.shape = ")
     print(data2.shape)
 
-    index1 = np.random.choice(np.arange(data1.shape[0]), 2000)
-    index2 = np.random.choice(np.arange(data2.shape[0]), 2000)
-    #index3 = np.random.choice(np.arange(data3.shape[0]), 2000)
+    index1 = np.random.choice(np.arange(data1.shape[0]), 5000)
+    index2 = np.random.choice(np.arange(data2.shape[0]), 5000)
+    index3 = np.random.choice(np.arange(data3.shape[0]), 5000)
 
     #design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
     samples1 = data1[index1, 1:]
     samples2 = data2[index2, 1:]
-    #samples3 = data3[index3, 1:]
+    samples3 = data3[index3, 1:]
 
     #the prior density
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
                     sharex=False, sharey=False, constrained_layout=True)
-    #fig.suptitle("Viscosity Posterior : " + idf_label[idf], fontsize=qm_font_large, wrap=True)
-    #fig.suptitle("Viscosity Posterior : Grad and " + idf_label[idf], fontsize=qm_font_large, wrap=True)
-    fig.suptitle(idf_label_short[idf] + r" Viscosity Posterior : Number of PCs", fontsize=qm_font_large, wrap=True)
+    fig.suptitle(idf_label_short[idf] + r" Viscosity Posterior : Shear Relax. Time", fontsize=qm_font_large, wrap=True)
     T = np.linspace(0.12, 0.3, 20)
 
     posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1 ]
     posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
-    #posterior_zetas_3 = [ zeta_over_s(T, *d[10:14]) for d in samples3 ]
+    posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3 ]
 
     axes[0].fill_between(T, np.percentile(posterior_zetas_1, 5, axis=0),
                             np.percentile(posterior_zetas_1, 95, axis=0),
-                            #facecolor='None', edgecolor='blue', lw=1.5,
-                            color='blue', alpha=0.5,
-                            #label=r'90% Confidence Grad')
-                            label=r'90% C.I. NPCs')
+                            color=color_CI, alpha=0.5,
+                            label=r'90% C.I. $b_{\pi}$ varied')
 
     axes[0].fill_between(T, np.percentile(posterior_zetas_2, 5, axis=0),
                             np.percentile(posterior_zetas_2, 95, axis=0),
-                            #color=color_CI, alpha=0.5,
                             facecolor='None', edgecolor=color_CI, lw=2.0,
-                            #label=r'90% Confidence ' + idf_label_short[idf] )
-                            label=r'90% C.I. NPCs / 2')
+                            label=r'90% C.I. $b_{\pi} = 3$')
+
+    axes[0].fill_between(T, np.percentile(posterior_zetas_3, 5, axis=0),
+                            np.percentile(posterior_zetas_3, 95, axis=0),
+                            facecolor='None', edgecolor=color_CI, lw=2.0, ls=':',
+                            label=r'90% C.I. $b_{\pi} = 8$')
 
 
     axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
@@ -1292,17 +1315,22 @@ def viscous_posterior_overlay():
 
     posterior_etas_1 = [ eta_over_s(T, *d[7:11]) for d in samples1 ]
     posterior_etas_2 = [ eta_over_s(T, *d[7:11]) for d in samples2 ]
-    #posterior_etas_3 = [ eta_over_s(T, *d[6:10]) for d in samples3 ]
+    posterior_etas_3 = [ eta_over_s(T, *d[7:11]) for d in samples3 ]
 
     axes[1].fill_between(T, np.percentile(posterior_etas_1, 5, axis=0),
                             np.percentile(posterior_etas_1, 95, axis=0),
                             #facecolor='None', edgecolor='blue', lw=1.5)
-                            color='blue', alpha=0.5,)
+                            color=color_CI, alpha=0.5,)
 
     axes[1].fill_between(T, np.percentile(posterior_etas_2, 5, axis=0),
                             np.percentile(posterior_etas_2, 95, axis=0),
                             #color=color_CI, alpha=0.5)
                             facecolor='None', edgecolor=color_CI, lw=2.0,)
+
+    axes[1].fill_between(T, np.percentile(posterior_etas_3, 5, axis=0),
+                            np.percentile(posterior_etas_3, 95, axis=0),
+                            #color=color_CI, alpha=0.5)
+                            facecolor='None', edgecolor=color_CI, lw=2.0, ls=':')
 
 
     axes[0].set_ylabel(r"$\zeta/s$")

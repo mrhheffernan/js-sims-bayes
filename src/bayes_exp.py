@@ -12,10 +12,8 @@ if validation:
 else :
     print("Loading experimental data from " + dir_obs_exp)
     entry = np.zeros(1, dtype=np.dtype(bayes_dtype) )
-    #entry = np.zeros(1, dtype=np.dtype(calibration_bayes_dtype) )
 
     for s in system_strs:
-        #print("system : " + system_str)
         expt = expt_for_system[s]
         path_to_data = 'HIC_experimental_data/' + s + '/' + expt_for_system[s] + '/'
         path_to_PHENIX = 'HIC_experimental_data/' + s + '/PHENIX/'
@@ -51,5 +49,9 @@ else :
                         sys = expt_data['sys_err'].iloc[:n_bins_bayes]
                         err_expt = np.sqrt(stat**2 + sys**2)
                     entry[s][obs]['err'][:, idf] = err_expt
+
+                #set to zero experimental error by hand to examine uncertainty
+                if set_exp_error_to_zero:
+                    entry[s][obs]['err'][:, idf] = entry[s][obs]['err'][:, idf] * 0.
 
     Y_exp_data = entry[0]

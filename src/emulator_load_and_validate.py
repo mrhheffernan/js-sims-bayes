@@ -4,11 +4,13 @@ import dill
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+from string import ascii_letters
 
 from configurations import *
 from emulator import *
 from calculations_load import validation_data, trimmed_model_data
-
+from bayes_mcmc import Chain, credible_interval
+from bayes_plot import obs_tex_labels_2
 def plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols):
     """
     Plot a histogram of the percent difference between the emulator
@@ -17,7 +19,7 @@ def plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols)
 
     print("Plotting emulator residuals")
 
-    fig, axes = plt.subplots(figsize=(10,8), ncols=ncols, nrows=nrows)
+    fig, axes = plt.subplots(figsize=(10,10), ncols=ncols, nrows=nrows)
     for obs, ax in zip(observables, axes.flatten()):
         Y_true = []
         Y_emu = []
@@ -62,7 +64,7 @@ def plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols)
         ax.annotate(" std : " + str( round(std_resid, 2) ), xy=(.05, .8), xycoords = "axes fraction")
 
     plt.tight_layout(True)
-    plt.savefig('validation_plots/emulator_residuals.png')
+    plt.savefig('validation_plots/emulator_residuals.png', dpi=300)
 
     #plt.show()
 
@@ -103,17 +105,23 @@ def plot_residuals_corr(system_str, emu, design, cent_bin, observables):
             #axes[row, col].set_xlim(-0.5, 0.5)
             #axes[row, col].hist2d(res_1, res_2, bins = [bins, bins], density = True)
 
-    plt.savefig('validation_plots/emulator_residuals_corr.png')
+    plt.savefig('validation_plots/emulator_residuals_corr.png', dpi=300)
 
-def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
+def plot_scatter(system_str, emu, design, cent_bin, observables):
     """
     Plot a scatter plot of the emulator prediction vs the model prediction at
     design points in either training or testing set.
     """
 
     print("Plotting scatter plot of emulator vs model")
+    ncols = 3
+    nrows = 2
 
-    fig, axes = plt.subplots(figsize=(10,8), ncols=ncols, nrows=nrows)
+    if len(observables) > 6:
+        ncols = 4
+        nrows = 3
+
+    fig, axes = plt.subplots(figsize=(3*ncols,3*nrows), ncols=ncols, nrows=nrows)
     for obs, ax in zip(observables, axes.flatten()):
         Y_true = []
         Y_emu = []
@@ -122,8 +130,8 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
             for pt in cross_validation_pts:
                 params = design.iloc[pt].values
                 mean, cov = emu.predict(np.array([params]), return_cov = True)
-                y_true = validation_data[system_str][pt, idf][obs]['mean']#[cent_bin]
-                y_emu = mean[obs][0]#[cent_bin]
+                y_true = validation_data[system_str][pt, idf][obs]['mean'][cent_bin]
+                y_emu = mean[obs][0][cent_bin]
                 is_mult = ('dN' in obs) or ('dET' in obs)
                 if is_mult and transform_multiplicities:
                     y_emu = np.exp(y_emu) - 1.
@@ -135,8 +143,8 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
         else :
             for pt, params in enumerate(design.values):
                 mean, cov = emu.predict(np.array([params]), return_cov = True)
-                y_true = validation_data[system_str][pt, idf][obs]['mean']#[cent_bin]
-                y_emu = mean[obs][0]#[cent_bin]
+                y_true = validation_data[system_str][pt, idf][obs]['mean'][cent_bin]
+                y_emu = mean[obs][0][cent_bin]
                 is_mult = ('dN' in obs) or ('dET' in obs)
                 if is_mult and transform_multiplicities:
                     y_emu = np.exp(y_emu) - 1.
@@ -144,15 +152,18 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
                 #dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
                 Y_true.append(y_true)
                 Y_emu.append(y_emu)
+                if pt in delete_design_pts_validation_set:
+                    ax.scatter(y_true, y_emu, color='red')
 
-        Y_true = np.array(Y_true).flatten()
-        Y_emu = np.array(Y_emu).flatten()
+        Y_true = np.array(Y_true)
+        Y_emu = np.array(Y_emu)
         ym, yM = np.min(Y_emu), np.max(Y_emu)
-        h = ax.hist2d(Y_emu, Y_true, bins=31, cmap='coolwarm', range=[(ym, yM),(ym, yM)])
+        #h = ax.hist2d(Y_emu, Y_true, bins=31, cmap='coolwarm', range=[(ym, yM),(ym, yM)])
+        ax.scatter(Y_emu, Y_true)
         ym, yM = ym-(yM-ym)*.05, yM+(yM-ym)*.05
         ax.plot([ym,yM],[ym,yM],'k--', zorder=100)
 
-        ax.annotate(obs, xy=(.05, .8), xycoords="axes fraction", color='White')
+        ax.annotate(obs_tex_labels_2[obs], xy=(.05, .8), xycoords="axes fraction", fontsize=12)
         if ax.is_last_row():
             ax.set_xlabel("Emulated")
         if ax.is_first_col():
@@ -160,9 +171,8 @@ def plot_scatter(system_str, emu, design, cent_bin, observables, nrows, ncols):
         ax.ticklabel_format(scilimits=(2,1))
 
     plt.tight_layout(True)
-    plt.savefig('validation_plots/{:s}_emu_vs_calc.png'.format(system_str))
+    plt.savefig('validation_plots/emulator_vs_model_' + system_str + '_' + idf_label_short[idf] + '.png', dpi=300)
 
-    #plt.show()
 
 def plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows, ncols):
     """
@@ -204,7 +214,75 @@ def plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows
 
     #plt.suptitle('Distribution of model statistical error')
     plt.tight_layout(True)
-    plt.savefig('validation_plots/model_stat_errors.png')
+    plt.savefig('validation_plots/model_stat_errors.png', dpi=300)
+
+def closure_test_credibility_intervals(system_str, design):
+    chain = Chain()
+
+    #get VALIDATION points
+    keys = chain.labels
+    allowed = set(ascii_letters)
+
+    data = chain.load().T
+    truths = list(design.values[validation_pt])+[0.0]
+    for x, xkey, truth in zip(data, keys, truths):
+        #write the truths and credibility intervals to file
+        new_key = ''.join(l for l in xkey if l in allowed)
+        new_key = new_key.replace('GeV', '')
+        new_key = new_key.replace('TeV', '')
+        new_key = new_key.replace('fm', '')
+        new_key = new_key.replace('mathrm', '')
+        cred = np.percentile(x, [10, 30, 50, 70, 90], axis=0)
+        cred_string = ''
+        for val in cred:
+            cred_string += (str(val) + "\t")
+        with open("closure_truth_dob/" + new_key + ".dat", "a+") as myfile:
+            myfile.write( str(truth) + "\t" + cred_string )
+
+def closure_test_credibility_eta_zeta(system_str, design):
+    chain = Chain()
+
+    #get VALIDATION points
+    keys = chain.labels
+
+    data = chain.load().T[:-1]
+    ndims, nsamples = data.shape
+    truths = list(design.values[validation_pt])
+    Ti = np.linspace(0.13, 0.4, num=50)
+
+    with open("validate_eta_zeta/{:d}-etas.dat".format(validation_pt),'w') as f:
+        # transform design into eta/s(T_i) and zeta/s(T_i)
+        f.write("#T\ttruth\tmedian\tlow5\tlow20\thigh80\thigh95\n")
+        for T in Ti:
+            samples = eta_over_s(T, data[7,:], data[8,:], data[9,:], data[10,:])
+            true_eta_over_s = eta_over_s(T, truths[7], truths[8], truths[9], truths[10])
+            median = np.median(samples)
+            l5 = np.quantile(samples, .05)
+            l20 = np.quantile(samples, .2)
+            h80 = np.quantile(samples, .8)
+            h95 = np.quantile(samples, .95)
+            f.write("{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\n".format(
+                     T, true_eta_over_s, median, l5, l20, h80, h95
+                     )
+                   )
+
+    with open("validate_eta_zeta/{:d}-zetas.dat".format(validation_pt),'w') as f:
+        # transform design into eta/s(T_i) and zeta/s(T_i)
+        # Ti is chose, e.g, to be
+        f.write("#T\ttruth\tmedian\tlow5\tlow20\thigh80\thigh95\n")
+        for T in Ti:
+            samples = zeta_over_s(T, data[11, :], data[12, :], data[13, :], data[14, :])
+            true_zeta_over_s = zeta_over_s(T, truths[11], truths[12], truths[13], truths[14])
+            median = np.median(samples)
+            l5 = np.quantile(samples, .05)
+            l20 = np.quantile(samples, .2)
+            h80 = np.quantile(samples, .8)
+            h95 = np.quantile(samples, .95)
+
+            f.write("{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\t{:1.6f}\n".format(
+                     T, true_zeta_over_s, median, l5, l20, h80, h95
+                     )
+                   )
 
 def main():
 
@@ -213,18 +291,17 @@ def main():
     for s in system_strs:
         observables = []
         for obs, cent_list in obs_cent_list[s].items():
-            observables.append(obs)
+            if obs in active_obs_list[s]:
+                observables.append(obs)
 
-        nrows = 3
-        ncols = 3
+        nrows = 4
+        ncols = 4
 
         if pseudovalidation:
             #using training points as testing points
-            design, design_max, design_min, labels = \
-                        load_design(system_str=s, pset='main')
+            design, design_max, design_min, labels = load_design(s, pset='main')
         else :
-            design, design_max, design_min, labels = \
-                        load_design(system_str=s, pset='validation')
+            design, design_max, design_min, labels = load_design(s, pset='validation')
 
         print("Validation design set shape : (Npoints, Nparams) =  ", design.shape)
 
@@ -236,12 +313,21 @@ def main():
 
         #make a plot of the residuals ; percent difference between emulator and model
         #plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols)
+
         #make a scatter plot to check if residuals between different observables are correlated
         #plot_residuals_corr(system_str, emu, design, cent_bin, observables)
+
         #make a scatter plot of emulator prediction vs model prediction
-        plot_scatter(s, emu, design, cent_bin, observables, nrows, ncols)
+        plot_scatter(s, emu, design, cent_bin, observables)
+
         #make a histogram to check the model statistical uncertainty
         #plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows, ncols)
+
+        #check if truth falls within credibility intervals
+        #closure_test_credibility_intervals(system_str, design)
+
+        #check if eta/s , zeta/s at specified temperatures fall within dob intervals
+        #closure_test_credibility_eta_zeta(system_str, design)
 
 
 if __name__ == "__main__":

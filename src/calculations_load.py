@@ -20,6 +20,7 @@ for i, s in enumerate(system_strs):
     print("model_data.shape = " + str(ds.shape))
 
     # handle some Nans
+    """
     for pt in range(Ndesign): # loop over all design points
         for obs in active_obs_list[s]:
             values = np.array(ds[s][pt, idf][obs]['mean'])
@@ -33,7 +34,7 @@ for i, s in enumerate(system_strs):
                 is_mult = ('dN' in obs) or ('dET' in obs)
                 if is_mult and transform_multiplicities:
                     ds[s][pt, idf][obs]['mean'] = np.log(1.0 + values)
-
+    """
     if Ndelete > 0:
         print("Design points which will be deleted from training : " \
                 + str( SystemsInfo[s]["design_remove_idx"] ) )

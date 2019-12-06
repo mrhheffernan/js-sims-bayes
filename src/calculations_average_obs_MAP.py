@@ -11,7 +11,7 @@ from calculations_average_obs import *
 
 if __name__ == '__main__':
     print("Computing observables for MAP events ")
-    MAP_dir = str(workdir/'model_calculations/MAP')
+    MAP_dir = str(workdir/'model_calculations/MAP') + '/' + idf_label_short[idf]
     for system in system_strs:
         try:
             print("System = " + system)
