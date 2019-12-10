@@ -32,6 +32,11 @@ short_names = {
                 'Tswitch' : 'T_sw',
 }
 
+MAP_params = {
+            'Pb-Pb-2760': [14.128, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136],
+            'Au-Au-200' : [5.821, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136]
+}
+
 class Application(tk.Frame):
     def __init__(self, master=None):
 
@@ -62,10 +67,10 @@ class Application(tk.Frame):
         self.change_idf.config(text='df={:d}'.format(self.idf))
 
     def createWidgets(self):
-        self.observables = ['dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'v22', 'v32']
+        self.observables = ['dET_deta', 'dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'pT_fluct', 'v22', 'v32', 'v42']
         self.nobs = len(self.observables)
         nrows = 3
-        fig, self.axes = plt.subplots(nrows=nrows, ncols= self.nobs // nrows, figsize=(4,6))
+        fig, self.axes = plt.subplots(nrows=nrows, ncols= self.nobs // nrows, figsize=(6,6))
 
         self.canvas = FigureCanvasTkAgg(fig, master=root)
         self.canvas.get_tk_widget().grid(row=1,column=0, rowspan=15)
@@ -106,7 +111,7 @@ class Application(tk.Frame):
             # labelling the slide scale
             setattr(self, 'label'+name, tk.Label(master=root, text=name_short, height=1))
             getattr(self, 'label'+name).grid(row=row, column=col)
-            getattr(self, 'tune'+name).set(.5)
+            getattr(self, 'tune'+name).set(MAP_params[self.system][i])
             getattr(self, 'tune'+name).grid(row=row, column=col)
             getattr(self, 'tune'+name).bind("<B1-Motion>", lambda event: self.plot() )
 
@@ -122,7 +127,7 @@ class Application(tk.Frame):
     def plot(self):
 
         params = [getattr(self, 'tune'+name).get() for name in self.Names]
-        Yemu_mean = self.emu.predict( np.array( [params] ), return_cov=False )
+        Yemu_mean, Yemu_cov = self.emu.predict( np.array( [params] ), return_cov=True )
 
         for obs, ax in zip(self.observables, self.axes.flatten()):
             ax.cla()
@@ -133,7 +138,9 @@ class Application(tk.Frame):
             x = (xbins[:,0]+xbins[:,1])/2.
             #emulator prediction
             y_emu = Yemu_mean[obs][0]
-            ax.plot(x, y_emu, label='emu')
+            dy_emu = (np.diagonal(Yemu_cov[obs, obs])**.5)[:,0]
+            #ax.plot(x, y_emu, label='emu')
+            ax.fill_between(x, y_emu-dy_emu, y_emu+dy_emu)
             #experiment
             exp_mean = self.Yexp[self.system][obs]['mean'][idf]
             exp_err = self.Yexp[self.system][obs]['err'][idf]
