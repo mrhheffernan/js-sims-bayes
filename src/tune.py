@@ -11,6 +11,7 @@ import tkinter.font
 from configurations import *
 from emulator import Trained_Emulators, _Covariance
 from bayes_exp import Y_exp_data
+from bayes_plot import obs_tex_labels_2
 
 short_names = {
                 'norm' : 'N',
@@ -36,6 +37,11 @@ MAP_params = {
             'Pb-Pb-2760': [14.128, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136],
             'Au-Au-200' : [5.821, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136]
 }
+
+system_observables = {
+                    'Pb-Pb-2760' : ['dET_deta', 'dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'pT_fluct', 'v22', 'v32', 'v42'],
+                    'Au-Au-200' : ['dN_dy_pion', 'dN_dy_kaon', 'mean_pT_pion', 'mean_pT_kaon', 'v22', 'v32']
+                    }
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -63,34 +69,39 @@ class Application(tk.Frame):
         self.createWidgets()
 
     def toggle(self):
+        self.idf = (self.idf + 1)%4
+        self.change_idf.config(text='df : ' + idf_label[self.idf])
+        self.emu = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-' + str(self.idf) + '.dill', "rb"))
+
+    #def toggle_sys(self):
         #self.idf = (self.idf + 1)%4
-        self.change_idf.config(text='df={:d}'.format(self.idf))
+    #    self.change_idf.config(text='df={:d}'.format(self.idf))
 
     def createWidgets(self):
-        self.observables = ['dET_deta', 'dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'pT_fluct', 'v22', 'v32', 'v42']
+        self.observables = system_observables[self.system]
         self.nobs = len(self.observables)
         nrows = 3
         fig, self.axes = plt.subplots(nrows=nrows, ncols= self.nobs // nrows, figsize=(6,6))
 
         self.canvas = FigureCanvasTkAgg(fig, master=root)
-        self.canvas.get_tk_widget().grid(row=1,column=0, rowspan=15)
+        self.canvas.get_tk_widget().grid(row=1,column=0, rowspan=15, columnspan=2)
         plt.tight_layout(True)
         plt.subplots_adjust(top=0.9)
         self.canvas.draw()
 
         # plot
-        self.plotbutton=tk.Button(master=root, text="plot", command=lambda: self.plot())
+        self.plotbutton=tk.Button(master=root, text="plot (click to begin)", command=lambda: self.plot())
         self.plotbutton.grid(row=0,column=0, rowspan=1)
 
         # switching delta f
-        #self.change_idf = tk.Button(text="df=0, click to switch", command=lambda: [self.toggle(), self.plot()])
-        #self.change_idf.grid(row=2, column=0)
+        self.change_idf = tk.Button(text="df : Grad(click to switch)", command=lambda: [self.toggle(), self.plot()])
+        self.change_idf.grid(row=0, column=1)
 
         # quit
         #self.quit = tk.Button(master=root, text="QUIT", fg="red", command=root.destroy)
         #self.quit.grid(row=3, column=0)
 
-        label_font = tk.font.Font(family='Arial', size=8)
+        label_font = tk.font.Font(family='Arial', size=10)
 
         for i, name in enumerate(self.Names):
 
@@ -98,7 +109,7 @@ class Application(tk.Frame):
             ncols = 2
             row = i // ncols
             col = i - (row * ncols)
-            col += 1
+            col += 2
             row += 1
 
             l = self.design_min[i]
@@ -109,8 +120,8 @@ class Application(tk.Frame):
             length=200, orient="horizontal", borderwidth=2.0, width=15) )
 
             # labelling the slide scale
-            setattr(self, 'label'+name, tk.Label(master=root, text=name_short, height=1))
-            getattr(self, 'label'+name).grid(row=row, column=col)
+            setattr(self, 'label'+name, tk.Label(master=root, text=name_short, font=label_font))
+            getattr(self, 'label'+name).grid(row=row, column=col, sticky=SW)
             getattr(self, 'tune'+name).set(MAP_params[self.system][i])
             getattr(self, 'tune'+name).grid(row=row, column=col)
             getattr(self, 'tune'+name).bind("<B1-Motion>", lambda event: self.plot() )
@@ -131,7 +142,7 @@ class Application(tk.Frame):
 
         for obs, ax in zip(self.observables, self.axes.flatten()):
             ax.cla()
-            ax.set_title(obs)
+            ax.set_title(obs_tex_labels_2[obs])
 
             xbins = np.array(obs_cent_list[self.system][obs])
             #centrality bins
@@ -155,13 +166,17 @@ class Application(tk.Frame):
             if obs == 'dET_deta':
                 ax.set_ylim(0, 2.5e3)
             if obs == 'mean_pT_pion':
-                ax.set_ylim(0, 1.)
+                ax.set_ylim(0.3, 0.7)
             if obs == 'mean_pT_proton':
-                ax.set_ylim(0, 2.5)
+                ax.set_ylim(0.75, 1.75)
+            if obs == 'pT_fluct':
+                ax.set_ylim(0, 0.04)
             if obs == 'v22':
                 ax.set_ylim(0, 0.13)
             if obs == 'v32':
-                ax.set_ylim(0, 0.05)
+                ax.set_ylim(0.01, 0.04)
+            if obs == 'v42':
+                ax.set_ylim(0.005, 0.018)
 
 if __name__ == '__main__':
     root = tk.Tk()
