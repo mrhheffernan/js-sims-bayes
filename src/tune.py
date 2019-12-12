@@ -149,7 +149,7 @@ class Application(tk.Frame):
             x = (xbins[:,0]+xbins[:,1])/2.
             #emulator prediction
             y_emu = Yemu_mean[obs][0]
-            dy_emu = (np.diagonal(Yemu_cov[obs, obs])**.5)[:,0]
+            dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
             #ax.plot(x, y_emu, label='emu')
             ax.fill_between(x, y_emu-dy_emu, y_emu+dy_emu)
             #experiment
