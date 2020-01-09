@@ -64,7 +64,7 @@ print("Using idf = " + str(idf) + " : " + idf_label[idf])
 #the Collision systems
 systems = [
         ('Pb', 'Pb', 2760),
-        #('Au', 'Au', 200),
+        ('Au', 'Au', 200),
         #('Pb', 'Pb', 5020),
         #('Xe', 'Xe', 5440)
         ]
@@ -154,6 +154,7 @@ if 'Au-Au-200' in system_strs:
 
 ###############################################################################
 ############### BAYES #########################################################
+
 # if True : perform emulator validation
 # if False : use experimental data for parameter estimation
 validation = False
@@ -161,33 +162,53 @@ validation = False
 pseudovalidation = False
 #if true, we will omit 20% of the training design when training emulator
 crossvalidation = False
+
 fixed_validation_pt=0
+
 if validation:
+    print("Performing emulator validation type ...")
     if pseudovalidation:
-        print("pseudo-validation")
+        print("... pseudo-validation")
         pass
     elif crossvalidation:
-        print("cross-validation")
+        print("... cross-validation")
         cross_validation_pts = np.random.choice(n_design_pts_main,
                                                 n_design_pts_main // 5,
                                                 replace = False)
         delete_design_pts_set = cross_validation_pts #omit these points from training
     else:
         validation_pt = fixed_validation_pt
-        print("Independent-validation, using validation_pt = " + str(validation_pt))
+        print("... independent-validation, using validation_pt = " + str(validation_pt))
 
 #if this switch is True, all experimental errors will be set to zero
 set_exp_error_to_zero = False
 
+# if this switch is True, then when performing MCMC each experimental error
+# will be multiplied by the corresponding factor
+change_exp_error = True
+change_exp_error_vals = {
+                        'Au-Au-200': {},
+
+                        'Pb-Pb-2760' : {
+                                        'dN_dy_proton' : 1.e-1,
+                                        'mean_pT_proton' : 1.e-1
+                                        }
+
+}
+
 #if this switch is turned on, some parameters will be fixed
 #to certain values in the bayesian analysis. see bayes_mcmc.py
-hold_parameters = True
+hold_parameters = False
 # hold are pairs of parameter (index, value)
 # count the index correctly when have multiple systems!!!
 # e.g [(1, 10.5), (5, 0.3)] will hold parameter[1] at 10.5, and parameter[5] at 0.3
 #hold_parameters_set = [(7, 0.0), (8, 0.154), (9, 0.0), (15, 0.0), (16, 5.0)] #these should hold the parameters to Jonah's prior for LHC+RHIC
 #hold_parameters_set = [(6, 0.0), (7, 0.154), (8, 0.0), (14, 0.0), (15, 5.0)] #these should hold the parameters to Jonah's prior for LHC only
-hold_parameters_set = [(16, 8.0)] #this will fix the shear relaxation time factor for LHC+RHIC
+#hold_parameters_set = [(16, 8.0)] #this will fix the shear relaxation time factor for LHC+RHIC
+hold_parameters_set = [(17, 0.155)] #this will fix the T_sw for LHC+RHIC
+if hold_parameters:
+    print("Warning : holding parameters to fixed values : ")
+    print(hold_parameters_set)
 
 #if this switch is turned on, the emulator will be trained on the values of
 # eta/s (T_i) and zeta/s (T_i), where T_i are a grid of temperatures, rather
@@ -198,7 +219,7 @@ do_transform_design = True
 #where dY_dx includes dET_deta, dNch_deta, dN_dy_pion, etc...
 transform_multiplicities = False
 
-#this switches on/off parameterized experimental covariance btw. centrality bins
+#this switches on/off parameterized experimental covariance btw. centrality bins and groups
 assume_corr_exp_error = False
 cent_corr_length = 0.5 #this is the correlation length between centrality bins
 
@@ -216,7 +237,7 @@ active_obs_list = {
    sys: list(obs_cent_list[sys].keys()) for sys in system_strs
 }
 
-#try exluding PHENIX dN dy proton from fit
+#try exluding PHENIX dN/dy proton from fit
 for s in system_strs:
     if s == 'Au-Au-200':
         active_obs_list[s].remove('dN_dy_proton')
@@ -250,6 +271,10 @@ eta_over_s = np.vectorize(eta_over_s)
 def taupi(T, T_k, alow, ahigh, etas_k, bpi):
     return bpi*eta_over_s(T, T_k, alow, ahigh, etas_k)/T
 taupi = np.vectorize(taupi)
+
+def tau_fs(e, tau_R, alpha):
+    #e stands for e_initial / e_R, dimensionless
+    return tau_R * (e**alpha)
 
 # load design for other module
 def load_design(system_str, pset='main'): # or validation

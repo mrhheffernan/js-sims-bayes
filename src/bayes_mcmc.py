@@ -32,6 +32,7 @@ logging.getLogger().setLevel(logging.INFO)
 import pandas as pd
 
 import emcee
+from emcee import PTSampler #Parallel Tempering is better when sampling a multimodal distn
 import h5py
 import numpy as np
 from scipy.linalg import lapack
@@ -40,6 +41,22 @@ import matplotlib.pyplot as plt
 from configurations import *
 from emulator import Trained_Emulators, _Covariance
 from bayes_exp import Y_exp_data
+
+#define groups of observables which are assumed to have correlated experimental error
+expt_obs_corr_group = {
+                        'dNch_deta' : 'yields',
+                        'dET_deta' : 'yields',
+                        'dN_dy_pion' : 'yields',
+                        'dN_dy_kaon' : 'yields',
+                        'dN_dy_proton' : 'yields',
+                        'mean_pT_pion' : 'mean_pT',
+                        'mean_pT_kaon' : 'mean_pT',
+                        'mean_pT_proton' : 'mean_pT',
+                        'pT_fluct' : 'pT_fluct',
+                        'v22' : 'flows',
+                        'v32' : 'flows',
+                        'v42' : 'flows'
+                        }
 
 def mvn_loglike(y, cov):
     """
@@ -114,11 +131,23 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
         return result
 
 def compute_cov(system, obs1, obs2, dy1, dy2):
-    if obs1 == obs2:
-        #x = np.linspace(0,1,len(dy1))
-        return np.diag(dy1**2)# * np.exp(-np.subtract.outer(x, x)**2/0.2**2)
+    x1 = np.linspace(0, 1, len(dy1))
+    x2 = np.linspace(0, 1, len(dy2))
+    if assume_corr_exp_error:
+        if obs1 == obs2:
+            cov_mat = np.outer(dy1, dy2) * np.exp(-np.subtract.outer(x1, x2)**2 / cent_corr_length**2)
+        elif expt_obs_corr_group[obs1] == expt_obs_corr_group[obs2]:
+            cov_mat = np.outer(dy1, dy2) * np.exp(-np.subtract.outer(x1, x2)**2 / cent_corr_length**2) * 0.8
+        else:
+            cov_mat = np.zeros([dy1.size, dy2.size])
+
     else:
-        return np.zeros([dy1.size, dy2.size])
+        if obs1 == obs2:
+            cov_mat = np.diag(dy1**2)
+        else:
+            cov_mat = np.zeros([dy1.size, dy2.size])
+
+    return cov_mat
 
 class Chain:
     """
@@ -174,7 +203,35 @@ class Chain:
         self.range = np.array([self.min, self.max]).T
         self.labels =  self.sysdep_labels + self.common_labels
         self.ndim = self.sysdep_ndim + self.common_ndim
+
+        if hold_parameters:
+            self.hold = hold_parameters_set
+            # modify the range of the holding parameters to a delta-
+            # function like range:
+            #       p0-delta < p < p0+delta,
+            # this range is not used in MCMC but only for plotting
+            # the hold values of p0 will be passed to emulator directly
+            for (idx, value) in self.hold:
+                if value < self.min[idx] or self.max[idx] < value:
+                    print("hold value out of range for idx = ", idx, ", value = ", value)
+                    print("range is [" + str(self.min[idx]) + " , " + str(self.max[idx]) + " ]")
+                    exit(-1)
+                delta = (self.max[idx]-self.min[idx])/1e3
+
+                self.min[idx]= value-delta
+                self.max[idx]= value+delta
+
         print("Pre-compute experimental covariance matrix")
+
+        if change_exp_error:
+            print("WARNING! Multiplying experimental error by values in change_exp_error_vals : ")
+            print(change_exp_error_vals)
+
+            for s in system_strs:
+                for obs in change_exp_error_vals[s].keys():
+                    Yexp[s][obs]['err'] *= change_exp_error_vals[s][obs]
+
+
         for s in system_strs:
             nobs = 0
             self._slices[s] = []
@@ -212,15 +269,19 @@ class Chain:
 
                     self._expt_cov[s][slc1, slc2] = compute_cov(s, obs1, obs2, dy1, dy2)
 
+    #def _predict(self, X, **kwargs):
+    #    return { s: Trained_Emulators[s].predict(X[:,self.sys_idx[s]], **kwargs) for s in system_strs }
+
     def _predict(self, X, **kwargs):
         """
         Call each system emulator to predict model output at X.
 
         """
-        return { s: Trained_Emulators[s].predict(X[:,self.sys_idx[s]],
-                                                 **kwargs) \
-                 for s in system_strs
-               }
+        if hold_parameters:
+            for (idx, value) in self.hold:
+                X[:,idx] = value
+        return { s: Trained_Emulators[s].predict(X[:,self.sys_idx[s]], **kwargs) for s in system_strs }
+
 
     def log_posterior(self, X, extra_std_prior_scale=0.001):
         """
@@ -244,9 +305,7 @@ class Chain:
 
         nsamples = np.count_nonzero(inside)
         if nsamples > 0:
-            pred = self._predict(
-                X[inside], return_cov=True, extra_std=extra_std
-            )
+            pred = self._predict( X[inside], return_cov=True, extra_std=extra_std )
             for sys in system_strs:
                 nobs = self._expt_y[sys].size
                 # allocate difference (model - expt) and covariance arrays
@@ -379,6 +438,19 @@ class Chain:
 
         with self.dataset() as d:
             return np.array(d[:, ::thin, indices]).reshape(-1, ndim)
+
+    def load_wo_reshape(self, thin=1):
+        """
+        Read the chain from file.  If `keys` are given, read only those
+        parameters.  Read only every `thin`'th sample from the chain. Don't reshape chain
+
+        """
+        #ndim = self.ndim
+        indices = slice(None)
+
+        with self.dataset() as d:
+            #return np.array(d[:, ::thin, indices]).reshape(-1, ndim)
+            return np.array(d[:, ::thin, indices])
 
     def samples(self, n=1):
         """
