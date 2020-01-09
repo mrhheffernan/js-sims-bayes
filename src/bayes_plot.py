@@ -806,8 +806,8 @@ def observables_fit_model_calc_compare():
 
     """
 
-    from compare_events import *
-    
+    #from compare_events import *
+
     print("Plotting observables calculated at 2 param sets by hybrid model")
 
     obs_groups = {
