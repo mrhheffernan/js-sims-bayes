@@ -73,9 +73,19 @@ class Application(tk.Frame):
         self.change_idf.config(text='df : ' + idf_label[self.idf])
         self.emu = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-' + str(self.idf) + '.dill', "rb"))
 
-    #def toggle_sys(self):
-        #self.idf = (self.idf + 1)%4
-    #    self.change_idf.config(text='df={:d}'.format(self.idf))
+    """
+    def toggle_sys(self):
+        if self.system == 'Pb-Pb-2760':
+            self.system = 'Au-Au-200'
+        else:
+            self.system = 'Pb-Pb-2760'
+
+        self.change_sys.config(text='system : ' + self.system)
+        self.emu = dill.load(open('emulator/emulator-' + self.system + '-idf-' + str(self.idf) + '.dill', "rb"))
+
+        self.observables = system_observables[self.system]
+        self.nobs = len(self.observables)
+    """
 
     def createWidgets(self):
         self.observables = system_observables[self.system]
@@ -97,9 +107,9 @@ class Application(tk.Frame):
         self.change_idf = tk.Button(text="df : Grad(click to switch)", command=lambda: [self.toggle(), self.plot()])
         self.change_idf.grid(row=0, column=1)
 
-        # quit
-        #self.quit = tk.Button(master=root, text="QUIT", fg="red", command=root.destroy)
-        #self.quit.grid(row=3, column=0)
+        # switching system
+        #self.change_sys = tk.Button(text="system : Pb-Pb-2760(click to switch)", command=lambda: [self.toggle_sys(), self.plot()])
+        #self.change_sys.grid(row=0, column=3)
 
         label_font = tk.font.Font(family='Arial', size=10)
 
@@ -109,7 +119,7 @@ class Application(tk.Frame):
             ncols = 2
             row = i // ncols
             col = i - (row * ncols)
-            col += 2
+            col += 3
             row += 1
 
             l = self.design_min[i]

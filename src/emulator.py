@@ -377,3 +377,9 @@ if __name__ == "__main__":
 Trained_Emulators = {}
 for s in system_strs:
     Trained_Emulators[s] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+
+#contains all the emulators for all df models
+#Trained_Emulators_All_df = {{}}
+#for s in system_strs:
+#    for idf in [0, 1]:
+#        Trained_Emulators_All_df[s][idf] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
