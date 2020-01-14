@@ -29,6 +29,12 @@ def weighted_mean_std(x, w=None):
                 std = ( np.average((x-mean)**2, weights=w)/(Neff-1.+1e-9) ) **.5
         return mean, std
 
+def mean_std(x):
+        Neff = x.shape[0]
+        mean = np.mean(x, axis=0)
+        std = np.std(x, axis=0)/np.sqrt(Neff - 1. + 1e-9)
+        return mean, std
+
 def calculate_dNdeta(ds, exp, cen, idf):
         Ne = len(ds)
         cenM = np.mean(cen, axis=1)
@@ -65,8 +71,33 @@ def calculate_dNdy(ds, exp, cen, idf):
         return {'Name': 'dNch_deta', 'cenM': cenM, 'pTM' : None,
                         'obs': obs, 'err': obs_err}
 
+def calculate_dNdpT(ds, exp, cen, idf, s):
+        Ne = len(ds)
+        cenM = np.mean(cen, axis=1)
+        index = (cen/100.*Ne).astype(int)
+
+        #obs = {s: np.zeros_like(cenM) for (s, _) in Qn_species}
+        #obs_err = {s: np.zeros_like(cenM) for (s, _) in Qn_species}
+
+        #obs = np.zeros_like(cenM)
+        #obs_err = np.zeros_like(cenM)
+
+        obs = np.zeros( (len(cenM), Qn_diff_NpT) )
+        obs_err = np.zeros( (len(cenM), Qn_diff_NpT) )
+
+        #for (s, _) in species:
+        for i, (nl, nh) in enumerate(zip(index[:,0], index[:,1])):
+            #we need to manually normalize the number of particles by the number of oversamples
+            nos = ds[exp]['nsamples'][nl:nh, idf]
+
+            #normalize by the number of oversamples
+            dN_dpT = np.divide(  ds['d_flow_pid'][s]['N'][nl:nh, idf].T, nos ).T
+            obs[i,:], obs_err[i,:] = mean_std(dN_dpT)
+
+        return {'Name': 'dN_dpT', 'cenM': cenM, 'pTM' : None,
+                        'obs': obs, 'err': obs_err}
+
 def calculate_mean_pT(ds, exp, cen, idf):
-        #print("Calculating mean pT")
         Ne = len(ds)
         cenM = np.mean(cen, axis=1)
         index = (cen/100.*Ne).astype(int)
@@ -125,7 +156,10 @@ def calculate_vn(ds, exp, cen, idf):
                     return 0., 0.
                 cn2 = (np.abs(qn)**2 - m)/w # is this is <2> in Jonah's thesis (p.27)
                 avg_cn2, std_avg_cn2 = weighted_mean_std(cn2, w)
-                vn = np.sqrt(avg_cn2)
+                if avg_cn2 < 0. :
+                    vn = -np.sqrt(-avg_cn2)
+                else :
+                    vn = np.sqrt(avg_cn2)
                 vn_err = std_avg_cn2/2./vn
                 return vn, vn_err
         Ne = len(ds)
@@ -151,12 +185,8 @@ def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
         pTM = np.mean(pTbins, axis=1)
         Cindex = (cenbins/100.*Ne).astype(int)
 
-        if pid == 'chg':
-                obs = 'd_flow_chg'
-                data = ds[exp][:,idf][obs]
-        else:
-                obs = 'd_flow_pid'
-                data = ds[exp][:,idf][obs][s]
+        obs = 'd_flow_pid'
+        data = ds[obs][:,idf][pid]
 
         # need soft flow within the same centrality bin first
         # only needs Ncen x [v2, v3]
@@ -176,14 +206,17 @@ def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
         return {'Name': 'vn2', 'cenM': cenM, 'pTM' : pTM,
                         'obs': vn, 'err': vn_err}
 
-def load_and_compute(inputfile, system):
+def load_and_compute(inputfile, system, specify_idf=None):
 
     expt_type = expt_for_system[system]
     entry = np.zeros(1, dtype=np.dtype(bayes_dtype))
-    #res_unsort = np.fromfile(inputfile, dtype=result_dtype)
     res_unsort = np.fromfile(inputfile, dtype=return_result_dtype(expt_type))
 
-    for idf in [0,1,2,3]:
+    if specify_idf == None:
+        idf_arr = [0, 1, 2, 3]
+    else:
+        idf_arr = [specify_idf]
+    for idf in idf_arr:
         print("----------------------")
         print("idf : " + str(idf) )
         res = np.array(sorted(res_unsort, key=lambda x: x[expt_type][idf]['dNch_deta'], reverse=True))
@@ -253,6 +286,61 @@ def load_and_compute(inputfile, system):
                 entry[system][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
             except KeyError :
                 pass
+
+        # pid vn
+        """
+        pTbins = [[-10., 10.]]
+        for n in range(2,3):
+            for name, pid in Qn_species:
+                print(name)
+                tmp_obs='v'+str(n)+'2_' + name
+                try :
+                    cenb=np.array(obs_cent_list[system][tmp_obs])
+                    info = calculate_diff_vn(res, expt_type, cenb, pTbins, idf, pid=name)
+                    entry[system][tmp_obs]['mean'][:,idf] = info['obs'][:, n-1]
+                    entry[system][tmp_obs]['err'][:,idf] = info['err'][:, n-1]
+                except KeyError :
+                    pass
+        """
+
+        from bins_and_cuts import ALICE_cent_bins
+
+        # pT differential vn
+        cenb = ALICE_cent_bins
+        #pTbins = [[0., 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]]
+        from calculations_file_format_single_event import Qn_diff_pT_cuts
+        pTbins = []
+        for i in range( len(Qn_diff_pT_cuts) - 1 ):
+            pTbins.append( [Qn_diff_pT_cuts[i],  Qn_diff_pT_cuts[i+1]] )
+
+        dir_str = 'model_calculations/MAP/' + idf_label_short[idf] + '/Predictions/diff_vn/'
+        np.savetxt(dir_str + 'pT_bin_edges', Qn_diff_pT_cuts)
+
+        for n in range(Nharmonic_diff):
+            for name, pid in Qn_species:
+                info = calculate_diff_vn(res, expt_type, cenb, pTbins, idf, pid=name)
+                for icent, cent in enumerate(cenb):
+                    cent_dir_str = str(cent[0]) + '-' + str(cent[1])
+                    loc_dir_str = dir_str + cent_dir_str
+                    file_str = loc_dir_str + '/' + name + '_v' + str(n+1)
+                    obs_and_err = np.column_stack( (info['obs'][icent, :, n], info['err'][icent, :, n]) )
+                    np.savetxt(file_str, obs_and_err)
+
+
+        #pid dN/dpT
+        for s,_ in Qn_species:
+            cenb = ALICE_cent_bins
+            info = calculate_dNdpT(res, expt_type, cenb, idf, s)
+
+            # instead of saving dN/dpT to entry (changing bayes_dtype) ...
+            # save it to its own file
+            #file_str = 'diff_pT_spectra/idf_' + str(idf) + '/dN_dpT_' + s
+            dir_str = 'model_calculations/MAP/' + idf_label_short[idf] + '/Predictions/diff_pT_spectra/'
+            file_str = dir_str + 'dN_dpT_' + s
+            np.savetxt(file_str, info['obs'])
+            #save the pT bins to file
+            np.savetxt(dir_str + 'pT_bin_edges', Qn_diff_pT_cuts)
+
 
     return entry
 

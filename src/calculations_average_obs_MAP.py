@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import numpy as np
-#import h5py
 import sys, os, glob
 # Input data format
 from calculations_file_format_single_event import *
@@ -20,9 +19,9 @@ if __name__ == '__main__':
             print("Averaging events in " + file_input)
             print("##########################")
             results = []
-            results.append(load_and_compute(file_input, system)[0])
+            print("starting load_and_compute")
+            results.append(load_and_compute(file_input, system, specify_idf=idf)[0])
             results = np.array(results)
-            print("results.shape = " + str(results.shape))
             results.tofile(file_output)
         except:
             print("No MAP events found for system " + s)
