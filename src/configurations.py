@@ -92,6 +92,7 @@ delete_design_pts_set = nan_design_pts_set.union(
 
 delete_design_pts_validation_set = [10, 68, 93] # idf 0
 
+
 class systems_setting(dict):
     def __init__(self, A, B, sqrts):
         super().__setitem__("proj", A)
@@ -110,9 +111,13 @@ class systems_setting(dict):
         super().__setitem__("validation_range_file",
             design_dir+sysdir+'//design_ranges_validation_{:s}{:s}-{:d}.dat'.format(A, B, sqrts)
             )
-        with open(design_dir+sysdir+'/design_labels_{:s}{:s}-{:d}.dat'.format(A, B, sqrts), 'r') as f:
-            labels = [r""+line[:-1] for line in f]
-        super().__setitem__("labels", labels)
+        try:
+            with open(design_dir+sysdir+'/design_labels_{:s}{:s}-{:d}.dat'.format(A, B, sqrts), 'r') as f:
+                labels = [r""+line[:-1] for line in f]
+            super().__setitem__("labels", labels)
+        except:
+            print("can't load design point labels")
+
     def __setitem__(self, key, value):
         if key == 'run_id':
             super().__setitem__("main_events_dir",
@@ -151,9 +156,18 @@ if 'Au-Au-200' in system_strs:
     SystemsInfo["Au-Au-200"]["npc"] = 6
     SystemsInfo["Au-Au-200"]["MAP_obs_file"]=str(workdir/'model_calculations/MAP') + '/' + idf_label_short[idf] + '/Obs/obs_Au-Au-200.dat'
 
+if 'Pb-Pb-5020' in system_strs:
+    SystemsInfo["Pb-Pb-5020"]["MAP_obs_file"]=str(workdir/'model_calculations/MAP') + '/' + idf_label_short[idf] + '/Obs/obs_Pb-Pb-5020.dat'
+
+print("SystemsInfo = ")
+print(SystemsInfo)
 
 ###############################################################################
 ############### BAYES #########################################################
+
+#if True, we will use the emcee Parallel Tempering Sampler to sample the posterior
+#this allows the estimation of the Bayesian evidence
+usePTSampler = False
 
 # if True : perform emulator validation
 # if False : use experimental data for parameter estimation
@@ -184,8 +198,8 @@ if validation:
 set_exp_error_to_zero = False
 
 # if this switch is True, then when performing MCMC each experimental error
-# will be multiplied by the corresponding factor
-change_exp_error = True
+# will be multiplied by the corresponding factor.
+change_exp_error = False
 change_exp_error_vals = {
                         'Au-Au-200': {},
 
@@ -200,7 +214,7 @@ change_exp_error_vals = {
 #to certain values in the bayesian analysis. see bayes_mcmc.py
 hold_parameters = False
 # hold are pairs of parameter (index, value)
-# count the index correctly when have multiple systems!!!
+# count the index correctly when have multiple systems!
 # e.g [(1, 10.5), (5, 0.3)] will hold parameter[1] at 10.5, and parameter[5] at 0.3
 #hold_parameters_set = [(7, 0.0), (8, 0.154), (9, 0.0), (15, 0.0), (16, 5.0)] #these should hold the parameters to Jonah's prior for LHC+RHIC
 #hold_parameters_set = [(6, 0.0), (7, 0.154), (8, 0.0), (14, 0.0), (15, 5.0)] #these should hold the parameters to Jonah's prior for LHC only
@@ -272,9 +286,9 @@ def taupi(T, T_k, alow, ahigh, etas_k, bpi):
     return bpi*eta_over_s(T, T_k, alow, ahigh, etas_k)/T
 taupi = np.vectorize(taupi)
 
-def tau_fs(e, tau_R, alpha):
+def tau_fs(e, e_R, tau_R, alpha):
     #e stands for e_initial / e_R, dimensionless
-    return tau_R * (e**alpha)
+    return tau_R * ( (e / e_R)**alpha )
 
 # load design for other module
 def load_design(system_str, pset='main'): # or validation
