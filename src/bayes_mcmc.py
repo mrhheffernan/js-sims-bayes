@@ -30,9 +30,9 @@ from contextlib import contextmanager
 import logging
 logging.getLogger().setLevel(logging.INFO)
 import pandas as pd
+import time
 
 import emcee
-from emcee import PTSampler #Parallel Tempering is better when sampling a multimodal distn
 import h5py
 import numpy as np
 from scipy.linalg import lapack
@@ -110,15 +110,15 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
         nsteps).
 
         """
+
         print('running {:d} walkers for {:d} steps'.format(self.k, nsteps))
+
 
         if status is None:
             status = nsteps // 10
 
-        for n, result in enumerate(
-                self.sample(X0, iterations=nsteps, **kwargs),
-                start=1
-        ):
+
+        for n, result in enumerate( self.sample(X0, iterations=nsteps, **kwargs), start=1 ):
             if n % status == 0 or n == nsteps:
                 af = self.acceptance_fraction
                 print(
@@ -126,9 +126,35 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
                     'mean {:.4f}, std {:.4f}, min {:.4f}, max {:.4f}'.format(
                     n, af.mean(), af.std(), af.min(), af.max()
                     )
-                )
+                    )
 
         return result
+
+
+class LoggingPTSampler(emcee.PTSampler):
+    def run_mcmc(self, X0, nsteps, status=None, **kwargs):
+        """
+        Run MCMC with logging every 'status' steps (default: approx 10% of
+        nsteps).
+
+        """
+
+        ntemps = 10
+        print('running {:d} walkers for {:d} steps'.format(self.nwalkers, nsteps))
+
+        if status is None:
+            status = nsteps // 10
+
+            X0_new = np.zeros( (ntemps, X0.shape[0], X0.shape[1]) )
+            for n in range(X0_new.shape[0]):
+                X0_new[n, :, :] = X0
+            for p, lnprob, lnlike in self.sample(X0_new, iterations=1):
+                pass
+            result = p
+            #self.reset()
+
+        return result
+
 
 def compute_cov(system, obs1, obs2, dy1, dy2):
     x1 = np.linspace(0, 1, len(dy1))
@@ -226,7 +252,6 @@ class Chain:
         if change_exp_error:
             print("WARNING! Multiplying experimental error by values in change_exp_error_vals : ")
             print(change_exp_error_vals)
-
             for s in system_strs:
                 for obs in change_exp_error_vals[s].keys():
                     Yexp[s][obs]['err'] *= change_exp_error_vals[s][obs]
@@ -269,8 +294,6 @@ class Chain:
 
                     self._expt_cov[s][slc1, slc2] = compute_cov(s, obs1, obs2, dy1, dy2)
 
-    #def _predict(self, X, **kwargs):
-    #    return { s: Trained_Emulators[s].predict(X[:,self.sys_idx[s]], **kwargs) for s in system_strs }
 
     def _predict(self, X, **kwargs):
         """
@@ -332,6 +355,64 @@ class Chain:
 
         return lp
 
+    def log_prior(self, X):
+        """
+        Evaluate the prior at `X`.
+
+        """
+        X = np.array(X, copy=False, ndmin=2)
+
+        lp = np.zeros(X.shape[0])
+
+        inside = np.all((X > self.min) & (X < self.max), axis=1)
+        lp[~inside] = -np.inf
+
+        return lp
+
+    def log_likelihood(self, X, extra_std_prior_scale=0.001):
+        """
+        Evaluate the likelihood at `X`.
+
+        """
+        X = np.array(X, copy=False, ndmin=2)
+
+        lp = np.zeros(X.shape[0])
+
+        inside = np.all((X > self.min) & (X < self.max), axis=1)
+        lp[~inside] = -np.inf
+
+        extra_std = X[inside, -1]
+
+        nsamples = np.count_nonzero(inside)
+        if nsamples > 0:
+            pred = self._predict( X[inside], return_cov=True, extra_std=extra_std )
+            for sys in system_strs:
+                nobs = self._expt_y[sys].size
+                # allocate difference (model - expt) and covariance arrays
+                dY = np.empty((nsamples, nobs))
+                cov = np.empty((nsamples, nobs, nobs))
+
+                Y_pred, cov_pred = pred[sys]
+
+                # copy predictive mean and covariance into allocated arrays
+                for obs1, slc1 in self._slices[sys]:
+                    dY[:, slc1] = Y_pred[obs1] - self._expt_y[sys][slc1]
+                    for obs2, slc2 in self._slices[sys]:
+                        cov[:, slc1, slc2] = cov_pred[obs1, obs2]
+
+                # add expt cov to model cov
+                cov += self._expt_cov[sys]
+
+                # compute log likelihood at each point
+                lp[inside] += list(map(mvn_loglike, dY, cov))
+
+            # add prior for extra_std (model sys error)
+            lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
+
+
+        return lp
+
+
     def random_pos(self, n=1):
         """
         Generate `n` random positions in parameter space.
@@ -373,40 +454,68 @@ class Chain:
                 burn = False
                 nwalkers = dset.shape[0]
 
-            sampler = LoggingEnsembleSampler(
-                nwalkers, self.ndim, self.log_posterior, pool=self
-            )
+            #choose number of temperatures for PTSampler
+            ntemps = 10
+            nthreads = 4
+            if usePTSampler:
+                #sampler = LoggingPTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior)
+                sampler = emcee.PTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior, threads=2)
+                print("Running burn-in phase")
+                nburn0 = nburnsteps
+                pos0 = np.random.uniform(self.min, self.max, (ntemps, nwalkers, self.ndim))
+                sampler.run_mcmc(pos0, nburn0)
+                print("sampler.chain.shape " + str(sampler.chain.shape))
+                #get the last step of the chain
+                pos0 = sampler.chain[:, :, -1, :]
+                print("pos0.shape " + str(pos0.shape))
+                sampler.reset()
+                print("Running MCMC chains")
+                niters = 10
+                for iter in range(niters):
+                    print("iteration " + str(iter) + " ...")
+                    start = time.time()
+                    #Now we sample for nwalkers*niterations, recording every nthin-th sample:
+                    sampler.run_mcmc(pos0, nsteps // 10)
+                    end = time.time()
+                    print("... finished in " + str(end - start) + " sec")
 
-            if burn:
-                print('no existing chain found, starting initial burn-in')
-                # Run first half of burn-in starting from random positions.
-                nburn0 = nburnsteps // 2
-                sampler.run_mcmc( self.random_pos(nwalkers), nburn0, status=status )
-                print('resampling walker positions')
-                # Reposition walkers to the most likely points in the chain,
-                # then run the second half of burn-in.  This significantly
-                # accelerates burn-in and helps prevent stuck walkers.
-                X0 = sampler.flatchain[
-                    np.unique( sampler.flatlnprobability, return_index=True )[1][-nwalkers:]
-                ]
-                sampler.reset()
-                X0 = sampler.run_mcmc(
-                    X0,
-                    nburnsteps - nburn0,
-                    status=status,
-                    storechain=False
-                )[0]
-                sampler.reset()
-                print('burn-in complete, starting production')
+                print("sampler.chain.shape " + str(sampler.chain.shape))
+                print('writing chain to file')
+                dset.resize(dset.shape[1] + nsteps, 1)
+                #save only the zero temperature chain
+                dset[:, -nsteps:, :] = sampler.chain[0, :, :, :]
+
+                #save the thermodynamic log evidence
+                logZ, dlogZ = sampler.thermodynamic_integration_log_evidence()
+                print("logZ = " + str(logZ) + " =/- " + str(dlogZ))
+                with open('mcmc/chain-idf-' + str(idf) + '-info.dat', 'w') as f:
+                    f.write('logZ ' + str(logZ))
+                    f.write('dlogZ ' + str(dlogZ))
+
+
             else:
-                print('restarting from last point of existing chain')
-                X0 = dset[:, -1, :]
-
-            sampler.run_mcmc(X0, nsteps, status=status)
-
-            print('writing chain to file')
-            dset.resize(dset.shape[1] + nsteps, 1)
-            dset[:, -nsteps:, :] = sampler.chain
+                sampler = LoggingEnsembleSampler(nwalkers, self.ndim, self.log_posterior, pool=self)
+                if burn:
+                    print('no existing chain found, starting initial burn-in')
+                    # Run first half of burn-in starting from random positions.
+                    nburn0 = nburnsteps // 2
+                    sampler.run_mcmc( self.random_pos(nwalkers), nburn0, status=status )
+                    print('resampling walker positions')
+                    # Reposition walkers to the most likely points in the chain,
+                    # then run the second half of burn-in.  This significantly
+                    # accelerates burn-in and helps prevent stuck walkers.
+                    X0 = sampler.flatchain[ np.unique( sampler.flatlnprobability, return_index=True )[1][-nwalkers:] ]
+                    sampler.reset()
+                    X0 = sampler.run_mcmc(X0, nburnsteps - nburn0, status=status, storechain=False)[0]
+                    sampler.reset()
+                    print('burn-in complete, starting production')
+                else:
+                    print('restarting from last point of existing chain')
+                    X0 = dset[:, -1, :]
+                sampler.run_mcmc(X0, nsteps, status=status)
+                print('writing chain to file')
+                dset.resize(dset.shape[1] + nsteps, 1)
+                dset[:, -nsteps:, :] = sampler.chain
 
     def open(self, mode='r'):
         """
