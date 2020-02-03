@@ -27,3 +27,4 @@ dependencies:
   - pymultinest
   - pymc3==3.6
   - arviz
+  - dill
