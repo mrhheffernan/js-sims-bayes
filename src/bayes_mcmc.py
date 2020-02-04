@@ -33,11 +33,11 @@ import pandas as pd
 import time
 
 import emcee
-#import ptemcee
 import h5py
 import numpy as np
 from scipy.linalg import lapack
 from multiprocessing import Pool
+from multiprocessing import cpu_count
 
 import matplotlib.pyplot as plt
 from configurations import *
@@ -460,6 +460,8 @@ class Chain:
             #choose number of temperatures for PTSampler
             if usePTSampler:
                 print("Using PTSampler")
+                ncpu = cpu_count()
+                print("{0} CPUs".format(ncpu))
                 print("ntemps : " + str(ntemps) + " , nthreads : " + str(nthreads))
                 with Pool() as pool:
                     sampler = emcee.PTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior, pool=pool)
