@@ -33,9 +33,11 @@ import pandas as pd
 import time
 
 import emcee
+#import ptemcee
 import h5py
 import numpy as np
 from scipy.linalg import lapack
+from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
 from configurations import *
@@ -130,28 +132,29 @@ class LoggingEnsembleSampler(emcee.EnsembleSampler):
 
         return result
 
-
 class LoggingPTSampler(emcee.PTSampler):
     def run_mcmc(self, X0, nsteps, status=None, **kwargs):
         """
-        Run MCMC with logging every 'status' steps (default: approx 10% of
-        nsteps).
+        Run MCMC with logging every 'status' steps.
 
         """
 
-        ntemps = 10
-        print('running {:d} walkers for {:d} steps'.format(self.nwalkers, nsteps))
+        print('running {:d} walkers for {:d} steps'.format(self.k, nsteps))
+
 
         if status is None:
             status = nsteps // 10
 
-            X0_new = np.zeros( (ntemps, X0.shape[0], X0.shape[1]) )
-            for n in range(X0_new.shape[0]):
-                X0_new[n, :, :] = X0
-            for p, lnprob, lnlike in self.sample(X0_new, iterations=1):
-                pass
-            result = p
-            #self.reset()
+
+        for n, result in enumerate( self.sample(X0, iterations=nsteps, **kwargs), start=1 ):
+            if n % status == 0 or n == nsteps:
+                af = self.acceptance_fraction
+                print(
+                    'step {:d}: acceptance fraction: '
+                    'mean {:.4f}, std {:.4f}, min {:.4f}, max {:.4f}'.format(
+                    n, af.mean(), af.std(), af.min(), af.max()
+                    )
+                    )
 
         return result
 
@@ -378,7 +381,7 @@ class Chain:
 
         lp = np.zeros(X.shape[0])
 
-        inside = np.all((X > self.min) & (X < self.max), axis=1)
+        inside = np.all( (X > self.min) & (X < self.max), axis=1)
         lp[~inside] = -np.inf
 
         extra_std = X[inside, -1]
@@ -429,7 +432,7 @@ class Chain:
         """
         return f(args)
 
-    def run_mcmc(self, nsteps, nburnsteps=None, nwalkers=None, status=None):
+    def run_mcmc(self, nsteps, nburnsteps=None, nwalkers=None, status=None, ntemps=1, nthreads=1):
         """
         Run MCMC model calibration.  If the chain already exists, continue from
         the last point, otherwise burn-in and start the chain.
@@ -455,29 +458,31 @@ class Chain:
                 nwalkers = dset.shape[0]
 
             #choose number of temperatures for PTSampler
-            ntemps = 10
-            nthreads = 4
             if usePTSampler:
-                #sampler = LoggingPTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior)
-                sampler = emcee.PTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior, threads=2)
-                print("Running burn-in phase")
-                nburn0 = nburnsteps
-                pos0 = np.random.uniform(self.min, self.max, (ntemps, nwalkers, self.ndim))
-                sampler.run_mcmc(pos0, nburn0)
-                print("sampler.chain.shape " + str(sampler.chain.shape))
-                #get the last step of the chain
-                pos0 = sampler.chain[:, :, -1, :]
-                print("pos0.shape " + str(pos0.shape))
-                sampler.reset()
-                print("Running MCMC chains")
-                niters = 10
-                for iter in range(niters):
-                    print("iteration " + str(iter) + " ...")
+                print("Using PTSampler")
+                print("ntemps : " + str(ntemps) + " , nthreads : " + str(nthreads))
+                with Pool() as pool:
+                    sampler = emcee.PTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior, pool=pool)
+                    print("Running burn-in phase")
+                    nburn0 = nburnsteps
+                    pos0 = np.random.uniform(self.min, self.max, (ntemps, nwalkers, self.ndim))
                     start = time.time()
-                    #Now we sample for nwalkers*niterations, recording every nthin-th sample:
-                    sampler.run_mcmc(pos0, nsteps // 10)
+                    sampler.run_mcmc(pos0, nburn0)
                     end = time.time()
                     print("... finished in " + str(end - start) + " sec")
+                    print("sampler.chain.shape " + str(sampler.chain.shape))
+                    #get the last step of the chain
+                    pos0 = sampler.chain[:, :, -1, :]
+                    print("pos0.shape " + str(pos0.shape))
+                    sampler.reset()
+                    print("Running MCMC chains")
+                    niters = 10
+                    for iter in range(niters):
+                        print("iteration " + str(iter) + " ...")
+                        start = time.time()
+                        sampler.run_mcmc(pos0, nsteps // 10)
+                        end = time.time()
+                        print("... finished in " + str(end - start) + " sec")
 
                 print("sampler.chain.shape " + str(sampler.chain.shape))
                 print('writing chain to file')
@@ -487,7 +492,7 @@ class Chain:
 
                 #save the thermodynamic log evidence
                 logZ, dlogZ = sampler.thermodynamic_integration_log_evidence()
-                print("logZ = " + str(logZ) + " =/- " + str(dlogZ))
+                print("logZ = " + str(logZ) + " +/- " + str(dlogZ))
                 with open('mcmc/chain-idf-' + str(idf) + '-info.dat', 'w') as f:
                     f.write('logZ ' + str(logZ))
                     f.write('dlogZ ' + str(dlogZ))
@@ -608,6 +613,14 @@ def main():
         help='number of walkers'
     )
     parser.add_argument(
+        '--ntemps', type=int,
+        help='number of points in temperature (for PTSampler only)'
+    )
+    parser.add_argument(
+        '--nthreads', type=int,
+        help='number of threads (for PTSampler only)'
+    )
+    parser.add_argument(
         '--nburnsteps', type=int,
         help='number of burn-in steps'
     )
@@ -621,7 +634,9 @@ def main():
             nsteps=args.nsteps,
             nwalkers=args.nwalkers,
             nburnsteps=args.nburnsteps,
-            status=args.status
+            status=args.status,
+            ntemps=args.ntemps,
+            nthreads=args.nthreads
           )
 
 
