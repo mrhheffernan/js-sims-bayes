@@ -432,7 +432,7 @@ class Chain:
         """
         return f(args)
 
-    def run_mcmc(self, nsteps, nburnsteps=None, nwalkers=None, status=None, ntemps=1, nthreads=1):
+    def run_mcmc(self, nsteps, nburnsteps=None, nwalkers=None, status=None, ntemps=1):
         """
         Run MCMC model calibration.  If the chain already exists, continue from
         the last point, otherwise burn-in and start the chain.
@@ -462,7 +462,7 @@ class Chain:
                 print("Using PTSampler")
                 ncpu = cpu_count()
                 print("{0} CPUs".format(ncpu))
-                print("ntemps : " + str(ntemps) + " , nthreads : " + str(nthreads))
+                print("ntemps : " + str(ntemps))
                 with Pool() as pool:
                     sampler = emcee.PTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior, pool=pool)
                     print("Running burn-in phase")
@@ -496,7 +496,7 @@ class Chain:
                 logZ, dlogZ = sampler.thermodynamic_integration_log_evidence()
                 print("logZ = " + str(logZ) + " +/- " + str(dlogZ))
                 with open('mcmc/chain-idf-' + str(idf) + '-info.dat', 'w') as f:
-                    f.write('logZ ' + str(logZ))
+                    f.write('logZ ' + str(logZ) + '\n')
                     f.write('dlogZ ' + str(dlogZ))
 
 
@@ -619,10 +619,6 @@ def main():
         help='number of points in temperature (for PTSampler only)'
     )
     parser.add_argument(
-        '--nthreads', type=int,
-        help='number of threads (for PTSampler only)'
-    )
-    parser.add_argument(
         '--nburnsteps', type=int,
         help='number of burn-in steps'
     )
@@ -637,8 +633,7 @@ def main():
             nwalkers=args.nwalkers,
             nburnsteps=args.nburnsteps,
             status=args.status,
-            ntemps=args.ntemps,
-            nthreads=args.nthreads
+            ntemps=args.ntemps
           )
 
 
