@@ -250,6 +250,18 @@ class Chain:
                 self.min[idx]= value-delta
                 self.max[idx]= value+delta
 
+        if change_parameters_range:
+            self.change_range = change_parameters_range_set
+            # modify the ranges of a set of parameters
+            for (idx, pmin, pmax) in self.change_range:
+                if pmin < self.min[idx] or self.max[idx] < pmax:
+                    print("update range value out of design range for idx = ", idx, ", value = ", value)
+                    print("design range is [" + str(self.min[idx]) + " , " + str(self.max[idx]) + " ]")
+                    exit(-1)
+
+                self.min[idx]= pmin
+                self.max[idx]= pmax
+
         print("Pre-compute experimental covariance matrix")
 
         if change_exp_error:

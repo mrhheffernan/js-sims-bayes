@@ -211,18 +211,26 @@ change_exp_error_vals = {
 }
 
 #if this switch is turned on, some parameters will be fixed
-#to certain values in the bayesian analysis. see bayes_mcmc.py
+#to certain values in the parameter estimation. see bayes_mcmc.py
 hold_parameters = False
 # hold are pairs of parameter (index, value)
 # count the index correctly when have multiple systems!
 # e.g [(1, 10.5), (5, 0.3)] will hold parameter[1] at 10.5, and parameter[5] at 0.3
 #hold_parameters_set = [(7, 0.0), (8, 0.154), (9, 0.0), (15, 0.0), (16, 5.0)] #these should hold the parameters to Jonah's prior for LHC+RHIC
-#hold_parameters_set = [(6, 0.0), (7, 0.154), (8, 0.0), (14, 0.0), (15, 5.0)] #these should hold the parameters to Jonah's prior for LHC only
+hold_parameters_set = [(6, 0.0), (7, 0.154), (8, 0.0), (14, 0.0), (15, 5.0)] #these should hold the parameters to Jonah's prior for LHC only
 #hold_parameters_set = [(16, 8.0)] #this will fix the shear relaxation time factor for LHC+RHIC
-hold_parameters_set = [(17, 0.155)] #this will fix the T_sw for LHC+RHIC
+#hold_parameters_set = [(17, 0.155)] #this will fix the T_sw for LHC+RHIC
 if hold_parameters:
     print("Warning : holding parameters to fixed values : ")
     print(hold_parameters_set)
+
+change_parameters_range = False
+#the set below will fix the ranges to be similar to those used in J. Bernhard's study
+#                                   p               w               tau_r       zeta/s max    zeta/s T_peak      zeta/s width
+change_parameters_range_set = [(1, -0.5, 0.5), (3, 0.5, 1.0), (5, 0.3, 1.5), (11, 0.01, 0.1), (12, 0.15, 0.2), (13, 0.025, 0.1)  ]
+if change_parameters_range:
+    print("Warning : changing parameter ranges : ")
+    print(change_parameters_range_set)
 
 #if this switch is turned on, the emulator will be trained on the values of
 # eta/s (T_i) and zeta/s (T_i), where T_i are a grid of temperatures, rather
@@ -365,3 +373,15 @@ def prepare_emu_design(system_str):
     design_max = np.max(design, axis=0)
     design_min = np.min(design, axis=0)
     return design, design_max, design_min, labels
+
+MAP_params = {}
+MAP_params['Pb-Pb-2760'] = {}
+MAP_params['Au-Au-200'] = {}
+
+#                                     N       p   sigma_k   w      d3   tau_R  alpha T_eta,kink a_low   a_high eta_kink zeta_max T_(zeta,peak) w_zeta lambda_zeta b_pi    T_s
+MAP_params['Pb-Pb-2760']['Grad'] = [14.218, 0.06,  1.041, 1.117, 2.993,  1.48, 0.047,  0.223,  -0.756,  0.218,   0.096,   0.129,     0.12,     0.089,    -0.194,  4.542, 0.136]
+MAP_params['Au-Au-200']['Grad'] =  [5.765,  0.089, 1.054, 1.064, 4.227, 1.507, 0.113,  0.223,  -1.585,  0.32,    0.056,   0.11,      0.16,     0.093,    -0.084,  4.666, 0.136]
+MAP_params['Pb-Pb-2760']['C.E.'] = [16.252, 0.032, 0.979, 1.186, 2.337, 0.745, -0.16,  0.223,  -0.653,  0.489,   0.068,   0.103,     0.133,    0.025,    -0.565,  5.731, 0.149]
+MAP_params['Au-Au-200']['C.E.'] =  [6.382,  0.032, 0.979, 1.186, 2.337, 0.745, -0.16,  0.223,  -0.653,  0.489,   0.068,   0.103,     0.133,    0.025,    -0.565,  5.731, 0.149]
+MAP_params['Pb-Pb-2760']['P.B.'] = [13.344, 0.181, 0.909, 0.858, 3.235, 1.693, -0.072, 0.183,  -0.511,  2.0,     0.092,   0.091,     0.12,     0.049,    -0.068,  5.651, 0.149]
+MAP_params['Au-Au-200']['P.B.'] =  [5.193,  0.181, 0.909, 0.858, 3.235, 1.693, -0.072, 0.183,  -0.511,  2.0,     0.092,   0.091,     0.12,     0.049,    -0.068,  5.651, 0.149]
