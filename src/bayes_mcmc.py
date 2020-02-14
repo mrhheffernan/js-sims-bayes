@@ -33,11 +33,11 @@ import pandas as pd
 import time
 
 import emcee
-#import ptemcee
 import h5py
 import numpy as np
 from scipy.linalg import lapack
 from multiprocessing import Pool
+from multiprocessing import cpu_count
 
 import matplotlib.pyplot as plt
 from configurations import *
@@ -444,7 +444,7 @@ class Chain:
         """
         return f(args)
 
-    def run_mcmc(self, nsteps, nburnsteps=None, nwalkers=None, status=None, ntemps=1, nthreads=1):
+    def run_mcmc(self, nsteps, nburnsteps=None, nwalkers=None, status=None, ntemps=1):
         """
         Run MCMC model calibration.  If the chain already exists, continue from
         the last point, otherwise burn-in and start the chain.
@@ -472,7 +472,9 @@ class Chain:
             #choose number of temperatures for PTSampler
             if usePTSampler:
                 print("Using PTSampler")
-                print("ntemps : " + str(ntemps) + " , nthreads : " + str(nthreads))
+                ncpu = cpu_count()
+                print("{0} CPUs".format(ncpu))
+                print("ntemps : " + str(ntemps))
                 with Pool() as pool:
                     sampler = emcee.PTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior, pool=pool)
                     print("Running burn-in phase")
@@ -506,7 +508,7 @@ class Chain:
                 logZ, dlogZ = sampler.thermodynamic_integration_log_evidence()
                 print("logZ = " + str(logZ) + " +/- " + str(dlogZ))
                 with open('mcmc/chain-idf-' + str(idf) + '-info.dat', 'w') as f:
-                    f.write('logZ ' + str(logZ))
+                    f.write('logZ ' + str(logZ) + '\n')
                     f.write('dlogZ ' + str(dlogZ))
 
 
@@ -629,10 +631,6 @@ def main():
         help='number of points in temperature (for PTSampler only)'
     )
     parser.add_argument(
-        '--nthreads', type=int,
-        help='number of threads (for PTSampler only)'
-    )
-    parser.add_argument(
         '--nburnsteps', type=int,
         help='number of burn-in steps'
     )
@@ -647,8 +645,7 @@ def main():
             nwalkers=args.nwalkers,
             nburnsteps=args.nburnsteps,
             status=args.status,
-            ntemps=args.ntemps,
-            nthreads=args.nthreads
+            ntemps=args.ntemps
           )
 
 
