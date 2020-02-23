@@ -334,6 +334,16 @@ obs_tex_labels_2 = {
                     'v22' : r'$v_2\{2\}$',
                     'v32' : r'$v_3\{2\}$',
                     'v42' : r'$v_4\{2\}$',
+                    'Tmunu0' : r'$t^{tt}$',
+                    'Tmunu4' : r'$t^{xx}$',
+                    'Tmunu5' : r'$t^{xy}$',
+                    'Tmunu7' : r'$t^{yy}$',
+                    'Tmunu9' : r'$t^{zz}$',
+                    'Tmunu_A' : r'$ (t^{xx} - t^{yy}) / (t^{xx} + t^{yy}) $',
+                    'Tmunu_A2' : r'$ (t^{xx} - t^{yy})^2 / (t^{xx} + t^{yy})^2 $',
+                    'Tmunu_xy' : r'$ (t^{xxy})^2 $',
+                    'Tmunu_tr' : r'$ t^{\mu}_{\mu} $',
+
 }
 
 def _observables(posterior=False, ratio=False):
@@ -1566,22 +1576,31 @@ def viscous_prior():
 @plot
 def viscous_posterior_overlay():
 
-    T = np.linspace(0.1, 0.45, 100)
+    T = np.linspace(0.15, 0.35, 100)
 
     idf_CI_color = {0 : 'blue', 1 : 'red', 2 : 'green', 3 : 'magenta'}
     color_CI = idf_CI_color[idf]
 
-    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_long_chain.hdf'.format(idf))
+    if validation:
+        truth = []
+        #get VALIDATION points
+        for s in system_strs:
+            v_design, _, _, _ = load_design(s, pset='validation')
+            truth = v_design.values[validation_pt,:]
+            true_etas = eta_over_s(T, *truth[7:11])
+            true_zetas = zeta_over_s(T, *truth[11:15])
+
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0.hdf')
     data1 = chain1.load_wo_reshape()
-    data1 = data1.reshape(-1, 19)
+    data1 = data1.reshape(-1, 18)
 
-    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_long_chain.hdf'.format(idf))
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-1.hdf')
     data2 = chain2.load_wo_reshape()
-    data2 = data2.reshape(-1, 19)
+    data2 = data2.reshape(-1, 18)
 
-    chain3 = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_long_chain.hdf'.format(idf))
-    data3 = chain3.load_wo_reshape()
-    data3 = data3.reshape(-1, 19)
+    #chain3 = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_long_chain.hdf'.format(idf))
+    #data3 = chain3.load_wo_reshape()
+    #data3 = data3.reshape(-1, 19)
 
     print("data1.shape = ")
     print(data1.shape)
@@ -1591,12 +1610,12 @@ def viscous_posterior_overlay():
 
     index1 = np.random.choice(np.arange(data1.shape[0]), 50000)
     index2 = np.random.choice(np.arange(data2.shape[0]), 50000)
-    index3 = np.random.choice(np.arange(data3.shape[0]), 50000)
+    #index3 = np.random.choice(np.arange(data3.shape[0]), 50000)
 
     #design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
     samples1 = data1[index1, 1:]
     samples2 = data2[index2, 1:]
-    samples3 = data3[index3, 1:]
+    #samples3 = data3[index3, 1:]
 
     #the prior density
     design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
@@ -1615,9 +1634,9 @@ def viscous_posterior_overlay():
                     sharex=False, sharey=False, constrained_layout=True)
     fig.suptitle(r" Viscosity Posterior", fontsize=qm_font_large, wrap=True)
 
-    posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1 ]
-    posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
-    posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3 ]
+    posterior_zetas_1 = [ zeta_over_s(T, *d[10:14]) for d in samples1 ]
+    posterior_zetas_2 = [ zeta_over_s(T, *d[10:14]) for d in samples2 ]
+    #posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3 ]
 
     axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
                          np.percentile(prior_zetas, 95, axis=0),
@@ -1634,18 +1653,22 @@ def viscous_posterior_overlay():
                             edgecolor='red', lw=2.0, facecolor='None', ls='--',
                             label=r'90% C.I. ' + idf_label_short[1])
 
-    axes[0].fill_between(T, np.percentile(posterior_zetas_3, 5, axis=0),
-                            np.percentile(posterior_zetas_3, 95, axis=0),
-                            edgecolor='green', lw=2.0, facecolor='None', ls=':',
-                            label=r'90% C.I. ' + idf_label_short[3])
+    #axes[0].fill_between(T, np.percentile(posterior_zetas_3, 5, axis=0),
+    #                        np.percentile(posterior_zetas_3, 95, axis=0),
+    #                        edgecolor='green', lw=2.0, facecolor='None', ls=':',
+    #                        label=r'90% C.I. ' + idf_label_short[3])
+
+    #true curve
+    if validation:
+        axes[0].plot( T, true_zetas, ls='--', color='black', lw=3)
 
 
     axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
     ##########################
 
-    posterior_etas_1 = [ eta_over_s(T, *d[7:11]) for d in samples1 ]
-    posterior_etas_2 = [ eta_over_s(T, *d[7:11]) for d in samples2 ]
-    posterior_etas_3 = [ eta_over_s(T, *d[7:11]) for d in samples3 ]
+    posterior_etas_1 = [ eta_over_s(T, *d[6:10]) for d in samples1 ]
+    posterior_etas_2 = [ eta_over_s(T, *d[6:10]) for d in samples2 ]
+    #posterior_etas_3 = [ eta_over_s(T, *d[7:11]) for d in samples3 ]
 
     prior_etas = []
     for (T_k, alow, ahigh, etas_k) in zip(
@@ -1669,10 +1692,13 @@ def viscous_posterior_overlay():
                             np.percentile(posterior_etas_2, 95, axis=0),
                             edgecolor='red', lw=2.0, facecolor='None', ls='--')
 
-    axes[1].fill_between(T, np.percentile(posterior_etas_3, 5, axis=0),
-                            np.percentile(posterior_etas_3, 95, axis=0),
-                            edgecolor='green', lw=2.0, facecolor='None', ls=':')
+    #axes[1].fill_between(T, np.percentile(posterior_etas_3, 5, axis=0),
+    #                        np.percentile(posterior_etas_3, 95, axis=0),
+    #                        edgecolor='green', lw=2.0, facecolor='None', ls=':')
 
+    #true curve
+    if validation:
+        axes[1].plot( T, true_etas, ls='--', color='black', lw=3)
 
     axes[0].set_ylabel(r"$\zeta/s$")
     axes[0].set_xlabel(r"$T$ [GeV]")
@@ -2282,13 +2308,13 @@ def _posterior():
     labels = chain.labels
     ranges = chain.range
 
-    #indices = [0, 1, 2, 3, 4, 6, 7, 17]
-    indices = [8, 9, 10, 11, 16]
+    indices = [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    #indices = [8, 9, 10, 11, 16]
 
-    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_long_chain.hdf')
+    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0.hdf')
     data0 = chain0.load().T
 
-    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_long_chain.hdf')
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-1.hdf')
     data1 = chain1.load().T
 
     data0 = np.take(data0, indices, axis=0)
@@ -2439,6 +2465,112 @@ def _posterior_diag():
         set_tight(pad=.0, h_pad=.1, w_pad=.05, rect=(.01, 0, 1, 1))
 
 
+@plot
+def observables_sensitivity():
+    labels = [r'$S[N]$', r'$S[p]$', r'$S[\sigma_k]$', r'$S[w]$', r'$S[d_{\mathrm{min}}^3]$', r'$S[\tau_R]$', r'$S[\alpha]$', r'$S[T_{\eta,\mathrm{kink}}]$',
+    r'$S[a_{\eta,\mathrm{low}}]$', r'$S[a_{\eta,\mathrm{high}}]$', r'$S[(\eta/s)_{\mathrm{kink}}]$', r'$S[(\zeta/s)_{\max}]$', r'$S[T_{\zeta,c}]$',
+    r'$S[w_{\zeta}]$', r'$S[\lambda_{\zeta}]$', r'$S[b_{\pi}]$', r'$S[T_{\mathrm{sw}}]$', r'$S[\sigma_M]$']
+
+    #obs_names = ['dNch_deta', 'dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'v22', 'v32', 'v42', 'pT_fluct']
+    obs_names = ['Tmunu0', 'Tmunu4', 'Tmunu7', 'Tmunu9', 'Tmunu_A', 'Tmunu_xy', 'Tmunu_tr']
+    obs_labels = [obs_tex_labels_2[obs] for obs in obs_names]
+    obs_indx = np.arange(len(obs_labels))
+
+    #cent_bin = 0 #0-5%
+    cent_bin = 5 #40-50%
+
+    #cent_pT_fl = 0 #0-5%
+    cent_pT_fl = 8 #40-45%
+
+    cent_bin_label = {0 : '0-5%', 5: '40-50%'}
+    width = 0.2
+
+    fig, axes = plt.subplots(nrows=17, ncols=1, figsize=(8,13), sharex=True)
+    plt.suptitle("Sensitivity Indices at Mean Parameters : " + cent_bin_label[cent_bin] + " Cent.")
+    #load the emulator
+    for system in system_strs:
+        emu0 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-0.dill', "rb"))
+        emu1 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-1.dill', "rb"))
+        #emu3 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-3.dill', "rb"))
+
+        map_params0 = np.array( MAP_params[system]['Grad'] )
+        map_params1 = np.array( MAP_params[system]['C.E.'] )
+        #map_params3 = np.array( MAP_params[system]['P.B.'] )
+
+        all_params = np.column_stack( (map_params0, map_params1) )
+        mean_params = np.mean(all_params, axis=1)
+
+        #evaluate at each df at its own MAP params
+        #params0 = map_params0
+        #params0 = map_params1
+        #params0 = map_params3
+
+        #evaluate all three df at the same set of params
+        print("Evaluating model (emulators) at the average of the MAP parameters : ")
+        print(labels)
+        print(" = ")
+        print(mean_params)
+        params0 = mean_params
+        params1 = mean_params
+        #params3 = mean_params
+
+        #evaluate each df at the same parameters
+        per_diff_params = 0.1
+        for row, p in enumerate(params0):
+
+            #10% variation
+            d = np.zeros_like(params0)
+            d[row] += per_diff_params
+            diff_params0 = params0 + (d * params0)
+            diff_params1 = params1 + (d * params1)
+            #diff_params3 = params3 + (d * params3)
+
+            Yemu_mean0, Yemu_cov0 = emu0.predict( np.array( [params0] ), return_cov=True )
+            Yemu_mean_diff0, Yemu_cov_diff0 = emu0.predict( np.array( [diff_params0] ), return_cov=True )
+            obs0 = np.array([ Yemu_mean0[obs][0][cent_pT_fl if obs == 'pT_fluct' else cent_bin] for obs in obs_names])
+            obs0_err = np.array( [ ( np.abs( Yemu_cov0[obs, obs][0][cent_pT_fl if obs == 'pT_fluct' else cent_bin][cent_pT_fl if obs == 'pT_fluct' else cent_bin] ) )**.5 for obs in obs_names] )
+            diff_obs0 = np.array([ Yemu_mean_diff0[obs][0][cent_pT_fl if obs == 'pT_fluct' else cent_bin] for obs in obs_names])
+            diff_obs0_err = np.array( [ ( np.abs( Yemu_cov_diff0[obs, obs][0][cent_pT_fl if obs == 'pT_fluct' else cent_bin][cent_pT_fl if obs == 'pT_fluct' else cent_bin] ) )**.5 for obs in obs_names] )
+            per_diff_obs0 = (diff_obs0 - obs0) / obs0
+            yerr = ( (obs0 * diff_obs0_err) + (diff_obs0 * obs0_err) ) / (obs0**2.)
+            axes[row].bar(obs_indx - width/2., per_diff_obs0 / d[row], yerr = 0, width=width, bottom=None, align='center',
+                            facecolor='b', edgecolor='b')
+
+
+            Yemu_mean1, Yemu_cov1 = emu1.predict( np.array( [params1] ), return_cov=True )
+            Yemu_mean_diff1, Yemu_cov_diff1 = emu1.predict( np.array( [diff_params1] ), return_cov=True )
+            obs1 = np.array([ Yemu_mean1[obs_name][0][cent_pT_fl if obs_name == 'pT_fluct' else cent_bin] for obs_name in obs_names])
+            diff_obs1 = np.array([ Yemu_mean_diff1[obs_name][0][cent_pT_fl if obs_name == 'pT_fluct' else cent_bin] for obs_name in obs_names])
+            per_diff_obs1 = (diff_obs1 - obs1) / obs1
+            axes[row].bar(obs_indx + width/2., per_diff_obs1 / per_diff_params, yerr = 0, width=width, bottom=None, align='center',
+                            facecolor='r', edgecolor='r')
+
+            #Yemu_mean3, Yemu_cov3 = emu3.predict( np.array( [params3] ), return_cov=True )
+            #Yemu_mean_diff3, Yemu_cov_diff3 = emu3.predict( np.array( [diff_params3] ), return_cov=True )
+            #obs3 = np.array([ Yemu_mean3[obs_name][0][cent_pT_fl if obs_name == 'pT_fluct' else cent_bin] for obs_name in obs_names])
+            #diff_obs3 = np.array([ Yemu_mean_diff3[obs_name][0][cent_pT_fl if obs_name == 'pT_fluct' else cent_bin] for obs_name in obs_names])
+            #per_diff_obs3 = (diff_obs3 - obs3) / obs3
+            #axes[row].bar(obs_indx + width, per_diff_obs3 / per_diff_params, yerr = 0, width=width, bottom=None, align='center',
+            #                facecolor='g', edgecolor='g')
+
+            max_height0 = np.max( np.abs( per_diff_obs0 / per_diff_params ) )
+            max_height1 = np.max( np.abs( per_diff_obs1 / per_diff_params) )
+            #max_height3 = np.max( np.abs( per_diff_obs3 / per_diff_params) )
+            max_height = np.max([max_height0, max_height1])
+            #max_height = np.max([max_height, max_height3])
+
+            axes[row].set_ylabel(labels[row])
+            axes[row].spines['bottom'].set_position('zero')
+            axes[row].set_ylim(-1.1 * max_height, 1.1 * max_height)
+            for tick in axes[row].yaxis.get_major_ticks():
+                tick.label.set_fontsize(7)
+            axes[row].tick_params(axis='x', pad=15)
+            axes[row].axes.set_xticks(obs_indx)
+            axes[row].axes.set_xticklabels( obs_labels )
+
+    fig.align_ylabels(axes)
+    plt.tight_layout(True)
+    set_tight(fig, rect=[0, 0, 1, .96])
 
 
 @plot

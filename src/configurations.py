@@ -58,13 +58,13 @@ idf_label_short = {
 number_of_models_per_run = 4
 
 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
-idf = 0
+idf = 1
 print("Using idf = " + str(idf) + " : " + idf_label[idf])
 
 #the Collision systems
 systems = [
         ('Pb', 'Pb', 2760),
-        ('Au', 'Au', 200),
+        #('Au', 'Au', 200),
         #('Pb', 'Pb', 5020),
         #('Xe', 'Xe', 5440)
         ]
@@ -144,7 +144,7 @@ if 'Pb-Pb-2760' in system_strs:
     SystemsInfo["Pb-Pb-2760"]["n_design"] = 500
     SystemsInfo["Pb-Pb-2760"]["n_validation"] = 100
     SystemsInfo["Pb-Pb-2760"]["design_remove_idx"]=list(delete_design_pts_set)
-    SystemsInfo["Pb-Pb-2760"]["npc"]=10
+    SystemsInfo["Pb-Pb-2760"]["npc"]= 5
     SystemsInfo["Pb-Pb-2760"]["MAP_obs_file"]=str(workdir/'model_calculations/MAP') + '/' + idf_label_short[idf] + '/Obs/obs_Pb-Pb-2760.dat'
 
 
@@ -153,7 +153,7 @@ if 'Au-Au-200' in system_strs:
     SystemsInfo["Au-Au-200"]["n_design"] = 500
     SystemsInfo["Au-Au-200"]["n_validation"] = 100
     SystemsInfo["Au-Au-200"]["design_remove_idx"]=list(delete_design_pts_set)
-    SystemsInfo["Au-Au-200"]["npc"] = 6
+    SystemsInfo["Au-Au-200"]["npc"] = 5
     SystemsInfo["Au-Au-200"]["MAP_obs_file"]=str(workdir/'model_calculations/MAP') + '/' + idf_label_short[idf] + '/Obs/obs_Au-Au-200.dat'
 
 if 'Pb-Pb-5020' in system_strs:
@@ -171,7 +171,7 @@ usePTSampler = False
 
 # if True : perform emulator validation
 # if False : use experimental data for parameter estimation
-validation = False
+validation = True
 #if true, we will validate emulator against points in the training set
 pseudovalidation = False
 #if true, we will omit 20% of the training design when training emulator
@@ -216,10 +216,12 @@ hold_parameters = False
 # hold are pairs of parameter (index, value)
 # count the index correctly when have multiple systems!
 # e.g [(1, 10.5), (5, 0.3)] will hold parameter[1] at 10.5, and parameter[5] at 0.3
-#hold_parameters_set = [(7, 0.0), (8, 0.154), (9, 0.0), (15, 0.0), (16, 5.0)] #these should hold the parameters to Jonah's prior for LHC+RHIC
-#hold_parameters_set = [(6, 0.0), (7, 0.154), (8, 0.0), (14, 0.0), (15, 5.0)] #these should hold the parameters to Jonah's prior for LHC only
-#hold_parameters_set = [(16, 8.0)] #this will fix the shear relaxation time factor for LHC+RHIC
-hold_parameters_set = [(17, 0.155)] #this will fix the T_sw for LHC+RHIC
+
+#validation point 0
+#  0           1         2         3         4         5         6         7             8                9                 10           11         12            13           14         15       16
+#  N,          p,     sigma_k,     w,      dmin3,    tau_R,    alpha,  eta_T_kink, eta_low_T_slope,  eta_high_T_slope,  eta_at_kink,  zeta_max, zeta_T_peak,  zeta_width,  zeta_lambda,  b_pi,    Tsw
+#16.61392, -0.61335, 1.17739,   0.98622,  1.24173,  1.34216,  0.11881,   0.22059,     -0.68223,         0.24863,          0.11678,     0.10846,    0.14633,    0.09276,      0.16548,  4.48798,  0.15136
+hold_parameters_set = [(1, -0.61335), (2, 1.17739), (4, 1.24173), (6, 0.11881), (15, 4.48798)]
 if hold_parameters:
     print("Warning : holding parameters to fixed values : ")
     print(hold_parameters_set)
@@ -247,20 +249,8 @@ bayes_dtype = [    (s,
             ]
 
 # The active ones used in Bayes analysis (MCMC)
-active_obs_list = {
-   sys: list(obs_cent_list[sys].keys()) for sys in system_strs
-}
-
-#try exluding PHENIX dN/dy proton from fit
-for s in system_strs:
-    if s == 'Au-Au-200':
-        active_obs_list[s].remove('dN_dy_proton')
-        active_obs_list[s].remove('mean_pT_proton')
-
-    if s == 'Pb-Pb-2760':
-        active_obs_list[s].remove('dN_dy_Lambda')
-        active_obs_list[s].remove('dN_dy_Omega')
-        active_obs_list[s].remove('dN_dy_Xi')
+active_obs_list = {}
+active_obs_list['Pb-Pb-2760'] = ['Tmunu0', 'Tmunu4', 'Tmunu7', 'Tmunu9', 'Tmunu_A', 'Tmunu_xy', 'Tmunu_tr']
 
 print("The active observable list for calibration: " + str(active_obs_list))
 
@@ -365,3 +355,16 @@ def prepare_emu_design(system_str):
     design_max = np.max(design, axis=0)
     design_min = np.min(design, axis=0)
     return design, design_max, design_min, labels
+
+
+MAP_params = {}
+MAP_params['Pb-Pb-2760'] = {}
+MAP_params['Au-Au-200'] = {}
+
+#                                     N      p   sigma_k   w     d3   tau_R  alpha T_eta,kink a_low   a_high eta_kink zeta_max T_(zeta,peak) w_zeta lambda_zeta    b_pi   T_s
+MAP_params['Pb-Pb-2760']['Grad'] = [14.2,  0.07,  1.03,  1.11,  3.05,  1.50,  0.054,  0.223,  -0.78,   0.21,    0.093,   0.13,      0.12,      0.089,    -0.15,   4.56 , 0.136]
+MAP_params['Au-Au-200']['Grad'] =  [5.73,  0.07,  1.03,  1.11,  3.05,  1.50,  0.054,  0.223,  -0.78,   0.21,    0.093,   0.13,      0.12,      0.089,    -0.15,   4.56 , 0.136]
+MAP_params['Pb-Pb-2760']['C.E.'] = [15.7,  0.06,  1.00,  1.20,  2.45,  1.02,  0.022,  0.253,  -0.76,   0.12,    0.051,   0.14,      0.12,      0.025,    -0.03,   5.66,  0.146]
+MAP_params['Au-Au-200']['C.E.'] =  [6.24,  0.06,  1.00,  1.20,  2.45,  1.02,  0.022,  0.253,  -0.76,   0.12,    0.051,   0.14,      0.12,      0.025,    -0.03,   5.66,  0.146]
+MAP_params['Pb-Pb-2760']['P.B.'] = [13.3,  0.18,  0.88,  0.88,  3.05,  1.74, -0.041,  0.183,  -0.35,   1.62,    0.094,   0.10,      0.12,      0.039,    -0.07,   5.58,  0.149]
+MAP_params['Au-Au-200']['P.B.'] =  [5.26,  0.18,  0.88,  0.88,  3.05,  1.74, -0.041,  0.183,  -0.35,   1.62,    0.094,   0.10,      0.12,      0.039,    -0.07,   5.58,  0.149]
