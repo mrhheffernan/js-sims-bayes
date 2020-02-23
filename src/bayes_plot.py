@@ -2308,14 +2308,16 @@ def _posterior():
     labels = chain.labels
     ranges = chain.range
 
-    indices = [0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    #indices = [8, 9, 10, 11, 16]
+    #indices = [0, 1, 2, 3, 4, 6, 7, 17] # TRENTo, FS and T_sw
+    #indices = [8, 9, 10, 11, 16] # shear viscosity and relax time
+    indices = np.arange(18) #all
 
     chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0.hdf')
-    data0 = chain0.load().T
+    data0 = chain0.load(thin=2).T
 
+    #chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-1_LHC_RHIC_REDO.hdf')
     chain1 = Chain(path=workdir/'mcmc'/'chain-idf-1.hdf')
-    data1 = chain1.load().T
+    data1 = chain1.load(thin=2).T
 
     data0 = np.take(data0, indices, axis=0)
     data1 = np.take(data1, indices, axis=0)
@@ -2326,8 +2328,22 @@ def _posterior():
 
     ranges = np.array([np.min(data0, axis=1), np.max(data0, axis=1)]).T
 
+    #blue and red
     cmap0 = plt.get_cmap('Blues')
     cmap1 = plt.get_cmap('Reds')
+    #cmap1 = plt.get_cmap('Greens')
+    color0='b'
+    color1='r'
+    #color1='g'
+
+    change_colors = False
+    #purple and orange
+    if change_colors:
+        cmap0 = plt.get_cmap('Purples')
+        cmap1 = plt.get_cmap('Oranges')
+        color0 = 'purple'
+        color1 = 'orange'
+
     cmap0.set_bad('white')
     cmap1.set_bad('white')
 
@@ -2347,23 +2363,26 @@ def _posterior():
             ylabel = labels[i]
             ylim = ranges[i]
             if i==j:
-                H0, _, _ = ax.hist(x0, bins=40, histtype='step', normed=True, color='blue')
-                H1, _, _ = ax.hist(x1, bins=40, histtype='step', normed=True, color='red')
+                H0, _, _ = ax.hist(x0, bins=40, histtype='step', normed=True, color=color0)
+                H1, _, _ = ax.hist(x1, bins=40, histtype='step', normed=True, color=color1)
                 stex0 = format_ci(x0)
                 stex1 = format_ci(x1)
-                ax.annotate(stex0, xy=(0.1, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color='blue')
-                ax.annotate(stex1, xy=(.9, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color='red')
+                ax.annotate(stex0, xy=(0.1, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color0)
+                ax.annotate(stex1, xy=(.9, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color1)
                 ax.set_xlim(*xlim)
                 #if i < ndims-1:
                 #    ax.axvline(x=truth[i], color='r')
                 ax.set_ylim(0, max(H0.max(), H1.max()))
             if i>j:
                 ax.hist2d(x0, y0, bins=40, cmap=cmap0, alpha=0.8, zorder=1)
-                ax.hist2d(x1, y1, bins=40, cmap=cmap1, alpha=0.4, zorder=1)
                 ax.set_xlim(*xlim)
                 ax.set_ylim(*ylim)
             if i<j:
-                ax.axis('off')
+                #ax.axis('off')
+                ax.hist2d(x1, y1, bins=40, cmap=cmap1, alpha=0.8, zorder=1)
+                ax.set_xlim(*xlim)
+                ax.set_ylim(*ylim)
+
             if ax.is_first_col():
                 ax.set_ylabel(ylabel, fontsize=5)
             if ax.is_first_col() and i!=0:
