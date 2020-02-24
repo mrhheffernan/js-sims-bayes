@@ -33,6 +33,7 @@ import pandas as pd
 import time
 
 import emcee
+import ptemcee
 import h5py
 import numpy as np
 from scipy.linalg import lapack
@@ -472,16 +473,17 @@ class Chain:
             #choose number of temperatures for PTSampler
             if usePTSampler:
                 print("Using PTSampler")
+                print("ntemps = " + str(ntemps))
                 ncpu = cpu_count()
                 print("{0} CPUs".format(ncpu))
-                print("ntemps : " + str(ntemps))
+                Tmax=np.inf
                 with Pool() as pool:
-                    sampler = emcee.PTSampler(ntemps, nwalkers, self.ndim, self.log_likelihood, self.log_prior, pool=pool)
+                    sampler=ptemcee.Sampler(nwalkers, self.ndim, self.log_likelihood, self.log_prior, ntemps, Tmax, pool=pool)
                     print("Running burn-in phase")
                     nburn0 = nburnsteps
                     pos0 = np.random.uniform(self.min, self.max, (ntemps, nwalkers, self.ndim))
                     start = time.time()
-                    sampler.run_mcmc(pos0, nburn0)
+                    sampler.run_mcmc(pos0, nburn0, adapt=True)
                     end = time.time()
                     print("... finished in " + str(end - start) + " sec")
                     print("sampler.chain.shape " + str(sampler.chain.shape))
@@ -494,7 +496,7 @@ class Chain:
                     for iter in range(niters):
                         print("iteration " + str(iter) + " ...")
                         start = time.time()
-                        sampler.run_mcmc(pos0, nsteps // 10)
+                        sampler.run_mcmc(pos0, nsteps // 10, adapt=True)
                         end = time.time()
                         print("... finished in " + str(end - start) + " sec")
 
@@ -505,7 +507,8 @@ class Chain:
                 dset[:, -nsteps:, :] = sampler.chain[0, :, :, :]
 
                 #save the thermodynamic log evidence
-                logZ, dlogZ = sampler.thermodynamic_integration_log_evidence()
+                #logZ, dlogZ = sampler.thermodynamic_integration_log_evidence()
+                logZ, dlogZ = sampler.log_evidence_estimate()
                 print("logZ = " + str(logZ) + " +/- " + str(dlogZ))
                 with open('mcmc/chain-idf-' + str(idf) + '-info.dat', 'w') as f:
                     f.write('logZ ' + str(logZ) + '\n')
