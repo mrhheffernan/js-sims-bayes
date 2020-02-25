@@ -167,7 +167,7 @@ print(SystemsInfo)
 
 #if True, we will use the emcee Parallel Tempering Sampler to sample the posterior
 #this allows the estimation of the Bayesian evidence
-usePTSampler = False
+usePTSampler = True
 
 # if True : perform emulator validation
 # if False : use experimental data for parameter estimation
