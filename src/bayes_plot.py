@@ -47,6 +47,8 @@ from calculations_load import trimmed_model_data, MAP_data
 from bayes_exp import Y_exp_data
 from design import Design
 
+from mcmc_diagnostics import autocorrelation
+
 fontsize = dict(
     large=11,
     normal=10,
@@ -1855,11 +1857,11 @@ def viscous_posterior_overlay_3():
     idf_CI_color = {0 : 'blue', 1 : 'red', 2 : 'magenta', 3 : 'green'}
     color_CI = idf_CI_color[idf]
 
-    chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-1_LHC_RHIC_REDO.hdf')
-    data1 = chain1.load_wo_reshape()
+    chain1 = Chain(path=workdir/'mcmc_OLD'/'chain-idf-0_LHC_RHIC_long_chain_1kwkrs_10ksteps.hdf')
+    data1 = chain1.load_wo_reshape(thin=2)
 
-    chain2 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-1_LHC_RHIC_REDO_4kwkr_10ksteps.hdf')
-    data2 = chain2.load_wo_reshape()
+    chain2 = Chain(path=workdir/'mcmc_OLD'/'chain-idf-0_LHC_RHIC_long_chain_2kwkrs_10ksteps.hdf')
+    data2 = chain2.load_wo_reshape(thin=2)
 
     if num_systems == 1:
         data1 = data1.reshape(-1, 18)
@@ -1896,7 +1898,7 @@ def viscous_posterior_overlay_3():
 
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
                     sharex=False, sharey=False, constrained_layout=True)
-    fig.suptitle(idf_label_short[3] + r" Viscosity Posterior : Effect of Prior", fontsize=qm_font_large, wrap=True)
+    fig.suptitle(idf_label_short[0] + r" Viscosity Posterior : MCMC Sampler", fontsize=qm_font_large, wrap=True)
 
     if num_systems == 1:
         posterior_zetas_1 = [ zeta_over_s(T, *d[10:14]) for d in samples1 ]
@@ -1906,20 +1908,20 @@ def viscous_posterior_overlay_3():
         posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
 
 
-    #axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
-    #                     np.percentile(prior_zetas, 95, axis=0),
-    #                     color='gray', alpha=0.4, label='90% C.I. (Prior)'
-    #                     )
+    axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
+                         np.percentile(prior_zetas, 95, axis=0),
+                         color='gray', alpha=0.4, label='90% C.I. (Prior)'
+                         )
 
     axes[0].fill_between(T, np.percentile(posterior_zetas_1, 5, axis=0),
                             np.percentile(posterior_zetas_1, 95, axis=0),
                             edgecolor='purple', lw=2.0, facecolor='None', ls='-',
-                            label=r'90% C.I. 2k wkr, 10k steps')
+                            label='90% C.I. Ensemble ' + '\n' + '1k wkr, 10k steps')
 
     axes[0].fill_between(T, np.percentile(posterior_zetas_2, 5, axis=0),
                             np.percentile(posterior_zetas_2, 95, axis=0),
                             edgecolor='orange', lw=2.0, facecolor='None', ls='--',
-                            label=r'90% C.I. 4k wkr, 10k steps' )
+                            label='90% C.I. Ensemble ' + '\n' + '2k wkr, 10k steps')
 
 
     axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
@@ -1941,9 +1943,9 @@ def viscous_posterior_overlay_3():
                 ):
         prior_etas.append(eta_over_s(T, T_k, alow, ahigh, etas_k))
 
-    #axes[1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
-    #                         np.percentile(prior_etas, 95, axis=0),
-    #                         color='gray', alpha=0.4)
+    axes[1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
+                             np.percentile(prior_etas, 95, axis=0),
+                             color='gray', alpha=0.4)
 
     axes[1].fill_between(T, np.percentile(posterior_etas_1, 5, axis=0),
                             np.percentile(posterior_etas_1, 95, axis=0),
@@ -2448,12 +2450,12 @@ def _posterior():
     #indices = [8, 9, 10, 11, 16] # shear viscosity and relax time
     indices = np.arange(18) #all
 
-    chain0 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_PTSampler_1kwkr_10ksteps_10temps.hdf')
-    data0 = chain0.load(thin=2).T
+    chain0 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf')
+    data0 = chain0.load(thin=5).T
 
     #chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-1_LHC_RHIC_REDO.hdf')
-    chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_PTSampler_1kwkr_10ksteps_15temps.hdf')
-    data1 = chain1.load(thin=2).T
+    chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_PTSampler_500wkr_10ksteps_20temps_adaptive.hdf')
+    data1 = chain1.load(thin=5).T
 
     data0 = np.take(data0, indices, axis=0)
     data1 = np.take(data1, indices, axis=0)
@@ -3251,32 +3253,67 @@ def diag_emu(system=system_strs[0], pcs=None, label_all=True):
 
     set_tight(fig, w_pad=.5, h_pad=.25)
 
-
 @plot
-def mcmc_trace(system=systems[0]):
-    design_file = design_dir + \
-           '/design_points_main_{:s}{:s}-{:d}.dat'.format(*system)
-    design = pd.read_csv(design_file)
-    design = design.drop("idx", axis=1)
-    # get range
-    range_file = design_dir + \
-               '/design_ranges_main_{:s}{:s}-{:d}.dat'.format(*system)
-    design_range = pd.read_csv(range_file)
-    design_max = design_range['max'].values
-    design_min = design_range['min'].values
-    params = design.keys()
+def mcmc_diagnostic():
+    from matplotlib.lines import Line2D
 
-    chain = Chain().load()
-    emcee_trace = chain.T
-    fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(15,15), sharex=True)
-    for (i, param), ax in zip( enumerate(params), axes.flatten() ) :
-        ax.plot(emcee_trace[0], emcee_trace[i], ',k', alpha=0.5);
-        ax.set_xlabel(params[0])
-        ax.set_ylabel(params[i])
+    #chain = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf')
+    chain = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_PTSampler_500wkr_10ksteps_20temps_adaptive.hdf')
+    labels = chain.labels
+    ranges = chain.range
 
-    #plt.suptitle("MCMC trace")
-    plt.tight_layout()
+    nthin=1
+    n_choose_walkers = 3
+    max_percent_lag = 0.1
 
+    indices = np.arange(19) #all
+    labels = np.take(labels, indices)
+    data = chain.load_wo_reshape(thin=nthin).T
+
+    ndims, nsteps, nwalkers = data.shape
+    walker_indices = np.random.choice(data.shape[0], n_choose_walkers)
+
+    width_ratios = [0.7, 0.3]
+    fig, axes = plt.subplots( nrows=ndims, ncols=2, figsize=(10, 20), gridspec_kw={'width_ratios': width_ratios} )
+    plt.suptitle('MCMC Diagnostic')
+
+    #styling
+    colors = ['b', 'g', 'r', 'c', 'm']
+    alpha=0.5
+
+    for walker_idx in range(len(walker_indices)):
+        wkr_data = data[ : , :, walker_indices[walker_idx] ]
+
+        for row in range(ndims):
+            x = wkr_data[row, :]
+            window = len(x) // 10
+            label = labels[row]
+            df_wkr = pd.DataFrame(x, columns=['p'])
+            df_wkr['mov_avg_p'] = df_wkr.p.rolling(window=window,center=False).mean()
+
+            #plot the trace and its moving average
+            axes[row][0].plot(x, alpha=alpha, color=colors[walker_idx], zorder=1)
+            axes[row][0].plot(df_wkr['mov_avg_p'], alpha=1.0, ls='--', color=colors[walker_idx], lw=1.5, zorder=2)
+
+            #plot the autocorrelation function
+            acors = autocorrelation(chain=x, max_percent_lag = max_percent_lag)
+            fraction_length = np.linspace(0., max_percent_lag, len(acors))
+            axes[row][1].plot(fraction_length, acors, color=colors[walker_idx], ls='--')
+
+            axes[row][0].set_ylabel(label)
+
+    custom_lines = [Line2D([0], [0], color='k', lw=1, alpha=alpha),
+                Line2D([0], [0], color='k', lw=1.5, alpha=1, ls='--')]
+    axes[0][0].legend(custom_lines, ['Trace', str(window) + ' Step Mv. Avg.'], loc=(0.6, 0.9))
+    #axes[0][0].set_title('Trace')
+    axes[0][1].set_title('Autocorrelation')
+
+    axes[ndims - 1][0].set_xlabel('Step')
+    axes[ndims - 1][1].set_xlabel('Lag / Chain Length')
+
+    fig.align_ylabels()
+    plt.tight_layout(True)
+    set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(0, 0, 1, 0.96))
 
 if __name__ == '__main__':
     import argparse
