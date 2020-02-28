@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import time
 import matplotlib
+import altair as alt
 import dill
 import matplotlib.pyplot as plt
 from configurations import *
@@ -37,7 +38,6 @@ system_observables = {
 
 
 system = 'Pb-Pb-2760'
-Yexp = Y_exp_data
 
 @st.cache(persist=True)
 def load_design(system):
@@ -50,7 +50,6 @@ def load_design(system):
     design_range = pd.read_csv(range_file)
     design_max = design_range['max'].values
     design_min = design_range['min'].values
-
     return design, labels, design_max, design_min
 
 
@@ -58,7 +57,6 @@ def load_design(system):
 def load_emu(system, idf):
     #load the emulator
     emu = dill.load(open('emulator/emulator-' + system + '-idf-' + str(idf) + '.dill', "rb"))
-
     return emu
 
 
@@ -66,72 +64,77 @@ def load_emu(system, idf):
 def load_obs(system):
     observables = system_observables[system]
     nobs = len(observables)
+    Yexp = Y_exp_data
+    return observables, nobs, Yexp
 
-    return observables, nobs
 
-
-@st.cache(persist=True)
+@st.cache()
 def emu_predict(params):
     start = time.time()
     Yemu_cov = 0
-    #Yemu_mean, Yemu_cov = emu.predict( np.array( [params] ), return_cov=True )
-    Yemu_mean = emu.predict( np.array( [params] ), return_cov=False )
+    #Yemu_mean = emu.predict( np.array( [params] ), return_cov=False )
+    Yemu_mean, Yemu_cov = emu.predict( np.array( [params] ), return_cov=True )
     end = time.time()
     time_emu = end - start
     return Yemu_mean, Yemu_cov, time_emu
 
-#@st.cache()
-def make_plot(Yemu_mean, Yemu_cov):
-    nrows = 3
-    fig, axes = plt.subplots(nrows=nrows, ncols= nobs // nrows, figsize=(6,6))
-
-    for obs, ax in zip(observables, axes.flatten()):
-        ax.cla()
-        ax.set_title(obs_tex_labels_2[obs])
+def make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf):
+    for iobs, obs in enumerate(observables):
         xbins = np.array(obs_cent_list[system][obs])
         #centrality bins
         x = (xbins[:,0]+xbins[:,1])/2.
         #emulator prediction
         y_emu = Yemu_mean[obs][0]
 
-        #dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
-
         #FAKE ERROR BAR FOR TESTING
-        dy_emu = y_emu * 0.1
+        #dy_emu = y_emu * 0.1
+        dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
+        df_emu = pd.DataFrame({'cent': x, 'yl':y_emu - dy_emu, "yh":y_emu + dy_emu})
+        chart_emu = alt.Chart(df_emu).mark_area().encode(x='cent', y='yl', y2='yh').properties(width=100,height=100)
 
-        ax.fill_between(x, y_emu-dy_emu, y_emu+dy_emu)
+        #chart_emu = alt.Chart(df_emu).mark_area().encode(
+        #x=alt.X('cent', axis=alt.Axis(labels=False)),
+        #y=alt.Y('yl', axis=alt.Axis(labels=False)),
+        #y2=alt.Y2('yh', axis=alt.Axis(labels=False)),
+        #)
+
+
         #experiment
         exp_mean = Yexp[system][obs]['mean'][idf]
         exp_err = Yexp[system][obs]['err'][idf]
-        ax.errorbar( x, exp_mean, exp_err, color='black', marker='v')
+        df_exp = pd.DataFrame({"cent": x, obs:exp_mean, "dy":exp_err})
+        #chart_exp = alt.Chart(df_exp).mark_circle(color='Black').encode(x='cent', y=obs)
+        chart_exp = alt.Chart(df_exp).mark_circle(color='Black').encode(
+        x=alt.X('cent', axis=alt.Axis(title='cent')),
+        y=alt.Y(obs, axis=alt.Axis(title=obs))
+        )
 
-        if obs == 'dNch_deta':
-            ax.set_ylim(0, 2e3)
-        if obs == 'dN_dy_pion':
-            ax.set_ylim(0, 2e3)
-        if obs == 'dN_dy_proton':
-            ax.set_ylim(0, 1e2)
-        if obs == 'dET_deta':
-            ax.set_ylim(0, 2.5e3)
-        if obs == 'mean_pT_pion':
-            ax.set_ylim(0.3, 0.7)
-        if obs == 'mean_pT_proton':
-            ax.set_ylim(0.75, 1.75)
-        if obs == 'pT_fluct':
-            ax.set_ylim(0, 0.04)
-        if obs == 'v22':
-            ax.set_ylim(0, 0.13)
-        if obs == 'v32':
-            ax.set_ylim(0.01, 0.04)
-        if obs == 'v42':
-            ax.set_ylim(0.005, 0.018)
+        chart = alt.layer(chart_emu, chart_exp)
 
-    plt.tight_layout(True)
-    st.pyplot(fig)
+        if iobs == 0:
+            charts0 = chart
+        if iobs in [1, 2]:
+            charts0 = alt.hconcat(charts0, chart)
+
+        if iobs == 3:
+            charts1 = chart
+        if iobs in [4, 5]:
+            charts1 = alt.hconcat(charts1, chart)
+
+        if iobs == 6:
+            charts2 = chart
+        if iobs in [7, 8]:
+            charts2 = alt.hconcat(charts2, chart)
+
+    st.write(charts0)
+    st.write(charts1)
+    st.write(charts2)
 
 
 system = 'Pb-Pb-2760'
-idf = 0
+idf_names = ['Grad', 'C.E. RTA', 'Pratt-McNelis', 'Pratt-Bernhard']
+idf_name = st.selectbox('Viscous Correction',idf_names)
+idf = idf_names.index(idf_name)
 
 #load the design
 design, labels, design_max, design_min = load_design(system)
@@ -140,16 +143,13 @@ design, labels, design_max, design_min = load_design(system)
 emu = load_emu(system, idf)
 
 #load the exp obs
-observables, nobs = load_obs(system)
+observables, nobs, Yexp = load_obs(system)
 
 #get emu prediction
 params = [14.128, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136]
 Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
 
-#make plot
-make_plot(Yemu_mean, Yemu_cov)
+make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
 
 x = st.slider('x')
 st.write(x, 'squared is', x * x)
-
-st.write('emu took ' + str(time_emu) + ' sec')
