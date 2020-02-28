@@ -487,6 +487,7 @@ class Chain:
                     end = time.time()
                     print("... finished in " + str(end - start) + " sec")
                     print("sampler.chain.shape " + str(sampler.chain.shape))
+                    print("betas = " + str(sampler.betas))
                     #get the last step of the chain
                     pos0 = sampler.chain[:, :, -1, :]
                     print("pos0.shape " + str(pos0.shape))
@@ -494,11 +495,13 @@ class Chain:
                     print("Running MCMC chains")
                     niters = 10
                     for iter in range(niters):
+                        print("betas = " + str(sampler.betas))
                         print("iteration " + str(iter) + " ...")
                         start = time.time()
-                        sampler.run_mcmc(pos0, nsteps // 10, adapt=True)
+                        sampler.run_mcmc(pos0, nsteps // 10)
                         end = time.time()
                         print("... finished in " + str(end - start) + " sec")
+                        
 
                 print("sampler.chain.shape " + str(sampler.chain.shape))
                 print('writing chain to file')
