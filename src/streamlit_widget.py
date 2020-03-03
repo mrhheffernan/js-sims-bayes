@@ -11,22 +11,22 @@ from bayes_exp import Y_exp_data
 from bayes_plot import obs_tex_labels_2
 
 short_names = {
-                'norm' : 'N',
-                'trento_p' : 'p',
-                'nucleon_width' : 'w',
-                'sigma_k' : 'sigma_k',
-                'dmin3' : 'd_{min}^3',
-                'tau_R' : 'tau_R',
-                'alpha' : 'alpha',
-                'eta_over_s_T_kink_in_GeV' : 'eta_Tk',
-                'eta_over_s_low_T_slope_in_GeV' : 'eta_low',
-                'eta_over_s_high_T_slope_in_GeV' : 'eta_high',
-                'eta_over_s_at_kink' : 'eta_k',
-                'zeta_over_s_max' : 'zeta_max',
-                'zeta_over_s_T_peak_in_GeV' : 'zeta_Tc',
-                'zeta_over_s_width_in_GeV' : 'zeta_w',
-                'zeta_over_s_lambda_asymm' : 'zeta_asym',
-                'shear_relax_time_factor' : 'b_pi',
+                'norm' : r'$N$',
+                'trento_p' : r'$p$',
+                'nucleon_width' : r'$w$',
+                'sigma_k' : r'$\sigma_k$',
+                'dmin3' : r'$d_{min}^3$',
+                'tau_R' : r'$\tau_R$',
+                'alpha' : r'$\alpha$',
+                'eta_over_s_T_kink_in_GeV' : r'$T_{\eta, \rm{kink}}$',
+                'eta_over_s_low_T_slope_in_GeV' : r'$a_{\rm{low}}$',
+                'eta_over_s_high_T_slope_in_GeV' : r'$a_{\rm{high}}$',
+                'eta_over_s_at_kink' : r'$(\eta/s)_{\rm{kink}}$',
+                'zeta_over_s_max' : r'$(\zeta/s)_{\rm{max}}$',
+                'zeta_over_s_T_peak_in_GeV' : r'T_{\zeta, c}',
+                'zeta_over_s_width_in_GeV' : r'$w_{\zeta}$',
+                'zeta_over_s_lambda_asymm' : r'$\lambda_{\zeta}$',
+                'shear_relax_time_factor' : r'$b_{\pi}$',
                 'Tswitch' : 'T_sw',
 }
 
@@ -72,8 +72,8 @@ def load_obs(system):
 def emu_predict(params):
     start = time.time()
     Yemu_cov = 0
-    #Yemu_mean = emu.predict( np.array( [params] ), return_cov=False )
-    Yemu_mean, Yemu_cov = emu.predict( np.array( [params] ), return_cov=True )
+    Yemu_mean = emu.predict( np.array( [params] ), return_cov=False )
+    #Yemu_mean, Yemu_cov = emu.predict( np.array( [params] ), return_cov=True )
     end = time.time()
     time_emu = end - start
     return Yemu_mean, Yemu_cov, time_emu
@@ -87,17 +87,10 @@ def make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf):
         y_emu = Yemu_mean[obs][0]
 
         #FAKE ERROR BAR FOR TESTING
-        #dy_emu = y_emu * 0.1
-        dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
+        dy_emu = y_emu * 0.1
+        #dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
         df_emu = pd.DataFrame({'cent': x, 'yl':y_emu - dy_emu, "yh":y_emu + dy_emu})
-        chart_emu = alt.Chart(df_emu).mark_area().encode(x='cent', y='yl', y2='yh').properties(width=100,height=100)
-
-        #chart_emu = alt.Chart(df_emu).mark_area().encode(
-        #x=alt.X('cent', axis=alt.Axis(labels=False)),
-        #y=alt.Y('yl', axis=alt.Axis(labels=False)),
-        #y2=alt.Y2('yh', axis=alt.Axis(labels=False)),
-        #)
-
+        chart_emu = alt.Chart(df_emu).mark_area().encode(x='cent', y='yl', y2='yh').properties(width=150,height=150)
 
         #experiment
         exp_mean = Yexp[system][obs]['mean'][idf]
@@ -146,10 +139,15 @@ emu = load_emu(system, idf)
 observables, nobs, Yexp = load_obs(system)
 
 #get emu prediction
-params = [14.128, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136]
+params = MAP_params[system][ idf_label_short[idf] ]
 Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
 
 make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
 
-x = st.slider('x')
-st.write(x, 'squared is', x * x)
+for i_s, s_name in enumerate(short_names.keys()):
+    #s = st.markdown(short_names[s_name])
+    min = design_min[i_s]
+    max = design_max[i_s]
+    p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params[i_s])
+
+#st.write(x, 'squared is', x * x)
