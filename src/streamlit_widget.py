@@ -138,16 +138,19 @@ emu = load_emu(system, idf)
 #load the exp obs
 observables, nobs, Yexp = load_obs(system)
 
-#get emu prediction
-params = MAP_params[system][ idf_label_short[idf] ]
-Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
+#initialize parameters
+params_0 = MAP_params[system][ idf_label_short[idf] ]
 
-make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
-
+#updated params
+params = []
 for i_s, s_name in enumerate(short_names.keys()):
     #s = st.markdown(short_names[s_name])
     min = design_min[i_s]
     max = design_max[i_s]
-    p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params[i_s])
+    p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s])
+    params.append(p)
 
-#st.write(x, 'squared is', x * x)
+#get emu prediction
+Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
+
+make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
