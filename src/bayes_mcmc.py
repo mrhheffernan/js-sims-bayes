@@ -378,7 +378,13 @@ class Chain:
         """
         X = np.array(X, copy=False, ndmin=2)
 
-        lp = np.zeros(X.shape[0])
+        #not normalized
+        #lp = np.zeros(X.shape[0])
+
+        #normalize the prior
+        diff =  self.max - self.min
+        prior_volume = np.prod( diff )
+        lp = np.log( np.ones(X.shape[0]) / prior_volume )
 
         inside = np.all((X > self.min) & (X < self.max), axis=1)
         lp[~inside] = -np.inf
@@ -501,7 +507,7 @@ class Chain:
                         sampler.run_mcmc(pos0, nsteps // 10)
                         end = time.time()
                         print("... finished in " + str(end - start) + " sec")
-                        
+
 
                 print("sampler.chain.shape " + str(sampler.chain.shape))
                 print('writing chain to file')
