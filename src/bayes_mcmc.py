@@ -68,8 +68,8 @@ def mvn_loglike(y, cov):
 
         log_p = -1/2*[(y^T).(C^-1).y + log(det(C))] + const.
 
-    The likelihood is NOT NORMALIZED, since this does not affect MCMC.  The
-    normalization const = -n/2*log(2*pi), where n is the dimensionality.
+    This likelihood is NOT NORMALIZED, since this does not affect parameter estimation.
+    The normalization const = -n/2*log(2*pi), where n is the dimensionality.
 
     Arguments `y` and `cov` MUST be np.arrays with dtype == float64 and shapes
     (n) and (n, n), respectively.  These requirements are NOT CHECKED.
@@ -78,6 +78,7 @@ def mvn_loglike(y, cov):
     Processes for Machine Learning).
 
     """
+
     # Compute the Cholesky decomposition of the covariance.
     # Use bare LAPACK function to avoid scipy.linalg wrapper overhead.
     L, info = lapack.dpotrf(cov, clean=False)
@@ -104,6 +105,54 @@ def mvn_loglike(y, cov):
         )
 
     return -.5*np.dot(y, alpha) - np.log(L.diagonal()).sum()
+
+def normed_mvn_loglike(y, cov):
+    """
+    Evaluate the multivariate-normal log-likelihood for difference vector `y`
+    and covariance matrix `cov`:
+
+        log_p = -1/2*[(y^T).(C^-1).y + log(det(C))] + const.
+
+    This likelihood IS NORMALIZED.
+    The normalization const = -n/2*log(2*pi), where n is the dimensionality.
+
+    Arguments `y` and `cov` MUST be np.arrays with dtype == float64 and shapes
+    (n) and (n, n), respectively.  These requirements are NOT CHECKED.
+
+    The calculation follows algorithm 2.1 in Rasmussen and Williams (Gaussian
+    Processes for Machine Learning).
+
+    """
+
+    # Compute the Cholesky decomposition of the covariance.
+    # Use bare LAPACK function to avoid scipy.linalg wrapper overhead.
+    L, info = lapack.dpotrf(cov, clean=False)
+
+    if info < 0:
+        raise ValueError(
+            'lapack dpotrf error: '
+            'the {}-th argument had an illegal value'.format(-info)
+        )
+    elif info < 0:
+        raise np.linalg.LinAlgError(
+            'lapack dpotrf error: '
+            'the leading minor of order {} is not positive definite'
+            .format(info)
+        )
+
+    # Solve for alpha = cov^-1.y using the Cholesky decomp.
+    alpha, info = lapack.dpotrs(L, y)
+
+    if info != 0:
+        raise ValueError(
+            'lapack dpotrs error: '
+            'the {}-th argument had an illegal value'.format(-info)
+        )
+
+
+    n = len(y)
+    norm_const = -n / ( 2. * np.log(2. * np.pi) )
+    return -.5*np.dot(y, alpha) - np.log(L.diagonal()).sum() + norm_const
 
 
 class LoggingEnsembleSampler(emcee.EnsembleSampler):
@@ -234,6 +283,11 @@ class Chain:
         self.labels =  self.sysdep_labels + self.common_labels
         self.ndim = self.sysdep_ndim + self.common_ndim
 
+        #the volume of the uniform prior
+        diff =  self.max - self.min
+        self.prior_volume = np.prod( diff )
+
+
         if hold_parameters:
             self.hold = hold_parameters_set
             # modify the range of the holding parameters to a delta-
@@ -362,7 +416,7 @@ class Chain:
                 # add expt cov to model cov
                 cov += self._expt_cov[sys]
 
-                # compute log likelihood at each point
+                # compute log likelihood at each point, w/o normalization
                 lp[inside] += list(map(mvn_loglike, dY, cov))
 
             # add prior for extra_std (model sys error)
@@ -382,9 +436,7 @@ class Chain:
         #lp = np.zeros(X.shape[0])
 
         #normalize the prior
-        diff =  self.max - self.min
-        prior_volume = np.prod( diff )
-        lp = np.log( np.ones(X.shape[0]) / prior_volume )
+        lp = np.log( np.ones(X.shape[0]) / self.prior_volume )
 
         inside = np.all((X > self.min) & (X < self.max), axis=1)
         lp[~inside] = -np.inf
@@ -425,8 +477,8 @@ class Chain:
                 # add expt cov to model cov
                 cov += self._expt_cov[sys]
 
-                # compute log likelihood at each point
-                lp[inside] += list(map(mvn_loglike, dY, cov))
+                # compute normalized log likelihood at each point
+                lp[inside] += list(map(normed_mvn_loglike, dY, cov))
 
             # add prior for extra_std (model sys error)
             lp[inside] += 2*np.log(extra_std) - extra_std/extra_std_prior_scale
