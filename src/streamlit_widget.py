@@ -36,6 +36,7 @@ system_observables = {
                     'Au-Au-200' : ['dN_dy_pion', 'dN_dy_kaon', 'mean_pT_pion', 'mean_pT_kaon', 'v22', 'v32']
                     }
 
+obs_lims = {'dET_deta' : 2000. , 'dN_dy_pion' : 2000., 'dN_dy_proton' : 100., 'mean_pT_pion' : 1., 'mean_pT_proton' : 2., 'pT_fluct' : .05, 'v22' : .2, 'v32' : .05, 'v42' :.03 }
 
 system = 'Pb-Pb-2760'
 
@@ -78,6 +79,7 @@ def emu_predict(params):
     time_emu = end - start
     return Yemu_mean, Yemu_cov, time_emu
 
+#@st.cache()
 def make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf):
     for iobs, obs in enumerate(observables):
         xbins = np.array(obs_cent_list[system][obs])
@@ -90,16 +92,18 @@ def make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf):
         dy_emu = y_emu * 0.1
         #dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
         df_emu = pd.DataFrame({'cent': x, 'yl':y_emu - dy_emu, "yh":y_emu + dy_emu})
+
+
         chart_emu = alt.Chart(df_emu).mark_area().encode(x='cent', y='yl', y2='yh').properties(width=150,height=150)
 
         #experiment
         exp_mean = Yexp[system][obs]['mean'][idf]
         exp_err = Yexp[system][obs]['err'][idf]
         df_exp = pd.DataFrame({"cent": x, obs:exp_mean, "dy":exp_err})
-        #chart_exp = alt.Chart(df_exp).mark_circle(color='Black').encode(x='cent', y=obs)
+
         chart_exp = alt.Chart(df_exp).mark_circle(color='Black').encode(
-        x=alt.X('cent', axis=alt.Axis(title='cent')),
-        y=alt.Y(obs, axis=alt.Axis(title=obs))
+        x=alt.X( 'cent', axis=alt.Axis(title='cent'), scale=alt.Scale(domain=(0, 70)) ),
+        y=alt.Y(obs, axis=alt.Axis(title=obs_tex_labels_2[obs]), scale=alt.Scale(domain=(0, obs_lims[obs]))  )
         )
 
         chart = alt.layer(chart_emu, chart_exp)
