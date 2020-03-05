@@ -283,11 +283,6 @@ class Chain:
         self.labels =  self.sysdep_labels + self.common_labels
         self.ndim = self.sysdep_ndim + self.common_ndim
 
-        #the volume of the uniform prior
-        diff =  self.max - self.min
-        self.prior_volume = np.prod( diff )
-
-
         if hold_parameters:
             self.hold = hold_parameters_set
             # modify the range of the holding parameters to a delta-
@@ -316,6 +311,10 @@ class Chain:
 
                 self.min[idx]= pmin
                 self.max[idx]= pmax
+
+        #the volume of the uniform prior
+        diff =  self.max - self.min
+        self.prior_volume = np.prod( diff )
 
         print("Pre-compute experimental covariance matrix")
 
