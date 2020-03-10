@@ -334,6 +334,34 @@ obs_tex_labels_2 = {
                     'v22' : r'$v_2\{2\}$',
                     'v32' : r'$v_3\{2\}$',
                     'v42' : r'$v_4\{2\}$',
+                    'Tmunu0' : r'$t^{tt}$ [GeV]',
+                    'Tmunu4' : r'$t^{xx}$ [GeV]',
+                    'Tmunu5' : r'$t^{xy}$ [GeV]',
+                    'Tmunu7' : r'$t^{yy}$ [GeV]',
+                    'Tmunu9' : r'$t^{zz}$ [GeV]',
+                    'Tmunu_A' : r'$ (t^{xx} - t^{yy}) / (t^{xx} + t^{yy}) $',
+                    'Tmunu_A2' : r'$ (t^{xx} - t^{yy})^2 / (t^{xx} + t^{yy})^2 $',
+                    'Tmunu_xy' : r'$ (t^{xy})^2 $ [GeV$^2$]',
+                    'Tmunu_tr' : r'$ t^{\mu}_{\mu}$ [GeV]',
+
+}
+
+obs_tex_labels_3 = {
+                    'dNch_deta' : r'$dN_{ch}/d\eta$',
+                    'dN_dy_pion' : r'$dN_{\pi}/dy$',
+                    'dN_dy_kaon' : r'$dN_{k}/dy$',
+                    'dN_dy_proton' : r'$dN_{p}/dy$',
+                    'dN_dy_Lambda' : r'$dN_{\Lambda}/dy$',
+                    'dN_dy_Omega' : r'$dN_{\Omega}/dy$',
+                    'dN_dy_Xi' : r'$dN_{\Xi}/dy$',
+                    'dET_deta' : r'$dE_{T}/d\eta$',
+                    'mean_pT_pion' : r'$\langle p_T \rangle _{\pi}$',
+                    'mean_pT_kaon' : r'$\langle p_T \rangle _{k}$',
+                    'mean_pT_proton' : r'$\langle p_T \rangle _{p}$',
+                    'pT_fluct' : r'$\delta p_T / \langle p_T \rangle$',
+                    'v22' : r'$v_2\{2\}$',
+                    'v32' : r'$v_3\{2\}$',
+                    'v42' : r'$v_4\{2\}$',
                     'Tmunu0' : r'$t^{tt}$',
                     'Tmunu4' : r'$t^{xx}$',
                     'Tmunu5' : r'$t^{xy}$',
@@ -341,8 +369,8 @@ obs_tex_labels_2 = {
                     'Tmunu9' : r'$t^{zz}$',
                     'Tmunu_A' : r'$ (t^{xx} - t^{yy}) / (t^{xx} + t^{yy}) $',
                     'Tmunu_A2' : r'$ (t^{xx} - t^{yy})^2 / (t^{xx} + t^{yy})^2 $',
-                    'Tmunu_xy' : r'$ (t^{xxy})^2 $',
-                    'Tmunu_tr' : r'$ t^{\mu}_{\mu} $',
+                    'Tmunu_xy' : r'$ (t^{xy})^2 $',
+                    'Tmunu_tr' : r'$ t^{\mu}_{\mu}$',
 
 }
 
@@ -2308,14 +2336,22 @@ def _posterior():
     labels = chain.labels
     ranges = chain.range
 
-    #indices = [0, 1, 2, 3, 4, 6, 7, 17] # TRENTo, FS and T_sw
+    if validation:
+        truths = []
+        #get VALIDATION points
+        for s in system_strs:
+            v_design, _, _, _ = \
+                load_design(s, pset='validation')
+            truths.append(v_design.values[validation_pt,0])
+        truths = truths + list(v_design.values[validation_pt,1:]) + [-1]
+
+    indices = [0, 1, 2, 3, 4, 16] # TRENTo, FS and T_sw
     #indices = [8, 9, 10, 11, 16] # shear viscosity and relax time
-    indices = np.arange(18) #all
+    #indices = np.arange(17) #all
 
     chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0.hdf')
     data0 = chain0.load(thin=2).T
 
-    #chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-1_LHC_RHIC_REDO.hdf')
     chain1 = Chain(path=workdir/'mcmc'/'chain-idf-1.hdf')
     data1 = chain1.load(thin=2).T
 
@@ -2324,6 +2360,8 @@ def _posterior():
 
     labels = np.take(labels, indices)
     ranges = np.take(ranges, indices)
+
+    truths = np.take(truths, indices)
     ndims, nsamples = data0.shape
 
     ranges = np.array([np.min(data0, axis=1), np.max(data0, axis=1)]).T
@@ -2363,6 +2401,7 @@ def _posterior():
             ylabel = labels[i]
             ylim = ranges[i]
             if i==j:
+                ax.set_xlim(*xlim)
                 H0, _, _ = ax.hist(x0, bins=40, histtype='step', normed=True, color=color0)
                 H1, _, _ = ax.hist(x1, bins=40, histtype='step', normed=True, color=color1)
                 stex0 = format_ci(x0)
@@ -2371,17 +2410,17 @@ def _posterior():
                 ax.annotate(stex1, xy=(.9, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color1)
                 ax.set_xlim(*xlim)
                 #if i < ndims-1:
-                #    ax.axvline(x=truth[i], color='r')
+                ax.axvline(x=truths[i], color='black')
                 ax.set_ylim(0, max(H0.max(), H1.max()))
             if i>j:
-                ax.hist2d(x0, y0, bins=40, cmap=cmap0, alpha=0.8, zorder=1)
                 ax.set_xlim(*xlim)
                 ax.set_ylim(*ylim)
+                ax.hist2d(x0, y0, bins=40, cmap=cmap0, alpha=0.8, zorder=1)
             if i<j:
                 #ax.axis('off')
-                ax.hist2d(x1, y1, bins=40, cmap=cmap1, alpha=0.8, zorder=1)
                 ax.set_xlim(*xlim)
                 ax.set_ylim(*ylim)
+                ax.hist2d(x1, y1, bins=40, cmap=cmap1, alpha=0.8, zorder=1)
 
             if ax.is_first_col():
                 ax.set_ylabel(ylabel, fontsize=5)
@@ -2399,7 +2438,7 @@ def _posterior():
                                     " {:1.2f}".format(xlim[1])], fontsize=5)
             else:
                 ax.set_xticks([])
-    #        plt.subplots_adjust(wspace=0., hspace=0.)
+            plt.subplots_adjust(wspace=0., hspace=0.)
     fig.align_ylabels()
     set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(.01, 0, 1, 1))
 
@@ -2491,8 +2530,9 @@ def observables_sensitivity():
     r'$S[w_{\zeta}]$', r'$S[\lambda_{\zeta}]$', r'$S[b_{\pi}]$', r'$S[T_{\mathrm{sw}}]$', r'$S[\sigma_M]$']
 
     #obs_names = ['dNch_deta', 'dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'v22', 'v32', 'v42', 'pT_fluct']
-    obs_names = ['Tmunu0', 'Tmunu4', 'Tmunu7', 'Tmunu9', 'Tmunu_A', 'Tmunu_xy', 'Tmunu_tr']
-    obs_labels = [obs_tex_labels_2[obs] for obs in obs_names]
+    #obs_names = ['Tmunu0', 'Tmunu4', 'Tmunu7', 'Tmunu9', 'Tmunu_A', 'Tmunu_xy', 'Tmunu_tr']
+    obs_names = ['Tmunu0', 'Tmunu4', 'Tmunu7', 'Tmunu9', 'Tmunu_A', 'Tmunu_tr']
+    obs_labels = [obs_tex_labels_3[obs] for obs in obs_names]
     obs_indx = np.arange(len(obs_labels))
 
     #cent_bin = 0 #0-5%

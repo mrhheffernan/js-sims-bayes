@@ -29,6 +29,7 @@ from sklearn.preprocessing import StandardScaler
 
 from configurations import *
 from calculations_load import trimmed_model_data
+from bins_and_cuts import calibration_obs_cent_list
 
 ###########################################################
 ############### Emulator and help functions ###############
@@ -84,8 +85,8 @@ class Emulator:
         self.observables = []
         self._slices = {}
 
-        for obs, cent_list in obs_cent_list[system_str].items():
-        #for obs, cent_list in calibration_obs_cent_list[system_str].items():
+        #for obs, cent_list in obs_cent_list[system_str].items():
+        for obs, cent_list in calibration_obs_cent_list[system_str].items():
             self.observables.append(obs)
             n = np.array(cent_list).shape[0]
             self._slices[obs] = slice(self.nobs, self.nobs + n)
@@ -108,7 +109,7 @@ class Emulator:
                 values = np.array(data[idf][obs]['mean'])
                 if np.isnan(values).sum() > 0:
                     print("WARNING! FOUND NAN IN MODEL DATA WHILE BUILDING EMULATOR!")
-                    print("Design pt = " + str(pt) + "; Obs = " + obs)
+                    print("Design pt = " + str(ipt) + "; Obs = " + obs)
                 row = np.append(row, values)
             Y.append(row)
         Y = np.array(Y)
@@ -137,7 +138,7 @@ class Emulator:
         # noise term is necessary since model calculations contain statistical noise
         k0 = 1. * kernels.RBF(
                       length_scale=ptp,
-                      length_scale_bounds=np.outer(ptp, (4e-1, 1e2)),
+                      length_scale_bounds=np.outer(ptp, (1e-1, 1e2)),
                       #nu = 3.5
                    )
         k1 = kernels.ConstantKernel()
@@ -146,7 +147,7 @@ class Emulator:
                                  noise_level_bounds=(1e-2, 1e2)
                                  )
 
-        #kernel = (k0 + k1 + k2) #this includes a consant kernel
+        #kernel = (k0 + k1 + k2) #this includes a constant kernel
         kernel = (k0 + k2) # this does not
 
         # Fit a GP (optimize the kernel hyperparameters) to each PC.

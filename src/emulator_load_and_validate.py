@@ -118,7 +118,7 @@ def plot_scatter(system_str, emu, design, cent_bin, observables):
     nrows = 2
 
     if len(observables) > 6:
-        ncols = 4
+        ncols = 3
         nrows = 3
 
     fig, axes = plt.subplots(figsize=(3*ncols,3*nrows), ncols=ncols, nrows=nrows)
@@ -150,10 +150,10 @@ def plot_scatter(system_str, emu, design, cent_bin, observables):
                     y_emu = np.exp(y_emu) - 1.
                     y_true = np.exp(y_true) - 1.
                 #dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
-                Y_true.append(y_true)
-                Y_emu.append(y_emu)
-                if pt in delete_design_pts_validation_set:
-                    ax.scatter(y_true, y_emu, color='red')
+                if pt not in delete_design_pts_validation_set:
+                    #ax.scatter(y_true, y_emu, color='red')
+                    Y_true.append(y_true)
+                    Y_emu.append(y_emu)
 
         Y_true = np.array(Y_true)
         Y_emu = np.array(Y_emu)
@@ -164,15 +164,43 @@ def plot_scatter(system_str, emu, design, cent_bin, observables):
         ax.plot([ym,yM],[ym,yM],'k--', zorder=100)
 
         ax.annotate(obs_tex_labels_2[obs], xy=(.05, .8), xycoords="axes fraction", fontsize=12)
-        if ax.is_last_row():
-            ax.set_xlabel("Emulated")
-        if ax.is_first_col():
-            ax.set_ylabel("Computed")
+        for col in range(ncols):
+            axes[nrows - 1][col].set_xlabel("Emulated")
+        for row in range(nrows):
+            axes[row][ncols - 1].set_ylabel("Model Computed")
         ax.ticklabel_format(scilimits=(2,1))
 
     plt.tight_layout(True)
     plt.savefig('validation_plots/emulator_vs_model_' + system_str + '_' + idf_label_short[idf] + '.png', dpi=300)
 
+def plot_obs_correlations_scatter(system_str, design, cent_bin, observables):
+    """
+    Plot a scatter plot for each pair of observables predicted by design
+    """
+
+    print("Plotting scatter plot of observables correlation")
+    ncols = len(observables)
+    nrows = len(observables)
+
+    fig, axes = plt.subplots(figsize=(1.8*ncols,1.8*nrows), ncols=ncols, nrows=nrows)
+    for row, obs1 in enumerate(observables):
+        y1 = [ validation_data[system_str][pt, idf][obs1]['mean'][cent_bin] \
+                    for pt, prm in enumerate(design.values) \
+                    if pt not in delete_design_pts_validation_set ]
+        for col, obs2 in enumerate(observables):
+            y2 = [ validation_data[system_str][pt, idf][obs2]['mean'][cent_bin] \
+                        for pt, prm in enumerate(design.values) \
+                        if pt not in delete_design_pts_validation_set ]
+
+
+            axes[row][col].scatter(y1, y2)
+            if axes[row][col].is_first_col():
+                axes[row][col].set_ylabel(obs_tex_labels_2[obs1])
+            if axes[row][col].is_last_row():
+                axes[row][col].set_xlabel(obs_tex_labels_2[obs2])
+
+    plt.tight_layout(True)
+    plt.savefig('validation_plots/obs_correlations_' + system_str + '_' + idf_label_short[idf] + '.png', dpi=300)
 
 def plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows, ncols):
     """
@@ -286,7 +314,7 @@ def closure_test_credibility_eta_zeta(system_str, design):
 
 def main():
 
-    cent_bin = 3
+    cent_bin = 5
 
     for s in system_strs:
         observables = []
@@ -319,6 +347,9 @@ def main():
 
         #make a scatter plot of emulator prediction vs model prediction
         plot_scatter(s, emu, design, cent_bin, observables)
+
+        #check for correlations among observables
+        plot_obs_correlations_scatter(s, design, cent_bin, observables)
 
         #make a histogram to check the model statistical uncertainty
         #plot_model_stat_uncertainty(system_str, design, cent_bin, observables, nrows, ncols)
