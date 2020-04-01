@@ -58,8 +58,6 @@ obs_word_labels = {
 
 system = 'Pb-Pb-2760'
 
-#alt.renderers.enable(notebook, embed_options={'renderer': 'svg'})
-
 @st.cache(persist=True)
 def load_design(system):
     #load the design
@@ -161,8 +159,12 @@ def update_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf, charts0, charts1, charts2
 
         charts0.add_rows(df_emu)
 
+st.title('Heavy Ion Model Emulator')
+st.markdown(r'Our model(s) for [heavy ion collisions](https://en.wikipedia.org/wiki/High-energy_nuclear_physics) include many parameters. Try varying any of them using the sliders in the sidebar(left), and see how each of the model observables (blue band) as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV change.')
+st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots. ')
+st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood) ')
+st.markdown(r'The viscous correction is an important model choice we make when converting hydrodynamic fields into particles. You can try three different viscous correction models by clicking the viscous correction button below.')
 
-system = 'Pb-Pb-2760'
 idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Bernhard']
 idf_name = st.selectbox('Viscous Correction',idf_names)
 inverted_idf_label = dict([[v,k] for k,v in idf_label.items()])
@@ -202,3 +204,9 @@ for i_s, s_name in enumerate(short_names.keys()):
 Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
 
 make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
+
+st.header('How it works')
+st.markdown('A description of the physics model can be found here ???, as well as detailed descriptions of each the parameters.')
+st.markdown('Each of the observables you see above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
+st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
+st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
