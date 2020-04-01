@@ -163,9 +163,10 @@ def update_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf, charts0, charts1, charts2
 
 
 system = 'Pb-Pb-2760'
-idf_names = ['Grad', 'C.E. RTA', 'Pratt-McNelis', 'Pratt-Bernhard']
+idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Bernhard']
 idf_name = st.selectbox('Viscous Correction',idf_names)
-idf = idf_names.index(idf_name)
+inverted_idf_label = dict([[v,k] for k,v in idf_label.items()])
+idf = inverted_idf_label[idf_name]
 
 #load the design
 design, labels, design_max, design_min = load_design(system)
@@ -179,8 +180,17 @@ observables, nobs, Yexp = load_obs(system)
 #initialize parameters
 params_0 = MAP_params[system][ idf_label_short[idf] ]
 
-#updated params
 params = []
+
+#if st.button('Reset to MAP'):
+#    params = params_0
+#    for i_s, s_name in enumerate(short_names.keys()):
+#        min = design_min[i_s]
+#        max = design_max[i_s]
+#        p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s])
+
+
+#updated params
 for i_s, s_name in enumerate(short_names.keys()):
     min = design_min[i_s]
     max = design_max[i_s]
