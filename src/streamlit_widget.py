@@ -194,7 +194,8 @@ params = []
 for i_s, s_name in enumerate(short_names.keys()):
     min = design_min[i_s]
     max = design_max[i_s]
-    p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s])
+    step = (max - min)/100
+    p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s], step=step)
     params.append(p)
 
 #get emu prediction
