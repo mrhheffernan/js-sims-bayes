@@ -11,23 +11,23 @@ from bayes_exp import Y_exp_data
 from bayes_plot import obs_tex_labels_2
 
 short_names = {
-                'norm' : r'Energy Norm.',
-                'trento_p' : r'TRENTo Red. Thickness',
-                'nucleon_width' : r'nucleon width [fm]',
-                'sigma_k' : r'Multiplicity Fluctuation',
-                'dmin3' : r'Min. Distance btw. nucleons cubed [fm^3]',
-                'tau_R' : r'Free-streaming time scale [fm/c]',
-                'alpha' : r'Free-streaming energy dep.',
-                'eta_over_s_T_kink_in_GeV' : r'Temperature of shear kink [GeV]',
-                'eta_over_s_low_T_slope_in_GeV' : r'Low-temp. shear slope [GeV^-1]',
-                'eta_over_s_high_T_slope_in_GeV' : r'High-temp shear slope [GeV^-1]',
-                'eta_over_s_at_kink' : r'Shear viscosity at kink',
-                'zeta_over_s_max' : r'Bulk viscosity max.',
-                'zeta_over_s_T_peak_in_GeV' : r'Temperature of max. bulk viscosity [GeV]',
-                'zeta_over_s_width_in_GeV' : r'Width of bulk viscosity [GeV]',
-                'zeta_over_s_lambda_asymm' : r'Skewness of bulk viscosity',
-                'shear_relax_time_factor' : r'Shear relaxation time factor',
-                'Tswitch' : 'Particlization temperature [GeV]',
+                'norm' : r'Energy Norm.', #0
+                'trento_p' : r'TRENTo Red. Thickness', #1
+                'sigma_k' : r'Multiplicity Fluctuation', #2
+                'nucleon_width' : r'nucleon width [fm]', #3
+                'dmin3' : r'Min. Distance btw. nucleons cubed [fm^3]', #4
+                'tau_R' : r'Free-streaming time scale [fm/c]', #5
+                'alpha' : r'Free-streaming energy dep.', #6
+                'eta_over_s_T_kink_in_GeV' : r'Temperature of shear kink [GeV]', #7
+                'eta_over_s_low_T_slope_in_GeV' : r'Low-temp. shear slope [GeV^-1]', #8
+                'eta_over_s_high_T_slope_in_GeV' : r'High-temp shear slope [GeV^-1]', #9
+                'eta_over_s_at_kink' : r'Shear viscosity at kink', #10
+                'zeta_over_s_max' : r'Bulk viscosity max.', #11
+                'zeta_over_s_T_peak_in_GeV' : r'Temperature of max. bulk viscosity [GeV]', #12
+                'zeta_over_s_width_in_GeV' : r'Width of bulk viscosity [GeV]', #13
+                'zeta_over_s_lambda_asymm' : r'Skewness of bulk viscosity', #14
+                'shear_relax_time_factor' : r'Shear relaxation time factor', #15
+                'Tswitch' : 'Particlization temperature [GeV]', #16
 }
 
 
