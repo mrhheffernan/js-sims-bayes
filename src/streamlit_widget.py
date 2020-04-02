@@ -161,8 +161,8 @@ def update_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf, charts0, charts1, charts2
 
 st.title('Heavy Ion Model Emulator')
 st.markdown(r'Our model(s) for [heavy ion collisions](https://en.wikipedia.org/wiki/High-energy_nuclear_physics) include many parameters. Try varying any of them using the sliders in the sidebar(left), and see how each of the model observables (blue band) as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV change.')
-st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots. ')
-st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood) ')
+st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
+st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
 st.markdown(r'The viscous correction is an important model choice we make when converting hydrodynamic fields into particles. You can try three different viscous correction models by clicking the viscous correction button below.')
 
 idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Bernhard']
