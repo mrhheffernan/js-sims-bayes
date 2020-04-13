@@ -206,7 +206,7 @@ Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
 make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
 
 st.header('How it works')
-st.markdown('A description of the physics model and parameters can be found [here](https://indico.bnl.gov/event/6998/contributions/35770/attachments/27166/41406/Quantifying_the_QGP.pdf).')
+st.markdown('A description of the physics model and parameters can be found [here](https://indico.bnl.gov/event/6998/contributions/35770/attachments/27166/42261/JS_WS_2020_SIMS_v2.pdf).')
 st.markdown('The observables you see above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
 st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
 st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
