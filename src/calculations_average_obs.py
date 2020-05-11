@@ -29,6 +29,18 @@ def weighted_mean_std(x, w=None):
                 std = ( np.average((x-mean)**2, weights=w)/(Neff-1.+1e-9) ) **.5
         return mean, std
 
+def weighted_mean_std_exclude_zeros(x, w=None):
+        x = x[np.nonzero(x)]
+        if w is None:
+                Neff = x.size
+                mean = np.mean(x)
+                std = np.std(x)/np.sqrt(Neff-1.+1e-9)
+        else:
+                Neff = np.sum(w)**2/np.sum(w**2)
+                mean = np.average(x, weights=w)
+                std = ( np.average((x-mean)**2, weights=w)/(Neff-1.+1e-9) ) **.5
+        return mean, std
+
 def mean_std(x):
         Neff = x.shape[0]
         mean = np.mean(x, axis=0)
@@ -75,17 +87,9 @@ def calculate_dNdpT(ds, exp, cen, idf, s):
         Ne = len(ds)
         cenM = np.mean(cen, axis=1)
         index = (cen/100.*Ne).astype(int)
-
-        #obs = {s: np.zeros_like(cenM) for (s, _) in Qn_species}
-        #obs_err = {s: np.zeros_like(cenM) for (s, _) in Qn_species}
-
-        #obs = np.zeros_like(cenM)
-        #obs_err = np.zeros_like(cenM)
-
         obs = np.zeros( (len(cenM), Qn_diff_NpT) )
         obs_err = np.zeros( (len(cenM), Qn_diff_NpT) )
 
-        #for (s, _) in species:
         for i, (nl, nh) in enumerate(zip(index[:,0], index[:,1])):
             #we need to manually normalize the number of particles by the number of oversamples
             nos = ds[exp]['nsamples'][nl:nh, idf]
@@ -105,7 +109,10 @@ def calculate_mean_pT(ds, exp, cen, idf):
         obs_err = {s: np.zeros_like(cenM) for (s, _) in species}
         for (s, _) in species:
                 for i, (nl, nh) in enumerate(zip(index[:,0], index[:,1])):
-                        obs[s][i], obs_err[s][i] = weighted_mean_std(ds[exp]['mean_pT'][s][nl:nh, idf])
+                        #old procedure doesn't make sense for particles with less than yield one per event
+                        #obs[s][i], obs_err[s][i] = weighted_mean_std(ds[exp]['mean_pT'][s][nl:nh, idf])
+                        #new procedure only averages over pT of particles found 
+                        obs[s][i], obs_err[s][i] = weighted_mean_std_exclude_zeros(ds[exp]['mean_pT'][s][nl:nh, idf])
         return {'Name': 'dNch_deta', 'cenM': cenM, 'pTM' : None,
                         'obs': obs, 'err': obs_err}
 
@@ -198,7 +205,8 @@ def calculate_diff_vn(ds, exp, cenbins, pTbins, idf, pid='chg'):
         for i, (nl, nh) in enumerate(Cindex):
                 for j, (pl, ph) in enumerate(pTbins):
                         for n in range(Nharmonic_diff):
-                                w = data['N'][nl:nh, j] * ds[exp]['flow']['N'][nl:nh, idf]
+                                #w = data['N'][nl:nh, j] * ds[exp]['flow']['N'][nl:nh, idf]
+                                w = (data['N'][nl:nh, j]).astype(float) * (ds[exp]['flow']['N'][nl:nh, idf]).astype(float) + 1e-9
                                 dn2 = (data['Qn'][nl:nh,j,n].conjugate() * ds[exp]['flow']['Qn'][nl:nh, idf, n]).real / w
                                 avg_dn2, std_avg_dn2 = weighted_mean_std(dn2, w)
                                 vn[i, j, n] = avg_dn2/vnref['obs'][i,n]
@@ -307,7 +315,6 @@ def load_and_compute(inputfile, system, specify_idf=None):
 
         # pT differential vn
         cenb = ALICE_cent_bins
-        #pTbins = [[0., 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]]
         from calculations_file_format_single_event import Qn_diff_pT_cuts
         pTbins = []
         for i in range( len(Qn_diff_pT_cuts) - 1 ):
