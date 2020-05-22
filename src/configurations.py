@@ -64,7 +64,7 @@ print("Using idf = " + str(idf) + " : " + idf_label[idf])
 #the Collision systems
 systems = [
         ('Pb', 'Pb', 2760),
-        ('Au', 'Au', 200),
+        #('Au', 'Au', 200),
         #('Pb', 'Pb', 5020),
         #('Xe', 'Xe', 5440)
         ]
@@ -359,8 +359,7 @@ def transform_design(X):
     return new_design_X
 
 def prepare_emu_design(system_str):
-    design, design_max, design_min, labels = \
-                    load_design(system_str=system_str, pset='main')
+    design, design_max, design_min, labels = load_design(system_str=system_str, pset='main')
 
     #transformation of design for viscosities
     if do_transform_design:
