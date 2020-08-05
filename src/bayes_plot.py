@@ -39,6 +39,12 @@ from scipy.interpolate import PchipInterpolator
 import pandas as pd
 from textwrap import fill
 import dill
+#import random
+from numpy.random import choice
+import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+import seaborn as sns
 
 from bayes_mcmc import Chain, credible_interval
 from configurations import *
@@ -48,6 +54,8 @@ from bayes_exp import Y_exp_data
 from design import Design
 
 from mcmc_diagnostics import autocorrelation
+
+from compare_events import model_data_1, model_data_2
 
 fontsize = dict(
     large=11,
@@ -338,6 +346,21 @@ obs_tex_labels_2 = {
                     'v42' : r'$v_4\{2\}$',
 }
 
+def calculate_information_gain(h0, h1, dx):
+    """ Return the information gain of pdf x1 w.r.t. x0, approximated by
+    riemann sum over histograms of each pdf. Assumes that distributions have the exact same bins
+    and that bin widths are uniform! """
+    #get nonzero values of posterior, the logarithm is ill-defined for bins with zero
+    nonzero_idx = np.nonzero(h1)
+    h1 = h1[ nonzero_idx ]
+    h0 = h0[ nonzero_idx ]
+    nonzero_idx = np.nonzero(h0)
+    h1 = h1[ nonzero_idx ]
+    h0 = h0[ nonzero_idx ]
+
+    info = np.sum( h1 * np.log2(h1/h0) ) * np.prod(dx)
+    return info
+
 def _observables(posterior=False, ratio=False):
     """
     Model observables at all design points or drawn from the posterior with
@@ -346,8 +369,9 @@ def _observables(posterior=False, ratio=False):
     """
     if posterior:
         print("Plotting observables drawn from posterior")
-        #print("Chain.shape = " + str(Chain.shape))
-        Ymodel = Chain().samples(100)
+        chain = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
+        Ymodel = chain.samples(1000)
+
     else:
         Ymodel = trimmed_model_data
 
@@ -358,27 +382,17 @@ def _observables(posterior=False, ratio=False):
         design = pd.read_csv(design_file)
         design = design.drop("idx", axis=1)
         truth = design.values[validation_pt]
-        #Yexp = Y_exp_data[validation_pt]
         Yexp = Y_exp_data[0]
 
     else:
         Yexp = Y_exp_data
 
     highlight_sets =  []
-
-    num_of_obs = np.sum([len(active_obs_list[s]) for s in system_strs])
-    print("active_obs_list = " + str(active_obs_list))
-    fig, axes = plt.subplots(nrows=4, ncols=5, figsize=(10,7), sharex=True)
-    na_start = 0
-    na_stop = 0
-    for system in system_strs:
-        na_stop += len(active_obs_list[system])
-        subaxes = axes.flatten()[na_start:na_stop]
-        na_start = na_stop
+    for system in ['Au-Au-200']:
+        fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(6,4), sharex=True)
+        subaxes = axes.flatten()
         for obs, ax in zip(active_obs_list[system], subaxes):
             # sys labels
-            ax.annotate(system, xy=(.4, .9), xycoords="axes fraction")
-
             # Centrality bins
             xbins = np.array(obs_cent_list[system][obs])
             x = (xbins[:,0]+xbins[:,1])/2.
@@ -401,25 +415,26 @@ def _observables(posterior=False, ratio=False):
 
             alpha = 0.4
             lw = 0.15
-            colour = cr
+            color = 'blue'
             if posterior:
                 if ratio:
+                    plt.suptitle('Combined System Posterior : Model/Experiment for Au-Au 0.2 TeV')
                     y = Y/exp_mean
                     ax.fill_between(x,
                             np.percentile(y, 5, axis=0),
                             np.percentile(y, 95, axis=0),
-                            color=colour, alpha=alpha
+                            color=color, alpha=alpha
                     )
                     ax.fill_between(x,
                             np.percentile(y, 20, axis=0),
                             np.percentile(y, 80, axis=0),
-                            color=colour, alpha=alpha
+                            color=color, alpha=alpha
                     )
                 else:
-                    ax.plot(x, Y.T, color=colour, alpha=alpha, lw=lw)
+                    ax.plot(x, Y.T, color=color, alpha=alpha, lw=lw)
             else:
                 ax.plot(x, (Y/exp_mean).T if ratio else Y.T,
-                        color=colour, alpha=alpha, lw=lw)
+                        color=color, alpha=alpha, lw=lw)
             # axis and limits
             ax.set_xlim(0, 70)
             if ratio:
@@ -433,9 +448,178 @@ def _observables(posterior=False, ratio=False):
             if ax.is_last_row():
                 ax.set_xlabel('Centrality %')
 
-            ax.set_ylabel(obs)
+            ax.set_ylabel(obs_tex_labels_2[obs])
 
-    set_tight(fig, rect=[0, 0, .97, 1])
+    plt.tight_layout(True)
+    set_tight(fig, rect=[0, 0, 0.97, 0.95])
+
+
+@plot
+def observables_posterior_ratio_PRL():
+    """
+    Model observables predicted by Chains for each df model, ratio against expt. data.
+
+    """
+
+    df_choices = [0, 1] # choose which df models to plot
+
+    color_idf = {0:'blue', 1:'red', 2:'magenta', 3:'green'} # colors for different df models
+
+    n_samples = 10000 #number of draws from posterior
+    alpha = 0.4 #alpha of plot
+    lw = 2
+
+    Ymodels = []
+    for idf in df_choices:
+        print("idf = " + str(idf))
+        chain = Chain(path=workdir/'mcmc'/'chain-idf-{:}_LHC_RHIC_PTEMCEE.hdf'.format(idf))
+        Ymodel = chain.samples_given_df(idf, n_samples)
+        Ymodels.append(Ymodel)
+
+    Yexp = Y_exp_data
+
+    for system in ['Pb-Pb-2760']:
+    #for system in ['Au-Au-200']:
+        fig, axes = plt.subplots(nrows=4, ncols=3, figsize=(6,5), sharex=True)
+        subaxes = axes.flatten()
+        print(active_obs_list[system])
+        for obs, ax in zip(active_obs_list[system], subaxes):
+            # Centrality bins
+            xbins = np.array(obs_cent_list[system][obs])
+            x = (xbins[:,0]+xbins[:,1])/2.
+            # plot exp
+            try:
+                exp_mean = Yexp[system][obs]['mean'][idf]
+                exp_err = Yexp[system][obs]['err'][idf]
+            except KeyError:
+                continue
+            ax.fill_between([0,70],[-1,-1], [1,1], color='k', alpha=0.2) #1 std dev fill
+            #ax.errorbar(x, np.zeros_like(x), yerr=exp_err/exp_mean,fmt='ko')
+
+            # plot calc
+            for i, idf in enumerate(df_choices):
+                Ymodel = Ymodels[i]
+                Y = Ymodel[system][obs]
+                y = (Y - exp_mean)/exp_err # model number of expt std deviations from expt mean
+                #y = (Y - exp_mean)/exp_mean # model percent error with data
+                color = color_idf[idf]
+
+                #fill between credible intervals
+                ax.fill_between(x, np.percentile(y, 5, axis=0), np.percentile(y, 95, axis=0),
+                                edgecolor=color, facecolor=color, alpha=alpha, lw=lw
+                                )
+                ax.fill_between(x, np.percentile(y, 49, axis=0), np.percentile(y, 51, axis=0),
+                                color=color, alpha=1, lw=lw
+                                )
+
+                #plot samples
+                #for n in range(n_samples):
+                #    ax.plot(x, y[n], color=color, alpha=alpha)
+
+
+            ax.set_xlim(0, 70)
+            ax.set_ylim(-5, 5)
+            if obs=='v22':
+                ax.set_ylim(-10, 10)
+            auto_ticks(ax, 'x', nbins=5, minor=2)
+            auto_ticks(ax, 'y', nbins=7, minor=2)
+
+            if ax.is_last_row():
+                ax.set_xlabel('Centrality %')
+
+            ax.set_ylabel(obs_tex_labels_2[obs])
+
+    plt.tight_layout(True)
+    plt.subplots_adjust(hspace=0.2)
+
+@plot
+def observables_joint_posterior_ratio_PRL():
+    """
+    Model observables predicted by Chains for each df model, ratio against expt. data.
+
+    """
+
+    obs_choices = ['dNch_deta', 'dN_dy_pion', 'dN_dy_proton']
+    n_obs = len(obs_choices)
+
+    df_choices = [0] # choose which df models to plot
+    cent_bin = 0
+
+    cmaps_idf = {0:plt.get_cmap('Blues'), 1:plt.get_cmap('Reds'), 3:plt.get_cmap('Greens')} # colors for different df models
+    colors_idf = {0:'blue', 1:'red', 3:'green'}
+
+    n_samples = int(1e5) #number of draws from posterior
+    alpha = 0.6 #alpha of plot
+    lw = 2
+
+    Ymodels = []
+    for idf in df_choices:
+        print("idf = " + str(idf))
+        chain = Chain(path=workdir/'mcmc'/'chain-idf-{:}_LHC_RHIC_PTEMCEE.hdf'.format(idf))
+        Ymodel = chain.samples_given_df(idf, n_samples)
+        Ymodels.append(Ymodel)
+
+    Yexp = Y_exp_data
+
+    for system in ['Pb-Pb-2760']:
+        fig, axes = plt.subplots(nrows=n_obs, ncols=n_obs, figsize=(3*n_obs,3*n_obs))
+        for col, obs1 in enumerate(obs_choices):
+            # Centrality bins
+            xbins1 = np.array(obs_cent_list[system][obs1])
+            x1 = (xbins1[:,0]+xbins1[:,1])/2.
+            x1_bin = x1[cent_bin]
+            # plot exp
+            try:
+                exp_mean1 = Yexp[system][obs1]['mean'][0, cent_bin]
+                exp_err1 = Yexp[system][obs1]['err'][0, cent_bin]
+            except KeyError:
+                continue
+            for row, obs2 in enumerate(obs_choices):
+                # Centrality bins
+                xbins2 = np.array(obs_cent_list[system][obs2])
+                x2 = (xbins2[:,0]+xbins2[:,1])/2.
+                x2_bin = x2[cent_bin]
+                # plot exp
+                try:
+                    exp_mean2 = Yexp[system][obs2]['mean'][0, cent_bin]
+                    exp_err2 = Yexp[system][obs2]['err'][0, cent_bin]
+                except KeyError:
+                    continue
+
+                #axes[row, col].set_xlim(-5, 5)
+                #if row != col:
+                #    axes[row, col].set_ylim(-5, 5)
+                #elif row == col:
+                #    axes[row, col].set_yticks([])
+
+                # plot calc
+                for i, idf in enumerate(df_choices):
+                    Ymodel = Ymodels[i]
+
+                    Y1 = Ymodel[system][obs1][:, cent_bin]
+                    y1 = (Y1 - exp_mean1)/exp_err1 # model number of expt std deviations from expt mean
+
+                    Y2 = Ymodel[system][obs2][:, cent_bin]
+                    y2 = (Y2 - exp_mean2)/exp_err2 # model number of expt std deviations from expt mean
+                    cmap = cmaps_idf[idf]
+                    color = colors_idf[idf]
+
+                    binsx = np.linspace(-5, 5, 50)
+                    binsy = np.linspace(-5, 5, 50)
+
+                    if row == col:
+                        axes[row, col].hist(y1, color=color, bins=binsx, density=True)
+                        auto_ticks(axes[row,col], 'x', nbins=5, minor=2)
+                    else:
+                        axes[row, col].hist2d(y1, y2, cmap=plt.cm.jet, bins=[binsx, binsy])
+                        axes[row, col].set_xlabel(obs_tex_labels_2[obs1])
+                        axes[row, col].set_ylabel(obs_tex_labels_2[obs2])
+                        auto_ticks(axes[row,col], 'x', nbins=5, minor=2)
+                        auto_ticks(axes[row,col], 'y', nbins=7, minor=2)
+
+
+    plt.tight_layout(True)
+    #plt.subplots_adjust(hspace=0.2)
 
 @plot
 def observables_fit():
@@ -462,8 +646,7 @@ def observables_fit():
 
     colors = ['b', 'g', 'r', 'c', 'm', 'tan', 'orange', 'gray']
 
-    chain = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf')
-    #Ymodel = Chain().samples(100)
+    chain = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
     Ymodel = chain.samples(100)
     Yexp = Y_exp_data
     n_systems = len(system_strs)
@@ -511,19 +694,29 @@ def observables_fit():
                                     label=obs_tex_labels[obs]
                                 else :
                                     label=obs_tex_labels[obs] + 'x' + str(scale)
-                            axes[row][col].plot(x, y*scale, alpha=0.3, lw=0.3, color=color, label=label)
+                            #axes[row][col].plot(x, y*scale, alpha=0.3, lw=0.3, color=color, label=label)
                         try:
-                            #exp_mean = Yexp[system][obs]['mean'][:, 0][0]
-                            #exp_err = Yexp[system][obs]['err'][:, 0][0]
                             exp_mean = Yexp[system][obs]['mean'][idf]
                             exp_err = Yexp[system][obs]['err'][idf]
                         except KeyError:
                             continue
 
+                        if obs == 'dET_deta':
+                            scale = 5.
+                        if obs == 'dNch_deta':
+                            scale = 2.
+                        if scale == 1.0 :
+                            label=obs_tex_labels[obs]
+                        else :
+                            label=obs_tex_labels[obs] + 'x' + str(scale)
+
+
                         if system=='Pb-Pb-2760':
-                            l1 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+                            #l1 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+                            l1 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color=color, fmt=expt_marker, markersize='4', elinewidth=1, label=label)
                         elif system=='Au-Au-200':
-                            l2 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+                            #l2 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+                            l2 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color=color, fmt=expt_marker, markersize='4', elinewidth=1, label=label)
 
                     except KeyError :
                         continue
@@ -576,10 +769,10 @@ def observables_fit_MAP():
     plot_exp = True # if True, plot experimental data. if False, plot emu mean prediction
 
     obs_groups = {
-                #'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dNch_deta', 'dET_deta'],
-                'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dN_dy_d'],
-                #'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
-                'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton', 'mean_pT_d'],
+                'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dNch_deta', 'dET_deta'],
+                #'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dN_dy_d'],
+                'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
+                #'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton', 'mean_pT_d'],
                 'flows' : ['v22', 'v32', 'v42'],
                 'fluct' : ['pT_fluct']
                 }
@@ -615,12 +808,6 @@ def observables_fit_MAP():
                     expt_marker='.'
                 emu = dill.load(open('emulator/emulator-' + system + '-idf-' + str(idf) + '.dill', "rb"))
 
-                #the MAP parameters for Grad
-                MAP_params = {
-                            'Pb-Pb-2760': [14.128, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136],
-                            'Au-Au-200' : [5.821, 0.089, 1.054, 1.064, 4.227, 1.507, 0.113, 0.223, -1.585, 0.32, 0.056, 0.11, 0.16, 0.093, -0.084, 4.666, 0.136]
-                }
-
                 axes[row][col].tick_params(labelsize=11)
 
                 if obs in active_obs_list[system]:
@@ -654,6 +841,9 @@ def observables_fit_MAP():
                         if not plot_exp:
                             axes[row][col].scatter(x, y_emu*scale, color=color, marker='o', lw=2.0)
                         axes[row][col].fill_between(x, (Y-Yerr)*scale, (Y+Yerr)*scale, color=color, alpha=0.3)
+
+                        #np.savetxt('matt_obs/' + obs + '.dat', (x, Y, Yerr))
+
                         try:
                             exp_mean = Yexp[system][obs]['mean'][idf]
                             exp_err = Yexp[system][obs]['err'][idf]
@@ -682,7 +872,7 @@ def observables_fit_MAP():
                     if obs_group == 'yields':
                         axes[row][col].set_ylim(1, 1e4)
                     if obs_group == 'mean_pT':
-                        axes[row][col].set_ylim(0., 2.5)
+                        axes[row][col].set_ylim(0., 1.6)
                     if obs_group == 'fluct':
                         axes[row][col].set_ylim(0.0, 0.04)
                     if obs_group == 'flows':
@@ -759,7 +949,6 @@ def observables_fit_deuteron():
                         axes[row][col].set_ylabel(obs_group_labels[obs_group], fontsize=qm_font_large)
                         xbins = np.array(obs_cent_list[system][obs])
                         x = (xbins[:,0]+xbins[:,1])/2.
-                        #print(Ymodel[system][obs]['mean'][0][idf])
                         #Y = Ymodel[system][obs]['mean'][idf][0]
                         Y = Ymodel[system][obs]['mean'][0][idf]
                         #Yerr = Ymodel[system][obs]['err'][idf][0]
@@ -832,6 +1021,7 @@ def observables_fit_model_calc_compare():
                 'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
                 #'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton', 'mean_pT_d'],
                 'flows' : ['v22', 'v32', 'v42'],
+                #'flows' : ['v32', 'v42'],
                 'fluct' : ['pT_fluct']
                 }
     obs_group_labels = {
@@ -847,14 +1037,15 @@ def observables_fit_model_calc_compare():
     Yexp = Y_exp_data
     n_systems = len(system_strs)
     nrows = 4
-    #height_ratios = [1.8, 1.2, 1.5]
     height_ratios = [1.8, 1.2, 1.5, 1.]
     if system_strs == ['Au-Au-200']:
         nrows = 3
         height_ratios = [1.8, 1.2, 1.5]
         del obs_groups['fluct']
 
-    fig, axes = plt.subplots(nrows=nrows, ncols=n_systems, figsize=(2.5*n_systems,9), squeeze=False, gridspec_kw={'height_ratios': height_ratios})
+    fig, axes = plt.subplots(nrows=nrows, ncols=n_systems, figsize=(2.5*n_systems,9), squeeze=False,
+                            gridspec_kw={'height_ratios': height_ratios}
+                            )
     for row, obs_group in enumerate( obs_groups.keys() ):
         for obs, color in zip(obs_groups[obs_group], colors):
 
@@ -902,8 +1093,8 @@ def observables_fit_model_calc_compare():
                         except KeyError:
                             pass
 
-                        #if system=='Pb-Pb-2760':
-                        #    l1 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
+                        if system=='Pb-Pb-2760':
+                            l1 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
                         #elif system=='Au-Au-200':
                         #    l2 = axes[row][col].errorbar( x, exp_mean*scale, exp_err, color='black', fmt=expt_marker, markersize='4', elinewidth=1)
 
@@ -928,6 +1119,7 @@ def observables_fit_model_calc_compare():
                         axes[row][col].set_ylim(0.0, 0.04)
                     if obs_group == 'flows':
                         axes[row][col].set_ylim(0.0, 0.12)
+                        #axes[row][col].set_ylim(0.0, 0.04)
                     if axes[row][col].is_last_row():
                         axes[row][col].set_xlabel('Centrality %', fontsize=qm_font_large)
                 else :
@@ -937,7 +1129,7 @@ def observables_fit_model_calc_compare():
         fig.delaxes(axes[3][1])
     plt.tight_layout(True)
     set_tight(fig, rect=[0, 0, 1, .93])
-    fig.suptitle("Varying Bulk Relaxation Time", wrap=True)
+    fig.suptitle("Varying Pre-hydodynamic Viscosity", wrap=True)
 
 
 @plot
@@ -1377,7 +1569,7 @@ def zetas_prior():
 #@plot
 def viscous_posterior(plot_samples = False):
 
-    T = np.linspace(0.15, 0.35, 100)
+    T = np.linspace(0.135, 0.35, 200)
 
     idf_CI_color = {0 : 'blue', 1 : 'red', 2 : 'green', 3 : 'magenta'}
     color_CI = idf_CI_color[idf]
@@ -1391,17 +1583,12 @@ def viscous_posterior(plot_samples = False):
         true_etas = eta_over_s(T, *tp[7:11])
         true_zetas = zeta_over_s(T, *tp[11:15])
 
-    #chain = Chain()
-    #data = chain.load()
-    chain = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf'.format(idf))
+    chain = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
     data = chain.load_wo_reshape()
     if num_systems == 1:
         data = data.reshape(-1, 18)
     elif num_systems == 2:
         data = data.reshape(-1, 19)
-
-    print("data.shape = ")
-    print(data.shape)
 
     index = np.random.choice(np.arange(data.shape[0]), 50000)
 
@@ -1515,7 +1702,434 @@ def viscous_posterior(plot_samples = False):
     set_tight(fig, rect=[0, 0, 0.98, .9])
 
 @plot
+def bayes_model_avg_viscous_posterior_1():
+    """ Plot the viscosity posterior using a Bayesian Model Average
+    of the visc. correction models.
+    Beforehand one needs the posteriors of each invididual model,
+    as well as their mutual Bayes factors calculated. """
+
+    colors = matplotlib.cm.Oranges(np.linspace( 0.4, 1., 4 ) ) #this should match the cmap in 'bayes_model_avg_viscous_posterior_2()'
+    color_CI = colors[0]
+
+    thin_factor=5
+    T = np.linspace(0.135, 0.35, 200)
+
+    #chains of each model
+    chain_a = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf') #Grad
+    chain_b = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf') #CE
+    chain_c = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf') #PTB
+
+    data_a = chain_a.load_wo_reshape(thin=thin_factor)
+    data_b = chain_b.load_wo_reshape(thin=thin_factor)
+    data_c = chain_c.load_wo_reshape(thin=thin_factor)
+
+    data_a = data_a.reshape(-1, 19)
+    data_b = data_b.reshape(-1, 19)
+    data_c = data_c.reshape(-1, 19)
+
+    #get samples for the individual posteriors
+    n_samples = 50000
+    index1 = np.random.choice(np.arange(data_a.shape[0]), n_samples)
+    index2 = np.random.choice(np.arange(data_b.shape[0]), n_samples)
+    index3 = np.random.choice(np.arange(data_c.shape[0]), n_samples)
+
+    samples1 = data_a[index1, 1:]
+    samples2 = data_b[index2, 1:]
+    samples3 = data_c[index3, 1:]
+
+    #Bayes factor of each model w.r.t. model a
+    #here a = Grad, b = CE, c = PTB
+    #NOTE THE PROPAGATION OF ERRORS ON THE LN Z ESTIMATE FROM PTSAMPLER
+    #First factor of sigmas of observation, where sigma is numerical uncertainty
+    #Then compute left-sided p-value, and then the odds
+    B_aa = 1.
+    B_ba = 0.0002
+    B_ca = 0.38
+
+    #define the relative weights
+    norm = B_aa + B_ba + B_ca
+    r_a = B_aa / norm
+    r_b = B_ba / norm
+    r_c = B_ca / norm
+
+    n_samples = data_a.shape[0]
+
+    #get frequency of model a, b, c...
+    n_samples_a = int( np.floor(n_samples * r_a) )
+    n_samples_b = int( np.floor(n_samples * r_b) )
+    n_samples_c = int( np.floor(n_samples * r_c) )
+
+    #now draw these samples from each distribution
+    index_a = np.random.choice(np.arange(data_a.shape[0]), n_samples_a)
+    index_b = np.random.choice(np.arange(data_b.shape[0]), n_samples_b)
+    index_c = np.random.choice(np.arange(data_c.shape[0]), n_samples_c)
+
+    design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+
+    samples_a = data_a[index_a, 1:]
+    samples_b = data_b[index_b, 1:]
+    samples_c = data_c[index_c, 1:]
+
+    samples_mix = np.append(samples_a, samples_b, axis=0)
+    samples_mix = np.append(samples_mix, samples_c, axis=0)
+
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3),
+                    sharex=True, sharey=False, constrained_layout=True)
+
+
+    ##########################
+    #BULK VISCOSITY
+    prior_zetas = []
+
+    n_samples_prior = 100000
+    for (zm, T0, w, asym) in zip(
+                np.random.uniform( min(design['zeta_over_s_max']), max(design['zeta_over_s_max']), n_samples_prior),
+                np.random.uniform( min(design['zeta_over_s_T_peak_in_GeV']), max(design['zeta_over_s_T_peak_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['zeta_over_s_width_in_GeV']), max(design['zeta_over_s_width_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['zeta_over_s_lambda_asymm']), max(design['zeta_over_s_lambda_asymm']), n_samples_prior)
+                ):
+        prior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
+
+    axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
+                            np.percentile(prior_zetas, 95, axis=0),
+                            color='gray', alpha=0.3, label='Prior')
+
+    posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1 ]
+    posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
+    posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3 ]
+
+    posterior_zetas_mix = [ zeta_over_s(T, *d[11:15]) for d in samples_mix ]
+
+    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 5, axis=0),
+                            np.percentile(posterior_zetas_mix, 95, axis=0),
+                            color=color_CI, label='BMA')
+
+    axes[0].fill_between(T, np.percentile(posterior_zetas_1, 5, axis=0),
+                            np.percentile(posterior_zetas_1, 95, axis=0),
+                            edgecolor='blue', facecolor='None', ls='-', lw=2, label=idf_label_short[0])
+    axes[0].fill_between(T, np.percentile(posterior_zetas_2, 5, axis=0),
+                            np.percentile(posterior_zetas_2, 95, axis=0),
+                            edgecolor='red', facecolor='None', ls='--', lw=2, label=idf_label_short[1])
+    axes[0].fill_between(T, np.percentile(posterior_zetas_3, 5, axis=0),
+                            np.percentile(posterior_zetas_3, 95, axis=0),
+                            edgecolor='green', facecolor='None', ls=':', lw=2, label=idf_label_short[3])
+
+    #axes[0].legend(fontsize = qm_font_small, loc='upper left')
+    ##########################
+    #SHEAR VISCOSITY
+    prior_etas = []
+
+    for (T_k, alow, ahigh, etas_k) in zip(
+                np.random.uniform( min(design['eta_over_s_T_kink_in_GeV']), max(design['eta_over_s_T_kink_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['eta_over_s_low_T_slope_in_GeV']), max(design['eta_over_s_low_T_slope_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['eta_over_s_high_T_slope_in_GeV']), max(design['eta_over_s_high_T_slope_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['eta_over_s_at_kink']), max(design['eta_over_s_at_kink']), n_samples_prior)
+                ):
+        prior_etas.append(eta_over_s(T, T_k, alow, ahigh, etas_k))
+
+
+    axes[1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
+                            np.percentile(prior_etas, 95, axis=0),
+                            color='gray', alpha=0.3)
+
+    posterior_etas_1 = [ eta_over_s(T, *d[7:11]) for d in samples1 ]
+    posterior_etas_2 = [ eta_over_s(T, *d[7:11]) for d in samples2 ]
+    posterior_etas_3 = [ eta_over_s(T, *d[7:11]) for d in samples3 ]
+
+    posterior_etas_mix = [ eta_over_s(T, *d[7:11]) for d in samples_mix ]
+
+    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 5, axis=0),
+                            np.percentile(posterior_etas_mix, 95, axis=0),
+                            color=color_CI, label='BMA' )
+
+    axes[1].fill_between(T, np.percentile(posterior_etas_1, 5, axis=0),
+                            np.percentile(posterior_etas_1, 95, axis=0),
+                            edgecolor='blue', facecolor='None', ls='-', lw=2, label=idf_label_short[0])
+    axes[1].fill_between(T, np.percentile(posterior_etas_2, 5, axis=0),
+                            np.percentile(posterior_etas_2, 95, axis=0),
+                            edgecolor='red', facecolor='None', ls='--', lw=2, label=idf_label_short[1])
+    axes[1].fill_between(T, np.percentile(posterior_etas_3, 5, axis=0),
+                            np.percentile(posterior_etas_3, 95, axis=0),
+                            edgecolor='green', facecolor='None', ls=':', lw=2, label=idf_label_short[3])
+
+    axes[1].legend(fontsize=7, loc='upper center')
+
+    axes[0].set_ylabel(r"$\zeta/s$")
+    axes[1].set_ylabel(r"$\eta/s$")
+
+    axes[0].set_xlabel(r"$T$ [GeV]")
+    axes[1].set_xlabel(r"$T$ [GeV]")
+
+    axes[0].set_xlim([0.135, 0.35])
+    axes[1].set_xlim([0.135, 0.35])
+
+    T_ticks = [0.15, 0.2, 0.25, 0.3, 0.35]
+    axes[0].set_xticks(T_ticks)
+    axes[1].set_xticks(T_ticks)
+
+    plt.tight_layout(True)
+
+@plot
+def bayes_model_avg_viscous_posterior_2():
+    """ Plot the viscosity posterior using a Bayesian Model Average
+    of the visc. correction models.
+    Beforehand one needs the posteriors of each invididual model,
+    as well as their mutual Bayes factors calculated. """
+
+    colors = matplotlib.cm.Oranges(np.linspace( 0.4, 1., 4 ) )
+
+    thin_factor = 5
+
+    T = np.linspace(0.135, 0.35, 200)
+
+    #chains of each model
+    chain_a = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf') #Grad
+    chain_b = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf') #CE
+    chain_c = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf') #PTB
+
+    data_a = chain_a.load_wo_reshape(thin=thin_factor)
+    data_b = chain_b.load_wo_reshape(thin=thin_factor)
+    data_c = chain_c.load_wo_reshape(thin=thin_factor)
+
+    data_a = data_a.reshape(-1, 19)
+    data_b = data_b.reshape(-1, 19)
+    data_c = data_c.reshape(-1, 19)
+
+    #get samples for the individual posteriors
+    n_samples = 50000
+    index1 = np.random.choice(np.arange(data_a.shape[0]), n_samples)
+    index2 = np.random.choice(np.arange(data_b.shape[0]), n_samples)
+    index3 = np.random.choice(np.arange(data_c.shape[0]), n_samples)
+
+    samples1 = data_a[index1, 1:]
+    samples2 = data_b[index2, 1:]
+    samples3 = data_c[index3, 1:]
+
+    #Bayes factor of each model w.r.t. model a
+    #here a = Grad, b = CE, c = PTB
+    #NOTE THE PROPAGATION OF ERRORS ON THE LN Z ESTIMATE FROM PTSAMPLER
+    #First factor of sigmas of observation, where sigma is numerical uncertainty
+    #Then compute left-sided p-value, and then the odds
+    B_aa = 1.
+    B_ba = 0.0002
+    B_ca = 0.38
+
+    #define the relative weights
+    norm = B_aa + B_ba + B_ca
+    r_a = B_aa / norm
+    r_b = B_ba / norm
+    r_c = B_ca / norm
+
+    n_samples = data_a.shape[0]
+
+    #get frequency of model a, b, c...
+    n_samples_a = int( np.floor(n_samples * r_a) )
+    n_samples_b = int( np.floor(n_samples * r_b) )
+    n_samples_c = int( np.floor(n_samples * r_c) )
+
+    #now draw these samples from each distribution
+    index_a = np.random.choice(np.arange(data_a.shape[0]), n_samples_a)
+    index_b = np.random.choice(np.arange(data_b.shape[0]), n_samples_b)
+    index_c = np.random.choice(np.arange(data_c.shape[0]), n_samples_c)
+
+    design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+
+    samples_a = data_a[index_a, 1:]
+    samples_b = data_b[index_b, 1:]
+    samples_c = data_c[index_c, 1:]
+
+    samples_mix = np.append(samples_a, samples_b, axis=0)
+    samples_mix = np.append(samples_mix, samples_c, axis=0)
+
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3),
+                    sharex=True, sharey=False, constrained_layout=True)
+
+
+    ##########################
+    #BULK VISCOSITY
+    prior_zetas = []
+
+    n_samples_prior = 100000
+    for (zm, T0, w, asym) in zip(
+                np.random.uniform( min(design['zeta_over_s_max']), max(design['zeta_over_s_max']), n_samples_prior),
+                np.random.uniform( min(design['zeta_over_s_T_peak_in_GeV']), max(design['zeta_over_s_T_peak_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['zeta_over_s_width_in_GeV']), max(design['zeta_over_s_width_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['zeta_over_s_lambda_asymm']), max(design['zeta_over_s_lambda_asymm']), n_samples_prior)
+                ):
+        prior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
+
+    axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
+                            np.percentile(prior_zetas, 95, axis=0),
+                            color='gray', alpha=0.3)
+
+    posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1 ]
+    posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
+    posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3 ]
+
+    posterior_zetas_mix = [ zeta_over_s(T, *d[11:15]) for d in samples_mix ]
+
+    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 5, axis=0),
+                            np.percentile(posterior_zetas_mix, 95, axis=0),
+                            color=colors[0])
+    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 15, axis=0),
+                            np.percentile(posterior_zetas_mix, 85, axis=0),
+                            color=colors[1])
+    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 25, axis=0),
+                            np.percentile(posterior_zetas_mix, 75, axis=0),
+                            color=colors[2])
+    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 35, axis=0),
+                            np.percentile(posterior_zetas_mix, 65, axis=0),
+                            color=colors[3])
+
+
+    ##########################
+    #SHEAR VISCOSITY
+    prior_etas = []
+
+    for (T_k, alow, ahigh, etas_k) in zip(
+                np.random.uniform( min(design['eta_over_s_T_kink_in_GeV']), max(design['eta_over_s_T_kink_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['eta_over_s_low_T_slope_in_GeV']), max(design['eta_over_s_low_T_slope_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['eta_over_s_high_T_slope_in_GeV']), max(design['eta_over_s_high_T_slope_in_GeV']), n_samples_prior),
+                np.random.uniform( min(design['eta_over_s_at_kink']), max(design['eta_over_s_at_kink']), n_samples_prior)
+                ):
+        prior_etas.append(eta_over_s(T, T_k, alow, ahigh, etas_k))
+
+
+    axes[1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
+                            np.percentile(prior_etas, 95, axis=0),
+                            color='gray', alpha=0.3)
+
+    posterior_etas_1 = [ eta_over_s(T, *d[7:11]) for d in samples1 ]
+    posterior_etas_2 = [ eta_over_s(T, *d[7:11]) for d in samples2 ]
+    posterior_etas_3 = [ eta_over_s(T, *d[7:11]) for d in samples3 ]
+
+    posterior_etas_mix = [ eta_over_s(T, *d[7:11]) for d in samples_mix ]
+
+    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 5, axis=0),
+                            np.percentile(posterior_etas_mix, 95, axis=0),
+                            color=colors[0], label=r'$90$%')
+    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 15, axis=0),
+                            np.percentile(posterior_etas_mix, 85, axis=0),
+                            color=colors[1], label=r'$70$%')
+    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 25, axis=0),
+                            np.percentile(posterior_etas_mix, 75, axis=0),
+                            color=colors[2], label=r'$50$%')
+    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 35, axis=0),
+                            np.percentile(posterior_etas_mix, 65, axis=0),
+                            color=colors[3], label=r'$30$%')
+
+    axes[1].legend(fontsize=7, loc='upper center')
+
+    axes[0].set_ylabel(r"$\zeta/s$")
+    axes[1].set_ylabel(r"$\eta/s$")
+
+    axes[0].set_xlabel(r"$T$ [GeV]")
+    axes[1].set_xlabel(r"$T$ [GeV]")
+
+    axes[0].set_xlim([0.135, 0.35])
+    axes[1].set_xlim([0.135, 0.35])
+
+    T_ticks = [0.15, 0.2, 0.25, 0.3, 0.35]
+    axes[0].set_xticks(T_ticks)
+    axes[1].set_xticks(T_ticks)
+
+    plt.tight_layout(True)
+
+@plot
+def bayes_model_avg_viscous_posterior_density():
+    """ Plot the viscosity posterior using a Bayesian Model Average
+    of the visc. correction models.
+    Beforehand one needs the posteriors of each invididual model,
+    as well as their mutual Bayes factors calculated.
+    This plots the density not just credible intervals."""
+
+    color_CI = 'black'
+    cmap = plt.get_cmap('Blues')
+    T_low = 0.135
+    T_high = 0.35
+
+    T = np.linspace(T_low, T_high, 200)
+
+    #chains of each model
+    chain_a = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf') #Grad
+    chain_b = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf') #CE
+    chain_c = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf') #PTB
+
+    data_a = chain_a.load_wo_reshape(thin=5)
+    data_b = chain_b.load_wo_reshape(thin=5)
+    data_c = chain_c.load_wo_reshape(thin=5)
+
+    data_a = data_a.reshape(-1, 19)
+    data_b = data_b.reshape(-1, 19)
+    data_c = data_c.reshape(-1, 19)
+
+    #bayes factor of each model w.r.t. model a
+    #here a = Grad, b = CE, c = PTB
+    B_aa = 1.
+    B_ba = 0.0002
+    B_ca = 0.38
+
+    #define the relative weights
+    norm = B_aa + B_ba + B_ca
+    r_a = B_aa / norm
+    r_b = B_ba / norm
+    r_c = B_ca / norm
+
+    n_samples = data_a.shape[0]
+
+    #get frequency of model a, b, c...
+    n_samples_a = int( np.floor(n_samples * r_a) )
+    n_samples_b = int( np.floor(n_samples * r_b) )
+    n_samples_c = int( np.floor(n_samples * r_c) )
+
+    #now draw these samples from each distribution
+    index_a = np.random.choice(np.arange(data_a.shape[0]), n_samples_a)
+    index_b = np.random.choice(np.arange(data_b.shape[0]), n_samples_b)
+    index_c = np.random.choice(np.arange(data_c.shape[0]), n_samples_c)
+
+    design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+
+    samples_a = data_a[index_a, 1:]
+    samples_b = data_b[index_b, 1:]
+    samples_c = data_c[index_c, 1:]
+
+    samples_mix = np.append(samples_a, samples_b, axis=0)
+    samples_mix = np.append(samples_mix, samples_c, axis=0)
+
+    #now sample T uniformly
+    n_samples_T = samples_mix.shape[0]
+    T_samples = np.random.uniform(T_low, T_high, n_samples_T)
+    #get samples of zeta/s and eta/s
+    zeta_over_s_samples  = [ zeta_over_s(T_val, *sample[11:15]) for T_val, sample in zip(T_samples, samples_mix) ]
+
+    #sample the prior uniformly
+    zeta_mag_samples = np.random.uniform(0.01, .2, n_samples_T)
+    zeta_T_p_samples = np.random.uniform(0.12, .3, n_samples_T)
+    zeta_w_samples = np.random.uniform(0.025, .15, n_samples_T)
+    zeta_l_samples = np.random.uniform(-.8, .8, n_samples_T)
+    #get the prior values of zeta
+    zeta_over_s_samples_prior = [ zeta_over_s(T_val, mag, T_p, w, l) \
+                                        for T_val, mag, T_p, w, l
+                                    in zip(T_samples, zeta_mag_samples, zeta_T_p_samples, zeta_w_samples, zeta_l_samples) ]
+
+
+    #try using plotly to make a density plot
+    fig = make_subplots(rows=1, cols=2)
+    #prior
+    fig.add_trace( go.Histogram2dContour(x=T_samples, y=zeta_over_s_samples_prior),
+                                        row=1, col=1 )
+    #posterior
+    fig.add_trace( go.Histogram2dContour(x=T_samples, y=zeta_over_s_samples),
+                                        row=1, col=2 )
+
+    fig.update_traces(contours_coloring="fill", line_smoothing=1.)
+    fig.show()
+
+@plot
 def viscous_prior():
+    """
+    Credible interval priors of eta/s(T) and zeta/s(T).
+    """
 
     T = np.linspace(0.1, 0.45, 100)
 
@@ -1576,13 +2190,10 @@ def viscous_prior():
 
     axes[0].set_ylabel(r"$\zeta/s$")
     axes[0].set_xlabel(r"$T$ [GeV]")
-    #axes[0].set_xlim(0.1, 0.4)
     axes[0].set_ylim(0., 0.35)
 
     axes[1].set_ylabel(r"$\eta/s$")
     axes[1].set_xlabel(r"$T$ [GeV]")
-    #axes[1].set_xlim(0.1, 0.4)
-    #axes[1].set_ylim(0., 0.55)
 
     axes[0].set_xlabel(r"$T$ [GeV]")
     axes[1].set_xlabel(r"$T$ [GeV]")
@@ -1592,29 +2203,26 @@ def viscous_prior():
 
 @plot
 def viscous_posterior_overlay():
+    """
+    Credible interval posterior of eta/s(T) and zeta/s(T), overlaying the 3 df models.
+    """
 
     T = np.linspace(0.15, 0.35, 100)
 
     idf_CI_color = {0 : 'blue', 1 : 'red', 2 : 'green', 3 : 'magenta'}
     color_CI = idf_CI_color[idf]
 
-    chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf')
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
     data1 = chain1.load_wo_reshape(thin=10)
     data1 = data1.reshape(-1, 19)
 
-    chain2 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-1_LHC_RHIC_REDO.hdf')
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
     data2 = chain2.load_wo_reshape(thin=10)
     data2 = data2.reshape(-1, 19)
 
-    chain3 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-3_LHC_RHIC_REDO.hdf')
+    chain3 = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf')
     data3 = chain3.load_wo_reshape(thin=10)
     data3 = data3.reshape(-1, 19)
-
-    print("data1.shape = ")
-    print(data1.shape)
-
-    print("data2.shape = ")
-    print(data2.shape)
 
     index1 = np.random.choice(np.arange(data1.shape[0]), 50000)
     index2 = np.random.choice(np.arange(data2.shape[0]), 50000)
@@ -1703,13 +2311,10 @@ def viscous_posterior_overlay():
 
     axes[0].set_ylabel(r"$\zeta/s$")
     axes[0].set_xlabel(r"$T$ [GeV]")
-    #axes[0].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
     axes[0].set_ylim(0,.35)
 
     axes[1].set_ylabel(r"$\eta/s$")
     axes[1].set_xlabel(r"$T$ [GeV]")
-    #axes[1].set_xticks([0.1, 0.15, 0.2, 0.25, 0.3])
-    #axes[1].set_ylim(0,.55)
 
     axes[0].set_xlabel(r"$T$ [GeV]")
     axes[1].set_xlabel(r"$T$ [GeV]")
@@ -1723,38 +2328,28 @@ def viscous_posterior_overlay():
 
 @plot
 def viscous_posterior_overlay_2():
+    """
+    Another version of the credible interval posterior of eta/s(T) and zeta/s(T).
+    """
 
     T = np.linspace(0.15, 0.35, 100)
 
     idf_CI_color = {0 : 'blue', 1 : 'red', 2 : 'magenta', 3 : 'green'}
     color_CI = idf_CI_color[idf]
 
-    chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf')
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
     data1 = chain1.load_wo_reshape()
     data1 = data1.reshape(-1, 19)
 
-    chain2 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_bpi_2.hdf')
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE_w_STAR_proton.hdf')
     data2 = chain2.load_wo_reshape()
     data2 = data2.reshape(-1, 19)
 
-    chain3 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_bpi_8.hdf')
-    data3 = chain3.load_wo_reshape()
-    data3 = data3.reshape(-1, 19)
-
-    print("data1.shape = ")
-    print(data1.shape)
-
-    print("data2.shape = ")
-    print(data2.shape)
-
     index1 = np.random.choice(np.arange(data1.shape[0]), 50000)
     index2 = np.random.choice(np.arange(data2.shape[0]), 50000)
-    index3 = np.random.choice(np.arange(data3.shape[0]), 50000)
 
-    #design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
     samples1 = data1[index1, 1:]
     samples2 = data2[index2, 1:]
-    samples3 = data3[index3, 1:]
 
     #the prior density
     design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
@@ -1771,11 +2366,9 @@ def viscous_posterior_overlay_2():
 
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
                     sharex=False, sharey=False, constrained_layout=True)
-    fig.suptitle(r" Grad Viscosity Posterior : Shear Relax. Time", fontsize=qm_font_large, wrap=True)
 
     posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1 ]
     posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
-    posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3 ]
 
     axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
                          np.percentile(prior_zetas, 95, axis=0),
@@ -1785,17 +2378,13 @@ def viscous_posterior_overlay_2():
     axes[0].fill_between(T, np.percentile(posterior_zetas_1, 5, axis=0),
                             np.percentile(posterior_zetas_1, 95, axis=0),
                             edgecolor=color_CI, lw=2.0, facecolor='None', ls='-',
-                            label=r'90% C.I.' + ' \n' + r'$b_{\pi}$ marginalized')
+                            label='90% C.I. Posterior \n w/o STAR proton')
 
     axes[0].fill_between(T, np.percentile(posterior_zetas_2, 5, axis=0),
                             np.percentile(posterior_zetas_2, 95, axis=0),
                             edgecolor=color_CI, lw=2.0, facecolor='None', ls='--',
-                            label=r'90% C.I. $b_{\pi}=2$')
+                            label='90% C.I. Posterior \n w/ STAR proton')
 
-    axes[0].fill_between(T, np.percentile(posterior_zetas_3, 5, axis=0),
-                            np.percentile(posterior_zetas_3, 95, axis=0),
-                            edgecolor=color_CI, lw=2.0, facecolor='None', ls=':',
-                            label=r'90% C.I. $b_{\pi}=8$')
 
 
     axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
@@ -1803,7 +2392,6 @@ def viscous_posterior_overlay_2():
 
     posterior_etas_1 = [ eta_over_s(T, *d[7:11]) for d in samples1 ]
     posterior_etas_2 = [ eta_over_s(T, *d[7:11]) for d in samples2 ]
-    posterior_etas_3 = [ eta_over_s(T, *d[7:11]) for d in samples3 ]
 
     prior_etas = []
     for (T_k, alow, ahigh, etas_k) in zip(
@@ -1826,10 +2414,6 @@ def viscous_posterior_overlay_2():
                             np.percentile(posterior_etas_2, 95, axis=0),
                             edgecolor=color_CI, lw=2.0, facecolor='None', ls='--')
 
-    axes[1].fill_between(T, np.percentile(posterior_etas_3, 5, axis=0),
-                            np.percentile(posterior_etas_3, 95, axis=0),
-                            edgecolor=color_CI, lw=2.0, facecolor='None', ls=':')
-
     axes[0].set_ylabel(r"$\zeta/s$")
     axes[0].set_xlabel(r"$T$ [GeV]")
     axes[0].set_ylim(0,.35)
@@ -1850,18 +2434,20 @@ def viscous_posterior_overlay_2():
 
 @plot
 def viscous_posterior_overlay_3():
+    """
+    Another version of the credible interval posterior of eta/s(T) and zeta/s(T).
+    """
 
     T = np.linspace(0.15, 0.35, 100)
-    #T = np.linspace(0.15, 0.3, 100)
 
     idf_CI_color = {0 : 'blue', 1 : 'red', 2 : 'magenta', 3 : 'green'}
     color_CI = idf_CI_color[idf]
 
-    chain1 = Chain(path=workdir/'mcmc_OLD'/'chain-idf-0_LHC_RHIC_long_chain_1kwkrs_10ksteps.hdf')
-    data1 = chain1.load_wo_reshape(thin=2)
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_PTEMCEE_full_prior.hdf')
+    data1 = chain1.load_wo_reshape(thin=1)
 
-    chain2 = Chain(path=workdir/'mcmc_OLD'/'chain-idf-0_LHC_RHIC_long_chain_2kwkrs_10ksteps.hdf')
-    data2 = chain2.load_wo_reshape(thin=2)
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_PTEMCEE_reduced_prior.hdf')
+    data2 = chain2.load_wo_reshape(thin=1)
 
     if num_systems == 1:
         data1 = data1.reshape(-1, 18)
@@ -1869,12 +2455,6 @@ def viscous_posterior_overlay_3():
     elif num_systems == 2:
         data1 = data1.reshape(-1, 19)
         data2 = data2.reshape(-1, 19)
-
-    print("data1.shape = ")
-    print(data1.shape)
-
-    print("data2.shape = ")
-    print(data2.shape)
 
     index1 = np.random.choice(np.arange(data1.shape[0]), 50000)
     index2 = np.random.choice(np.arange(data2.shape[0]), 50000)
@@ -1898,7 +2478,7 @@ def viscous_posterior_overlay_3():
 
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5),
                     sharex=False, sharey=False, constrained_layout=True)
-    fig.suptitle(idf_label_short[0] + r" Viscosity Posterior : MCMC Sampler", fontsize=qm_font_large, wrap=True)
+    fig.suptitle(idf_label_short[3] + r" Viscosity Posterior : Effect of Prior", fontsize=qm_font_large, wrap=True)
 
     if num_systems == 1:
         posterior_zetas_1 = [ zeta_over_s(T, *d[10:14]) for d in samples1 ]
@@ -1907,21 +2487,17 @@ def viscous_posterior_overlay_3():
         posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1 ]
         posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
 
-
-    axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
-                         np.percentile(prior_zetas, 95, axis=0),
-                         color='gray', alpha=0.4, label='90% C.I. (Prior)'
-                         )
-
     axes[0].fill_between(T, np.percentile(posterior_zetas_1, 5, axis=0),
                             np.percentile(posterior_zetas_1, 95, axis=0),
-                            edgecolor='purple', lw=2.0, facecolor='None', ls='-',
-                            label='90% C.I. Ensemble ' + '\n' + '1k wkr, 10k steps')
+                            edgecolor='green', lw=2.0, facecolor='None', ls='-',
+                            #label='90% C.I. 10 PCs Pb, \n 6 PCs Au')
+                            label='90% C.I. posterior \n w/ full prior')
 
     axes[0].fill_between(T, np.percentile(posterior_zetas_2, 5, axis=0),
                             np.percentile(posterior_zetas_2, 95, axis=0),
-                            edgecolor='orange', lw=2.0, facecolor='None', ls='--',
-                            label='90% C.I. Ensemble ' + '\n' + '2k wkr, 10k steps')
+                            edgecolor='green', lw=2.0, facecolor='None', ls='--',
+                            #label='90% C.I. 5 PCs Pb, \n 3 PCs Au')
+                            label='90% C.I. posterior \n w/ reduced prior')
 
 
     axes[0].legend(loc=(.05, .75), fontsize=qm_font_small)
@@ -1943,17 +2519,13 @@ def viscous_posterior_overlay_3():
                 ):
         prior_etas.append(eta_over_s(T, T_k, alow, ahigh, etas_k))
 
-    axes[1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
-                             np.percentile(prior_etas, 95, axis=0),
-                             color='gray', alpha=0.4)
-
     axes[1].fill_between(T, np.percentile(posterior_etas_1, 5, axis=0),
                             np.percentile(posterior_etas_1, 95, axis=0),
-                            edgecolor='purple', lw=2.0, facecolor='None',ls='-')
+                            edgecolor='green', lw=2.0, facecolor='None',ls='-')
 
     axes[1].fill_between(T, np.percentile(posterior_etas_2, 5, axis=0),
                             np.percentile(posterior_etas_2, 95, axis=0),
-                            edgecolor='orange', lw=2.0, facecolor='None', ls='--')
+                            edgecolor='green', lw=2.0, facecolor='None', ls='--')
 
 
     axes[0].set_ylabel(r"$\zeta/s$")
@@ -1983,6 +2555,10 @@ def viscous_posterior_wo_samples():
 
 @plot
 def freestream_time_posterior_overlay():
+    """
+    Plots the credible intervals of the energy-dependent freestreaming time tau_FS = tau_FS(e),
+    overlaying all 3 df models.
+    """
 
     e_R = 4.0 # GeV / fm^3
     e = np.linspace(e_R * 1e-1, e_R * 1e1, 1000)
@@ -1990,23 +2566,17 @@ def freestream_time_posterior_overlay():
     idf_CI_color = {0 : 'blue', 1 : 'red', 2 : 'green', 3 : 'magenta'}
     color_CI = idf_CI_color[idf]
 
-    chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf')
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
     data1 = chain1.load_wo_reshape(thin=5)
     data1 = data1.reshape(-1, 19)
 
-    chain2 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-1_LHC_RHIC_REDO.hdf')
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
     data2 = chain2.load_wo_reshape(thin=5)
     data2 = data2.reshape(-1, 19)
 
-    chain3 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-3_LHC_RHIC_REDO.hdf')
+    chain3 = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf')
     data3 = chain3.load_wo_reshape(thin=5)
     data3 = data3.reshape(-1, 19)
-
-    print("data1.shape = ")
-    print(data1.shape)
-
-    print("data2.shape = ")
-    print(data2.shape)
 
     index1 = np.random.choice(np.arange(data1.shape[0]), 50000)
     index2 = np.random.choice(np.arange(data2.shape[0]), 50000)
@@ -2066,7 +2636,112 @@ def freestream_time_posterior_overlay():
     set_tight(fig, rect=[0, 0, 1, .9])
 
 @plot
+def freestream_time_posterior():
+    """
+    Plots the credible intervals of the energy-dependent freestreaming time tau_FS = tau_FS(e).
+    """
+
+    e_R = 4.0 # GeV / fm^3
+    e = np.linspace(e_R * 1e-1, e_R * 1e1, 1000)
+
+    idf_CI_color = {0 : 'blue', 1 : 'red', 2 : 'green', 3 : 'magenta'}
+    color_CI = idf_CI_color[idf]
+    label_idf = idf_label_short[idf]
+
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_LHC_RHIC_PTEMCEE.hdf'.format(idf))
+    data1 = chain1.load_wo_reshape(thin=5)
+    data1 = data1.reshape(-1, 19)
+
+    index1 = np.random.choice(np.arange(data1.shape[0]), 50000)
+    samples1 = data1[index1, 1:]
+
+    #the prior density
+    design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+
+    n_samples_prior = 100000
+    prior_tau_fs = []
+    for (tau_R, alpha) in zip(
+                np.random.uniform( min(design['tau_R']), max(design['tau_R']), n_samples_prior),
+                np.random.uniform( min(design['alpha']), max(design['alpha']), n_samples_prior),
+                ):
+        prior_tau_fs.append(tau_fs(e, e_R, tau_R, alpha))
+
+    #fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.5,3.5), sharex=False, sharey=False, constrained_layout=True)
+    fig = plt.figure(figsize=(4,4))
+    plt.suptitle(r"Freestreaming Time Posterior : " + label_idf, fontsize=qm_font_large, wrap=True)
+
+    posterior_tau_fs_1 = [ tau_fs(e, e_R, *d[5:7]) for d in samples1 ]
+
+    plt.fill_between(e, np.percentile(prior_tau_fs, 5, axis=0),
+                         np.percentile(prior_tau_fs, 95, axis=0),
+                         color='gray', alpha=0.4, label='90% C.I. (Prior)'
+                         )
+
+    plt.fill_between(e, np.percentile(posterior_tau_fs_1, 5, axis=0),
+                            np.percentile(posterior_tau_fs_1, 95, axis=0),
+                            color=color_CI, alpha=0.4, label=r'90% C.I.')
+    plt.fill_between(e, np.percentile(posterior_tau_fs_1, 45, axis=0),
+                            np.percentile(posterior_tau_fs_1, 55, axis=0),
+                            color=color_CI, alpha=0.7, label=r'60% C.I.')
+
+    plt.legend(loc='upper center', fontsize=qm_font_small)
+    plt.ylabel(r"$\tau_{FS}$ [fm/c]")
+    plt.xlabel(r"$e_0$ [GeV / fm$^3$]")
+    plt.ylim(0, 3.5)
+
+    plt.tight_layout(True)
+    set_tight(fig, rect=[0, 0, 1, .9])
+
+@plot
+def freestream_time_posterior_density():
+    """
+    Plot the density rather than credible intervals for the
+    energy-dependent freestreaming time tau_FS = tau_FS(e).
+    """
+
+    e_R = 4.0 # GeV / fm^3
+
+    chain = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
+    cmap = plt.get_cmap('Reds')
+
+    data = chain.load_wo_reshape(thin=5)
+    data = data.reshape(-1, 19)
+
+    fig = plt.figure(figsize=(4,4))
+    plt.suptitle(r"Freestream Time Posterior", fontsize=qm_font_large, wrap=True)
+
+    #sample e and tau_fs n_samples times
+    n_samples = int(1e8)
+
+    tau_vals = []
+    #draw samples
+    e_vals = np.random.uniform(e_R * 1e-1, e_R * 1e1, n_samples)
+    indices = np.random.choice(np.arange(data.shape[0]), n_samples)
+
+    for n in range(n_samples):
+        e_val = e_vals[n]
+        index = indices[n]
+        sample = data[index, 1:]
+        tau_R = sample[5]
+        alpha = sample[6]
+        #get tau_fs
+        tau_val = tau_fs(e_val, e_R, tau_R, alpha)
+        tau_vals.append(tau_val)
+
+    n_samples_eff = len(tau_vals)
+    #draw a density plot
+    plt.hist2d(e_vals[:n_samples_eff], tau_vals, bins=100, cmap=cmap)
+    plt.legend(loc='upper center', fontsize=qm_font_small)
+    plt.ylabel(r"$\tau_{FS}$ [fm/c]")
+    plt.xlabel(r"$e$")
+    plt.tight_layout(True)
+    set_tight(fig, rect=[0, 0, 1, .9])
+
+@plot
 def zetas_validation():
+    """
+    Closure test plot for zeta/s(T). Not sure if functional/deprecated?
+    """
     # prior
     design,_,_,_ = load_design(system_strs[0], pset='main')
     T = np.linspace(0.13, 0.37, 500)
@@ -2116,6 +2791,9 @@ def zetas_validation():
 
 @plot
 def etas_validation():
+    """
+    Closure test plot for eta/s(T). Not sure if functional/deprecated?
+    """
     # prior
     design,_,_,_ = load_design(system_strs[0], pset='main')
     T = np.linspace(0.13, 0.37, 500)
@@ -2163,6 +2841,9 @@ def etas_validation():
 
 @plot
 def validate_extraction():
+    """
+    For making a closure test plot? Not sure if functional/deprecated, needs check.
+    """
     import glob
     true = []
     mid = []
@@ -2217,8 +2898,6 @@ def validate_extraction():
         ax.plot([design_min[i],design_max[i]], [design_min[i],design_max[i]], ls="--", c=".3")
         ax.set_aspect('equal')
 
-
-
     for ax, Ttest, i in zip(axes[2], [.155, .175, .2, .25, .35], [10,11,12,13,14]):
         ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L2[:,i],H2[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.1)
         ax.errorbar(true[:,i], mid[:,i], yerr=[mid[:,i]-L1[:,i],H1[:,i]-mid[:,i]], color=cr,fmt='o', linewidth=.5)
@@ -2236,14 +2915,13 @@ def validate_extraction():
 def find_map():
     """
     Find the maximum a posteriori (MAP) point and compare emulator predictions
-    to experimental data.
+    to experimental data. (Plotting is Deprecated - needs update)
 
     """
     from scipy.optimize import minimize
     from scipy.optimize import basinhopping
 
-    #chain = Chain()
-    chain = Chain(path=workdir/'mcmc_REDO'/'chain-idf-{:d}_LHC_RHIC_REDO.hdf'.format(idf))
+    chain = Chain(path=workdir/'mcmc'/'chain-idf-{:d}_LHC_RHIC_PTEMCEE.hdf'.format(idf))
 
     fixed_params = {
         #'trento_p': 0.,
@@ -2252,14 +2930,13 @@ def find_map():
         #'model_sys_err': .1,
     }
 
-    #opt_params = [k for k in chain.keys if k not in fixed_params]
     opt_params = [k for k in chain.labels if k not in fixed_params]
 
     def full_x(x):
         x = dict(zip(opt_params, x), **fixed_params)
-        #return [x[k] for k in chain.keys]
         return [x[k] for k in chain.labels]
 
+    print("####################################################")
     print("Minimizing -log(Posterior) to find MAP parameters...")
     bounds=[
         (a + 1e-6*(b - a), b - 1e-6*(b - a))
@@ -2277,18 +2954,15 @@ def find_map():
     res = minimize(
         lambda x: -chain.log_posterior(full_x(x))[0],
         x0 = x0,
-        #tol = 1e-7,
-        tol = 1e-8,
+        tol = 1e-7,
         bounds=bounds
         )
 
     print('optimization result:\n%s', res)
-    #width = max(map(len, chain.keys)) + 2
     width = max(map(len, chain.labels)) + 2
     print(
         'MAP params:\n%s',
         '\n'.join(
-            #k.ljust(width) + str(x) for k, x in zip(chain.keys, full_x(res.x))
             k.ljust(width) + str(x) for k, x in zip(chain.labels, full_x(res.x))
         )
     )
@@ -2306,6 +2980,9 @@ def find_map():
             )
         )
 
+    print("####################################################")
+
+    #the following plot is deprectaed, needs to be updated to work.
     """
     pred = chain._predict(np.atleast_2d(full_x(res.x)))
 
@@ -2441,30 +3118,50 @@ def format_ci(samples, ci=.9):
     ])
 
 
+"""
 def _posterior():
-    chain = Chain()
-    labels = chain.labels
-    ranges = chain.range
 
-    #indices = [0, 1, 2, 3, 4, 6, 7, 17] # TRENTo, FS and T_sw
-    #indices = [8, 9, 10, 11, 16] # shear viscosity and relax time
-    indices = np.arange(18) #all
+    thin=1
 
-    chain0 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf')
-    data0 = chain0.load(thin=5).T
+    #indices0 = [0, 2, 3, 4, 5 ]
+    #indices1 = [1, 2, 3, 4, 5 ]
+    indices0 = [4, 5]
 
-    #chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-1_LHC_RHIC_REDO.hdf')
-    chain1 = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_PTSampler_500wkr_10ksteps_20temps_adaptive.hdf')
-    data1 = chain1.load(thin=5).T
+    nbins=70
 
-    data0 = np.take(data0, indices, axis=0)
-    data1 = np.take(data1, indices, axis=0)
+    #chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_PTEMCEE.hdf')
+    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE_diff_nucl_width.hdf')
+    #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_RHIC_PTEMCEE.hdf')
 
-    labels = np.take(labels, indices)
-    ranges = np.take(ranges, indices)
+    data0 = chain0.load_wo_reshape()
+    #data1 = chain1.load_wo_reshape()
+
+    data0 = data0.reshape(-1, 20).T
+    #data0 = data0.reshape(-1, 18)
+    #data1 = data1.reshape(-1, 18)
+
+    #data0 = data0[1:, :]
+    #data1 = data1[1:, :]
+
+    #labels = chain0.labels
+    labels = ['$N$[$2.76$TeV]', '$N$[$0.20$TeV]', '$p$',
+                '$\\sigma_k$', '$w$[$2.76$TeV] [fm]', '$w$[$0.20$TeV] [fm]',
+                '$d_{\\mathrm{min}}$ [fm]', '$\\tau_R$ [fm/$c$]', '$\\alpha$',
+                '$T_{\\eta,\\mathrm{kink}}$ [GeV]', '$a_{\\eta,\\mathrm{low}}$ [GeV${}^{-1}$]',
+                '$a_{\\eta,\\mathrm{high}}$ [GeV${}^{-1}$]', '$(\\eta/s)_{\\mathrm{kink}}$',
+                '$(\\zeta/s)_{\\max}$', '$T_{\\zeta,c}$ [GeV]', '$w_{\\zeta}$ [GeV]',
+                '$\\lambda_{\\zeta}$', '$b_{\\pi}$', '$T_{\\mathrm{sw}}$ [GeV]', '$\\sigma_M$']
+
+    #ranges = chain0.range
+
+    data0 = np.take(data0, indices0, axis=0)
+    #data1 = np.take(data1, indices1, axis=0)
+
+    labels = np.take(labels, indices0)
+
+    #ranges = np.take(ranges, indices0, axis=0)
+    ranges = [[0.5, 1.5], [0.5, 1.5]]
     ndims, nsamples = data0.shape
-
-    ranges = np.array([np.min(data0, axis=1), np.max(data0, axis=1)]).T
 
     #blue and red
     cmap0 = plt.get_cmap('Blues')
@@ -2474,7 +3171,7 @@ def _posterior():
     color1='r'
     #color1='g'
 
-    change_colors = True
+    change_colors = False
     #purple and orange
     if change_colors:
         cmap0 = plt.get_cmap('Purples')
@@ -2487,7 +3184,120 @@ def _posterior():
 
     fig, axes = plt.subplots(
         nrows=ndims, ncols=ndims,
-        figsize=(.7*ndims, .7*ndims)
+        #figsize=(.8*ndims, .8*ndims)
+        figsize=(1.5*ndims, 1.5*ndims)
+    )
+
+    for i, row in enumerate(axes):
+        for j, ax in enumerate(row):
+            x0 = data0[j]
+            y0 = data0[i]
+            #x1 = data1[j]
+            #y1 = data1[i]
+            xlabel = labels[j]
+            xlim = ranges[j]
+            ylabel = labels[i]
+            ylim = ranges[i]
+            if i==j:
+                ax.set_xlim(*xlim)
+                H0, _, _ = ax.hist(x0, bins=nbins, histtype='step', normed=True, color=color0)
+                #H1, _, _ = ax.hist(x1, bins=nbins, histtype='step', normed=True, color=color1)
+                stex0 = format_ci(x0)
+                #stex1 = format_ci(x1)
+                ax.annotate(stex0, xy=(0.5, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color0)
+                #ax.annotate(stex1, xy=(.9, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color1)
+                #ax.set_ylim(0, max(H0.max(), H1.max()))
+                ax.set_ylim(0, H0.max())
+            if i>j:
+                ax.set_xlim(*xlim)
+                ax.set_ylim(*ylim)
+                ax.hist2d(x0, y0, bins=nbins, cmap=cmap0, alpha=0.8, zorder=1)
+            if i<j:
+                ax.axis('off')
+                #ax.set_xlim(*xlim)
+                #ax.set_ylim(*ylim)
+                #ax.hist2d(x1, y1, bins=nbins, cmap=cmap1, alpha=0.8, zorder=1)
+
+            if ax.is_first_col():
+                ax.set_ylabel(ylabel, fontsize=6)
+            if ax.is_first_col() and i!=0:
+                l = ylim[1]-ylim[0]
+                #ax.set_yticks([ylim[0]+l*.1, ylim[1]-l*.1])
+                ax.set_yticks([ylim[0], ylim[1]])
+                #ax.set_yticks( [ np.linspace(ylim[0], ylim[1], num=5).tolist()] )
+                ax.set_yticklabels(["{:1.1f} ".format(ylim[0]), " {:1.1f}".format(ylim[1])], fontsize=6)
+            else:
+                ax.set_yticks([])
+            if ax.is_last_row():
+                ax.set_xlabel(xlabel, fontsize=6)
+                l = xlim[1]-xlim[0]
+                #ax.set_xticks([xlim[0]+l*.1, xlim[1]-l*.1])
+                ax.set_xticks([xlim[0], xlim[1]])
+                ax.set_xticklabels(["{:1.1f} ".format(xlim[0]), " {:1.1f}".format(xlim[1])], fontsize=6)
+            else:
+                ax.set_xticks([])
+            #plt.subplots_adjust(wspace=0.5, hspace=0.5)
+    fig.align_ylabels()
+    set_tight(pad=.2, h_pad=.2, w_pad=.2, rect=(.01, 0, 1, 1))
+
+
+"""
+def _posterior():
+    chain = Chain()
+    labels = chain.labels
+    ranges = chain.range
+
+    indices = np.arange(17) #all
+    #indices = [1, 2, 3, 4, 16]
+
+    #chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_PTEMCEE.hdf')
+    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
+    data0 = chain0.load_wo_reshape()
+
+    #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_RHIC_PTEMCEE.hdf')
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
+    #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE_w_STAR_proton.hdf')
+    data1 = chain1.load_wo_reshape()
+
+    data0 = data0.reshape(-1, 19).T
+    data1 = data1.reshape(-1, 19).T
+
+    data0 = np.take(data0, indices, axis=0)
+    data1 = np.take(data1, indices, axis=0)
+
+    labels = np.take(labels, indices)
+    ranges = np.take(ranges, indices)
+
+    ndims, nsamples = data0.shape
+
+    ranges = np.array([np.min(data0, axis=1), np.max(data0, axis=1)]).T
+
+    #design, dmin, dmax, labels = load_design('Pb-Pb-2760', pset='main')
+    #ranges = np.array([dmin, dmax]).T
+
+    #labels = np.take(labels, indices)
+    #ranges = np.take(ranges, indices, axis=0)
+
+    #blue and red
+    cmap0 = plt.get_cmap('Blues')
+    cmap1 = plt.get_cmap('Reds')
+    color0='b'
+    color1='r'
+
+    change_colors = False
+    #purple and orange
+    if change_colors:
+        cmap0 = plt.get_cmap('Purples')
+        cmap1 = plt.get_cmap('Oranges')
+        color0 = 'purple'
+        color1 = 'orange'
+
+    cmap0.set_bad('white')
+    cmap1.set_bad('white')
+
+    fig, axes = plt.subplots(
+        nrows=ndims, ncols=ndims,
+        figsize=(.8*ndims, .8*ndims)
     )
 
     for i, row in enumerate(axes):
@@ -2537,11 +3347,117 @@ def _posterior():
                                     " {:1.2f}".format(xlim[1])], fontsize=5)
             else:
                 ax.set_xticks([])
-    #        plt.subplots_adjust(wspace=0., hspace=0.)
     fig.align_ylabels()
     set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(.01, 0, 1, 1))
 
+
+@plot
+def information_gain():
+    """
+    Make a table/plot which estimates the mutual information (K-L divergence) between two distributions.
+    The distributions are approximated by the MCMC samples.
+    The information gain  H = /int P(X) log_2( P(X) / pi(X) )
+    where P(X) is the posterior, and pi(X) is the prior
+    """
+
+    #this sets the number of bins for the samples of the distribution
+    #it thereby controls the integration mesh for estimating the mutual information
+    nbins=70
+    #factor to thin chains
+    thin=1
+
+    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_PTEMCEE.hdf')
+    data0 = chain0.load_wo_reshape(thin=thin)
+    data0 = data0.reshape(-1, 18).T
+
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
+    data1 = chain1.load_wo_reshape(thin=thin)
+    data1 = data1.reshape(-1, 19).T
+
+    labels = chain1.labels
+    ranges = np.array(chain0.range)
+
+    indices0 = [1, 2, 3, 4, 5, 6, 16] # TRENTo, FS and T_sw
+    indices1 = [2, 3, 4, 5, 6, 7, 17] # TRENTo, FS and T_sw
+    data0 = np.take(data0, indices0, axis=0)
+    data1 = np.take(data1, indices1, axis=0)
+
+    labels = np.take(labels, indices1)
+    ranges = np.take(ranges, indices1, axis=0)
+
+    ndims, nsamples = data0.shape
+
+    fig, axes = plt.subplots( nrows=ndims, ncols=ndims, figsize=(1.*ndims, 1.*ndims) )
+
+    cmap0 = plt.get_cmap('Purples')
+    cmap1 = plt.get_cmap('Oranges')
+    color0 = 'purple'
+    color1 = 'orange'
+    cmap0.set_bad('white')
+    cmap1.set_bad('white')
+
+    for i, row in enumerate(axes):
+        for j, ax in enumerate(row):
+            x0 = data0[j]
+            y0 = data0[i]
+            x1 = data1[j]
+            y1 = data1[i]
+            xlabel = labels[j]
+            ylabel = labels[i]
+            if i==j:
+                H0, bins, _ = ax.hist(x0, bins=nbins, histtype='step', range=ranges[i, :], normed=True, color=color0)
+                H1, _, _ = ax.hist(x1, bins=nbins, histtype='step', range=ranges[i, :], normed=True, color=color1)
+                bin_width = bins[1] - bins[0]
+                info = calculate_information_gain(H0, H1, bin_width)
+                info = "{:.1e}".format(info)
+                info_str = "IG = " + info
+                ax.annotate(info_str, xy=(0.5, 0.9), xycoords="axes fraction", ha='center', va='bottom', fontsize=4, weight='bold')
+                ax.set_ylim(0, max( H0.max()*1.2, H1.max()*1.2 ))
+            if i>j:
+                H0, xbins, ybins, _ = ax.hist2d(x0, y0, bins=nbins, range=[ ranges[j, :], ranges[i,:] ], alpha=1.0, zorder=1, cmap=cmap0)
+
+            if i<j:
+                #ax.set_visible(False)
+                H0, xbins, ybins, _ = ax.hist2d(x0, y0, bins=nbins, range=[ ranges[j, :], ranges[i,:] ], alpha=0., zorder=1, cmap=cmap0)
+                H1, xbins, ybins, _ = ax.hist2d(x1, y1, bins=nbins, range=[ ranges[j, :], ranges[i,:] ], alpha=1.0, zorder=1, cmap=cmap1)
+                dx = xbins[1] - xbins[0]
+                dy = ybins[1] - ybins[0]
+                bin_width = [dx, dy]
+                info = calculate_information_gain(H0, H1, bin_width)
+                info = "{:.1e}".format(info)
+                info_str = "IG = " + info
+                ax.annotate(info_str, xy=(0.5, 0.9), xycoords="axes fraction", ha='center', va='bottom', fontsize=4, weight='bold')
+
+            if ax.is_first_col():
+                ax.set_ylabel(ylabel, fontsize=5)
+            if ax.is_first_col() and i!=0:
+                pass
+            else:
+                ax.set_yticks([])
+
+            if ax.is_last_row():
+                ax.set_xlabel(xlabel, fontsize=5)
+            else:
+                ax.set_xticks([])
+
+            plt.subplots_adjust(wspace=0., hspace=0.)
+
+            for tick in ax.xaxis.get_major_ticks():
+                tick.label.set_fontsize(5)
+            for tick in ax.yaxis.get_major_ticks():
+                tick.label.set_fontsize(5)
+
+
+    fig.align_ylabels()
+    set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(.01, 0, 1, 1))
+
+
 def _posterior_diag():
+
+    """
+    Plots histograms of the 1d marginal distributions of model parameters,
+    given by MCMC chain. If doing validation (closure test), also plots the true values.
+    """
 
     chain = Chain()
 
@@ -2586,7 +3502,6 @@ def _posterior_diag():
                                     " {:1.2f}".format(xlim[1])], fontsize=6)
 
                 plt.subplots_adjust(wspace=0.05, hspace=0.1)
-        #set_tight(pad=.0, h_pad=.1, w_pad=.05, rect=(.01, 0, 1, .9))
         plt.tight_layout(True)
         set_tight(fig, rect=[0, 0, 1, .9])
 
@@ -2623,6 +3538,11 @@ def _posterior_diag():
 
 @plot
 def observables_sensitivity():
+
+    """
+    Plots linear Sensitivity index of model observables to model parameters.
+
+    """
     labels = [r'$S[N]$', r'$S[p]$', r'$S[\sigma_k]$', r'$S[w]$', r'$S[d_{\mathrm{min}}^3]$', r'$S[\tau_R]$', r'$S[\alpha]$', r'$S[T_{\eta,\mathrm{kink}}]$',
     r'$S[a_{\eta,\mathrm{low}}]$', r'$S[a_{\eta,\mathrm{high}}]$', r'$S[(\eta/s)_{\mathrm{kink}}]$', r'$S[(\zeta/s)_{\max}]$', r'$S[T_{\zeta,c}]$',
     r'$S[w_{\zeta}]$', r'$S[\lambda_{\zeta}]$', r'$S[b_{\pi}]$', r'$S[T_{\mathrm{sw}}]$', r'$S[\sigma_M]$']
@@ -2631,11 +3551,11 @@ def observables_sensitivity():
     obs_labels = [obs_tex_labels_2[obs] for obs in obs_names]
     obs_indx = np.arange(len(obs_labels))
 
-    #cent_bin = 0 #0-5%
-    cent_bin = 5 #40-50%
+    cent_bin = 0 #0-5%
+    #cent_bin = 5 #40-50%
 
-    #cent_pT_fl = 0 #0-5%
-    cent_pT_fl = 8 #40-45%
+    cent_pT_fl = 0 #0-5%
+    #cent_pT_fl = 8 #40-45%
 
     cent_bin_label = {0 : '0-5%', 5: '40-50%'}
     width = 0.2
@@ -2654,11 +3574,6 @@ def observables_sensitivity():
 
         all_params = np.column_stack( (map_params0, map_params1, map_params3) )
         mean_params = np.mean(all_params, axis=1)
-
-        #evaluate at each df at its own MAP params
-        #params0 = map_params0
-        #params0 = map_params1
-        #params0 = map_params3
 
         #evaluate all three df at the same set of params
         print("Evaluating model (emulators) at the average of the MAP parameters : ")
@@ -2690,7 +3605,6 @@ def observables_sensitivity():
             yerr = ( (obs0 * diff_obs0_err) + (diff_obs0 * obs0_err) ) / (obs0**2.)
             axes[row].bar(obs_indx - width, per_diff_obs0 / d[row], yerr = 0, width=width, bottom=None, align='center',
                             facecolor='b', edgecolor='b')
-
 
             Yemu_mean1, Yemu_cov1 = emu1.predict( np.array( [params1] ), return_cov=True )
             Yemu_mean_diff1, Yemu_cov_diff1 = emu1.predict( np.array( [diff_params1] ), return_cov=True )
@@ -2746,7 +3660,7 @@ def posterior_shear():
 def _region(ax, name, cmap=plt.cm.Blues, legend=False, title=False):
     """
     Visual estimate (posterior median and credible region) of
-    temperature-dependent shear or bulk viscosity.
+    temperature-dependent shear or bulk viscosity. (Deprecated - needs update)
 
     """
     var, keys, function, ymax = dict(
@@ -2800,10 +3714,8 @@ def _region(ax, name, cmap=plt.cm.Blues, legend=False, title=False):
 
     if title:
         ax.set_title(name.capitalize() + ' viscosity')
-
     if legend:
         ax.legend(loc=legend if isinstance(legend, str) else 'best')
-
     if name == 'shear':
         ax.axhline(
             1/(4*np.pi),
@@ -2815,7 +3727,7 @@ def _region(ax, name, cmap=plt.cm.Blues, legend=False, title=False):
 @plot
 def region_shear():
     """
-    Region plot for eta/s.
+    Region plot for eta/s. (Deprecated - needs update)
 
     """
     fig, ax = plt.subplots(figsize=figsize(.65))
@@ -2823,9 +3735,65 @@ def region_shear():
 
 
 @plot
+def eta_and_zeta_functions():
+    """
+    Plot eta/s and zeta/s as functions of Temperature for some choices of parameters.
+
+    """
+    Tmax = 0.4
+    T = np.linspace(0.1, Tmax, 500)
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3))
+
+    #values chosen for visualization
+    #zmax = 0.0625
+    #T0 = 0.15
+    #width = 0.050
+    #asym = 0.9
+
+    #T_k = 0.25
+    #alow = 1.0
+    #ahigh = 0.3
+    #etas_k = 0.125
+
+    #values of old Grad MAP values
+    zmax = 0.13
+    T0 = 0.12
+    width = 0.072
+    asym = -0.12
+
+    T_k = 0.223
+    alow = -0.78
+    ahigh = 0.37
+    etas_k = 0.096
+
+    zeta_s = zeta_over_s(T, zmax, T0, width, asym)
+    axes[0].plot(T, zeta_s, color='black', lw=2)
+
+    eta_s = eta_over_s(T, T_k, alow, ahigh, etas_k)
+    axes[1].plot(T, eta_s, color='black', lw=2)
+
+    axes[0].set_xlabel(r'$T$ [GeV]')
+    axes[0].set_ylabel(r'$\zeta/s$')
+    axes[1].set_xlabel(r'$T$ [GeV]')
+    axes[1].set_ylabel(r'$\eta/s$')
+
+    axes[0].set_xlim(0.1, Tmax)
+    axes[0].set_ylim(0., 0.3)
+    axes[1].set_xlim(0.1, Tmax)
+    axes[1].set_ylim(0., 0.3)
+
+    axes[0].locator_params(axis='y', nbins=4)
+    axes[1].locator_params(axis='y', nbins=4)
+
+    plt.suptitle('JS SIMS Preliminary : MAP Viscosities')
+    plt.tight_layout(True)
+    set_tight(pad=.0, h_pad=.0, w_pad=.0, rect=(0, 0, 1, 0.9))
+
+
+@plot
 def design():
     """
-    Projection of a LH design into two dimensions.
+    Projection of a Latin Hypercube design into two dimensions. (Deprecated - needs update)
 
     """
     fig = plt.figure(figsize=figsize(.6, aspect=1))
@@ -2929,6 +3897,9 @@ def gp():
 
 @plot
 def pca():
+    """
+    (Deprecated - needs update)
+    """
     fig = plt.figure(figsize=figsize(.6, aspect=1))
     ratio = 5
     gs = plt.GridSpec(ratio + 1, ratio + 1)
@@ -3013,7 +3984,7 @@ def pca():
 @plot
 def pca_vectors_variance(system='PbPb2760'):
     """
-    PCA vectors and explained variance.
+    PCA vectors and explained variance. (Deprecated - needs update)
 
     """
     fig, axes = plt.subplots(
@@ -3132,6 +4103,7 @@ def boxplot(
 def diag_pca(system=system_strs[0]):
     """
     Diagnostic: histograms of principal components and scatterplots of pairs.
+    Check for linear independence!
 
     """
     Y = [g.y_train_ for g in Trained_Emulators[system].gps]
@@ -3157,8 +4129,6 @@ def diag_pca(system=system_strs[0]):
         label = 'PC {}'.format(i)
         axes[-1][i].set_xlabel(label)
         axes[i][0].set_ylabel(label)
-
-    #plt.tight_layout()
 
 @plot
 def diag_emu(system=system_strs[0], pcs=None, label_all=True):
@@ -3255,9 +4225,11 @@ def diag_emu(system=system_strs[0], pcs=None, label_all=True):
 
 @plot
 def mcmc_diagnostic():
+    """
+    This plots a diagonostic of the MCMC chain. Look for mixing and a short autocorrelation length.
+    """
     from matplotlib.lines import Line2D
 
-    #chain = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_REDO.hdf')
     chain = Chain(path=workdir/'mcmc_REDO'/'chain-idf-0_LHC_RHIC_PTSampler_500wkr_10ksteps_20temps_adaptive.hdf')
     labels = chain.labels
     ranges = chain.range
