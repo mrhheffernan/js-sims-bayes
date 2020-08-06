@@ -455,9 +455,9 @@ def _observables(posterior=False, ratio=False):
 
 
 @plot
-def observables_posterior_ratio_PRL():
+def observables_posterior_discrepancy_PRL():
     """
-    Model observables predicted by Chains for each df model, ratio against expt. data.
+    Model observables predicted by Chains for each df model, discrepancy against expt. data.
 
     """
 
@@ -533,16 +533,18 @@ def observables_posterior_ratio_PRL():
     plt.subplots_adjust(hspace=0.2)
 
 @plot
-def observables_joint_posterior_ratio_PRL():
+def observables_joint_posterior_discrepancy_PRL():
     """
-    Model observables predicted by Chains for each df model, ratio against expt. data.
+    Model observables predicted by Chains for each df model, discrepancy against expt. data.
 
     """
+
+    sns.set()
 
     obs_choices = ['dNch_deta', 'dN_dy_pion', 'dN_dy_proton']
     n_obs = len(obs_choices)
 
-    df_choices = [0] # choose which df models to plot
+    df_choices = [1, 0] # choose which df models to plot
     cent_bin = 0
 
     cmaps_idf = {0:plt.get_cmap('Blues'), 1:plt.get_cmap('Reds'), 3:plt.get_cmap('Greens')} # colors for different df models
@@ -586,12 +588,6 @@ def observables_joint_posterior_ratio_PRL():
                 except KeyError:
                     continue
 
-                #axes[row, col].set_xlim(-5, 5)
-                #if row != col:
-                #    axes[row, col].set_ylim(-5, 5)
-                #elif row == col:
-                #    axes[row, col].set_yticks([])
-
                 # plot calc
                 for i, idf in enumerate(df_choices):
                     Ymodel = Ymodels[i]
@@ -604,14 +600,15 @@ def observables_joint_posterior_ratio_PRL():
                     cmap = cmaps_idf[idf]
                     color = colors_idf[idf]
 
-                    binsx = np.linspace(-5, 5, 50)
-                    binsy = np.linspace(-5, 5, 50)
+                    binsx = np.linspace(-4, 4, 50)
+                    binsy = np.linspace(-4, 4, 50)
 
                     if row == col:
-                        axes[row, col].hist(y1, color=color, bins=binsx, density=True)
+                        axes[row, col].hist(y1, edgecolor=color, facecolor='None', bins=binsx, density=True)
+                        axes[row, col].set_xlabel(obs_tex_labels_2[obs1])
                         auto_ticks(axes[row,col], 'x', nbins=5, minor=2)
                     else:
-                        axes[row, col].hist2d(y1, y2, cmap=plt.cm.jet, bins=[binsx, binsy])
+                        axes[row, col].hist2d(y1, y2, cmap=cmap, bins=[binsx, binsy], alpha=alpha)
                         axes[row, col].set_xlabel(obs_tex_labels_2[obs1])
                         axes[row, col].set_ylabel(obs_tex_labels_2[obs2])
                         auto_ticks(axes[row,col], 'x', nbins=5, minor=2)
@@ -619,7 +616,6 @@ def observables_joint_posterior_ratio_PRL():
 
 
     plt.tight_layout(True)
-    #plt.subplots_adjust(hspace=0.2)
 
 @plot
 def observables_fit():
@@ -3117,150 +3113,33 @@ def format_ci(samples, ci=.9):
         '^{+', fmt.format(uh), '}$'
     ])
 
-
-"""
 def _posterior():
+    """
+    Plot the corner plot of parameter posteriors. Parameters are selected for
+    inclusion by index in the indices array.
+    """
 
-    thin=1
-
-    #indices0 = [0, 2, 3, 4, 5 ]
-    #indices1 = [1, 2, 3, 4, 5 ]
-    indices0 = [4, 5]
-
-    nbins=70
-
-    #chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_PTEMCEE.hdf')
-    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE_diff_nucl_width.hdf')
-    #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_RHIC_PTEMCEE.hdf')
-
-    data0 = chain0.load_wo_reshape()
-    #data1 = chain1.load_wo_reshape()
-
-    data0 = data0.reshape(-1, 20).T
-    #data0 = data0.reshape(-1, 18)
-    #data1 = data1.reshape(-1, 18)
-
-    #data0 = data0[1:, :]
-    #data1 = data1[1:, :]
-
-    #labels = chain0.labels
-    labels = ['$N$[$2.76$TeV]', '$N$[$0.20$TeV]', '$p$',
-                '$\\sigma_k$', '$w$[$2.76$TeV] [fm]', '$w$[$0.20$TeV] [fm]',
-                '$d_{\\mathrm{min}}$ [fm]', '$\\tau_R$ [fm/$c$]', '$\\alpha$',
-                '$T_{\\eta,\\mathrm{kink}}$ [GeV]', '$a_{\\eta,\\mathrm{low}}$ [GeV${}^{-1}$]',
-                '$a_{\\eta,\\mathrm{high}}$ [GeV${}^{-1}$]', '$(\\eta/s)_{\\mathrm{kink}}$',
-                '$(\\zeta/s)_{\\max}$', '$T_{\\zeta,c}$ [GeV]', '$w_{\\zeta}$ [GeV]',
-                '$\\lambda_{\\zeta}$', '$b_{\\pi}$', '$T_{\\mathrm{sw}}$ [GeV]', '$\\sigma_M$']
-
-    #ranges = chain0.range
-
-    data0 = np.take(data0, indices0, axis=0)
-    #data1 = np.take(data1, indices1, axis=0)
-
-    labels = np.take(labels, indices0)
-
-    #ranges = np.take(ranges, indices0, axis=0)
-    ranges = [[0.5, 1.5], [0.5, 1.5]]
-    ndims, nsamples = data0.shape
-
-    #blue and red
-    cmap0 = plt.get_cmap('Blues')
-    cmap1 = plt.get_cmap('Reds')
-    #cmap1 = plt.get_cmap('Greens')
-    color0='b'
-    color1='r'
-    #color1='g'
-
-    change_colors = False
-    #purple and orange
-    if change_colors:
-        cmap0 = plt.get_cmap('Purples')
-        cmap1 = plt.get_cmap('Oranges')
-        color0 = 'purple'
-        color1 = 'orange'
-
-    cmap0.set_bad('white')
-    cmap1.set_bad('white')
-
-    fig, axes = plt.subplots(
-        nrows=ndims, ncols=ndims,
-        #figsize=(.8*ndims, .8*ndims)
-        figsize=(1.5*ndims, 1.5*ndims)
-    )
-
-    for i, row in enumerate(axes):
-        for j, ax in enumerate(row):
-            x0 = data0[j]
-            y0 = data0[i]
-            #x1 = data1[j]
-            #y1 = data1[i]
-            xlabel = labels[j]
-            xlim = ranges[j]
-            ylabel = labels[i]
-            ylim = ranges[i]
-            if i==j:
-                ax.set_xlim(*xlim)
-                H0, _, _ = ax.hist(x0, bins=nbins, histtype='step', normed=True, color=color0)
-                #H1, _, _ = ax.hist(x1, bins=nbins, histtype='step', normed=True, color=color1)
-                stex0 = format_ci(x0)
-                #stex1 = format_ci(x1)
-                ax.annotate(stex0, xy=(0.5, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color0)
-                #ax.annotate(stex1, xy=(.9, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color1)
-                #ax.set_ylim(0, max(H0.max(), H1.max()))
-                ax.set_ylim(0, H0.max())
-            if i>j:
-                ax.set_xlim(*xlim)
-                ax.set_ylim(*ylim)
-                ax.hist2d(x0, y0, bins=nbins, cmap=cmap0, alpha=0.8, zorder=1)
-            if i<j:
-                ax.axis('off')
-                #ax.set_xlim(*xlim)
-                #ax.set_ylim(*ylim)
-                #ax.hist2d(x1, y1, bins=nbins, cmap=cmap1, alpha=0.8, zorder=1)
-
-            if ax.is_first_col():
-                ax.set_ylabel(ylabel, fontsize=6)
-            if ax.is_first_col() and i!=0:
-                l = ylim[1]-ylim[0]
-                #ax.set_yticks([ylim[0]+l*.1, ylim[1]-l*.1])
-                ax.set_yticks([ylim[0], ylim[1]])
-                #ax.set_yticks( [ np.linspace(ylim[0], ylim[1], num=5).tolist()] )
-                ax.set_yticklabels(["{:1.1f} ".format(ylim[0]), " {:1.1f}".format(ylim[1])], fontsize=6)
-            else:
-                ax.set_yticks([])
-            if ax.is_last_row():
-                ax.set_xlabel(xlabel, fontsize=6)
-                l = xlim[1]-xlim[0]
-                #ax.set_xticks([xlim[0]+l*.1, xlim[1]-l*.1])
-                ax.set_xticks([xlim[0], xlim[1]])
-                ax.set_xticklabels(["{:1.1f} ".format(xlim[0]), " {:1.1f}".format(xlim[1])], fontsize=6)
-            else:
-                ax.set_xticks([])
-            #plt.subplots_adjust(wspace=0.5, hspace=0.5)
-    fig.align_ylabels()
-    set_tight(pad=.2, h_pad=.2, w_pad=.2, rect=(.01, 0, 1, 1))
-
-
-"""
-def _posterior():
     chain = Chain()
     labels = chain.labels
     ranges = chain.range
 
+    thin_factor=30
+    gridsize=25
     indices = np.arange(17) #all
-    #indices = [1, 2, 3, 4, 16]
+    #indices = [0, 1, 2, 3, 4, 5, 6, 7, 17]
+    #indices = [1, 2, 3, 5, 6, 16]
+    resize_shape = 19
 
-    #chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_PTEMCEE.hdf')
     chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
-    data0 = chain0.load_wo_reshape()
+    #chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_PTEMCEE.hdf')
+    data0 = chain0.load_wo_reshape(thin=thin_factor)
 
-    #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_RHIC_PTEMCEE.hdf')
     chain1 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
-    #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE_w_STAR_proton.hdf')
-    data1 = chain1.load_wo_reshape()
+    #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_RHIC_PTEMCEE.hdf')
+    data1 = chain1.load_wo_reshape(thin=thin_factor)
 
-    data0 = data0.reshape(-1, 19).T
-    data1 = data1.reshape(-1, 19).T
+    data0 = data0.reshape(-1, resize_shape).T
+    data1 = data1.reshape(-1, resize_shape).T
 
     data0 = np.take(data0, indices, axis=0)
     data1 = np.take(data1, indices, axis=0)
@@ -3272,19 +3151,15 @@ def _posterior():
 
     ranges = np.array([np.min(data0, axis=1), np.max(data0, axis=1)]).T
 
-    #design, dmin, dmax, labels = load_design('Pb-Pb-2760', pset='main')
-    #ranges = np.array([dmin, dmax]).T
-
-    #labels = np.take(labels, indices)
-    #ranges = np.take(ranges, indices, axis=0)
-
     #blue and red
     cmap0 = plt.get_cmap('Blues')
     cmap1 = plt.get_cmap('Reds')
     color0='b'
     color1='r'
 
+
     change_colors = False
+    #change_colors = True
     #purple and orange
     if change_colors:
         cmap0 = plt.get_cmap('Purples')
@@ -3295,6 +3170,7 @@ def _posterior():
     cmap0.set_bad('white')
     cmap1.set_bad('white')
 
+    fontsize = 7
     fig, axes = plt.subplots(
         nrows=ndims, ncols=ndims,
         figsize=(.8*ndims, .8*ndims)
@@ -3311,8 +3187,10 @@ def _posterior():
             ylabel = labels[i]
             ylim = ranges[i]
             if i==j:
-                H0, _, _ = ax.hist(x0, bins=40, histtype='step', normed=True, color=color0)
-                H1, _, _ = ax.hist(x1, bins=40, histtype='step', normed=True, color=color1)
+                #H0, _, _ = ax.hist(x0, bins=40, histtype='step', normed=True, color=color0)
+                #H1, _, _ = ax.hist(x1, bins=40, histtype='step', normed=True, color=color1)
+                sns.kdeplot(x0, color=color0, shade=True, ax=ax)
+                sns.kdeplot(x1, color=color1, shade=True, ax=ax)
                 stex0 = format_ci(x0)
                 stex1 = format_ci(x1)
                 ax.annotate(stex0, xy=(0.1, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color0)
@@ -3320,19 +3198,21 @@ def _posterior():
                 ax.set_xlim(*xlim)
                 #if i < ndims-1:
                 #    ax.axvline(x=truth[i], color='r')
-                ax.set_ylim(0, max(H0.max(), H1.max()))
+                #ax.set_ylim(0, max(H0.max(), H1.max()))
             if i>j:
-                ax.hist2d(x0, y0, bins=40, cmap=cmap0, alpha=0.8, zorder=1)
+                #ax.hist2d(x0, y0, bins=40, cmap=cmap0, alpha=0.8, zorder=1)
+                sns.kdeplot(x0, y0, color=color0, shade=True, ax=ax, n_levels=5, shade_lowest=False, gridsize=gridsize)
                 ax.set_xlim(*xlim)
                 ax.set_ylim(*ylim)
             if i<j:
                 #ax.axis('off')
-                ax.hist2d(x1, y1, bins=40, cmap=cmap1, alpha=0.8, zorder=1)
+                #ax.hist2d(x1, y1, bins=40, cmap=cmap1, alpha=0.8, zorder=1)
+                sns.kdeplot(x1, y1, color=color1, shade=True, ax=ax, n_levels=5, shade_lowest=False, gridsize=gridsize)
                 ax.set_xlim(*xlim)
                 ax.set_ylim(*ylim)
 
             if ax.is_first_col():
-                ax.set_ylabel(ylabel, fontsize=5)
+                ax.set_ylabel(ylabel, fontsize=fontsize)
             if ax.is_first_col() and i!=0:
                 l = ylim[1]-ylim[0]
                 ax.set_yticks([ylim[0]+l*.1, ylim[1]-l*.1])
@@ -3340,7 +3220,7 @@ def _posterior():
             else:
                 ax.set_yticks([])
             if ax.is_last_row():
-                ax.set_xlabel(xlabel, fontsize=5)
+                ax.set_xlabel(xlabel, fontsize=fontsize)
                 l = xlim[1]-xlim[0]
                 ax.set_xticks([xlim[0]+l*.1, xlim[1]-l*.1])
                 ax.set_xticklabels(["{:1.2f} ".format(xlim[0]),
