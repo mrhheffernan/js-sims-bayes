@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from sklearn.decomposition import KernelPCA
 from sklearn.externals import joblib
 from sklearn.gaussian_process import GaussianProcessRegressor as GPR
 from sklearn.gaussian_process import kernels
@@ -117,6 +118,13 @@ class Emulator:
         #Principal Components
         self.npc = npc
         self.scaler = StandardScaler(copy=False)
+
+        #use_KPCA = True
+        #try kernel PCA with 3rd degree poly kernel
+        #if use_KPCA:
+        #    self.pca = KernelPCA(kernel='poly', fit_inverse_transform=True, n_components=npc, degree=2)
+        #    Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )
+        #else:
         #whiten to ensure uncorrelated outputs with unit variances
         self.pca = PCA(copy=False, whiten=True, svd_solver='full')
         # Standardize observables and transform through PCA.  Use the first
@@ -146,7 +154,7 @@ class Emulator:
                                  noise_level_bounds=(1e-2, 1e2)
                                  )
 
-        #kernel = (k0 + k1 + k2) #this includes a consant kernel
+        #kernel = (k0 + k1 + k2) #this includes a constant kernel
         kernel = (k0 + k2) # this does not
 
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
@@ -157,7 +165,7 @@ class Emulator:
             self.gps.append(
                 GPR(
                 kernel=kernel,
-                alpha=0.1,
+                alpha=0.01,
                 n_restarts_optimizer=nrestarts,
                 copy_X_train=False
                 ).fit(design, z)
@@ -171,11 +179,13 @@ class Emulator:
         # matrix with the first axis multiplied by the explained standard
         # deviation of each PC and the second axis multiplied by the
         # standardization scale factor of each observable.
+
+        #if not use_KPCA:
         self._trans_matrix = (
             self.pca.components_
             * np.sqrt(self.pca.explained_variance_[:, np.newaxis])
             * self.scaler.scale_
-        )
+            )
 
         # Pre-calculate some arrays for inverse transforming the predictive
         # variance (from PC space to physical space).
@@ -217,8 +227,16 @@ class Emulator:
         """
         # Z shape (..., npc)
         # Y shape (..., nobs)
+
+        #use_KPCA = True
+        #if use_KPCA:
+        #    Y = self.pca.inverse_transform(Z)
+        #    Y = self.scaler.inverse_transform(Y)
+        #else:
         Y = np.dot(Z, self._trans_matrix[:Z.shape[-1]])
         Y += self.scaler.mean_
+
+
 
         """
         return {
@@ -353,18 +371,19 @@ def main():
         print("system = " + str(s), ", npc = ", SystemsInfo[s]['npc'])
         emu = Emulator.build_emu(s, npc=SystemsInfo[s]['npc'], **kwargs)
 
-        print('{} PCs explain {:.5f} of variance'.format(
-            emu.npc,
-            emu.pca.explained_variance_ratio_[:emu.npc].sum()
-        ))
+        #EDIT
+        #print('{} PCs explain {:.5f} of variance'.format(
+        #    emu.npc,
+        #    emu.pca.explained_variance_ratio_[:emu.npc].sum()
+        #))
 
-        for n, (evr, gp) in enumerate(zip(
-                emu.pca.explained_variance_ratio_, emu.gps
-        )):
-            print(
-                'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
-                .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
-            )
+        #for n, (evr, gp) in enumerate(zip(
+        #        emu.pca.explained_variance_ratio_, emu.gps
+        #)):
+        #    print(
+        #        'GP {}: {:.5f} of variance, LML = {:.5g}, kernel: {}'
+        #        .format(n, evr, gp.log_marginal_likelihood_value_, gp.kernel_)
+        #    )
 
         #dill the emulator to be loaded later
         with open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', 'wb') as file:
@@ -376,10 +395,17 @@ if __name__ == "__main__":
 
 Trained_Emulators = {}
 for s in system_strs:
-    Trained_Emulators[s] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+    try:
+        Trained_Emulators[s] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+    except:
+        print("WARNING! Can't load emulator for system " + s)
 
 #contains all the emulators for all df models
-#Trained_Emulators_All_df = {{}}
-#for s in system_strs:
-#    for idf in [0, 1]:
-#        Trained_Emulators_All_df[s][idf] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+Trained_Emulators_all_df = {}
+for s in system_strs:
+    Trained_Emulators_all_df[s] = {}
+    for idf in [0, 1, 2, 3]:
+        try:
+            Trained_Emulators_all_df[s][idf] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+        except:
+            print("WARNING! Can't load emulator for system " + s)
