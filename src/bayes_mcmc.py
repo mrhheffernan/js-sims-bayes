@@ -42,7 +42,7 @@ from multiprocessing import cpu_count
 
 import matplotlib.pyplot as plt
 from configurations import *
-from emulator import Trained_Emulators, _Covariance
+from emulator import Trained_Emulators, Trained_Emulators_all_df, _Covariance
 from bayes_exp import Y_exp_data
 
 #define groups of observables which are assumed to have correlated experimental error
@@ -241,8 +241,9 @@ class Chain:
             self.sysdep_labels.append(labels[0])
             self.sys_idx[s] = [i]+list(range(Nsys, Nsys+len(design_max)-1))
             if not set_common:
-                self.common_max = np.array(list(design_max[1:])+[.4])
-                self.common_min = np.array(list(design_min[1:])+[1e-3])
+                #right now the extra std. deviation is hardcoded in, want to fix/generalize this in the future!
+                self.common_max = np.array(list(design_max[1:])+[.4]) # the last entry is max value for the extra std. deviation
+                self.common_min = np.array(list(design_min[1:])+[1e-3]) # the last value is the min. for the extra std. deviation
                 self.common_labels = list(labels[1:]) + [r'$\sigma_M$']
                 self.common_ndim = len(self.common_max)
                 self.common_range = np.array([self.common_min,
@@ -339,13 +340,23 @@ class Chain:
 
     def _predict(self, X, **kwargs):
         """
-        Call each system emulator to predict model output at X.
+        Call each system emulator to predict model output at X. (using df model specified by idf in configurations.py)
 
         """
         if hold_parameters:
             for (idx, value) in self.hold:
                 X[:,idx] = value
         return { s: Trained_Emulators[s].predict(X[:,self.sys_idx[s]], **kwargs) for s in system_strs }
+
+    def _predict_given_df(self, X, idf, **kwargs):
+        """
+        Call each system emulator for a given idf model (argument) to predict model output at X.
+
+        """
+        if hold_parameters:
+            for (idx, value) in self.hold:
+                X[:,idx] = value
+        return { s: Trained_Emulators_all_df[s][idf].predict(X[:,self.sys_idx[s]], **kwargs) for s in system_strs }
 
 
     def log_posterior(self, X, extra_std_prior_scale=0.001):
@@ -446,6 +457,12 @@ class Chain:
                     for obs2, slc2 in self._slices[sys]:
                         cov[:, slc1, slc2] = cov_pred[obs1, obs2]
 
+                #TEMPORARY FIX EMULATION COVARIANCE TO ZERO
+                #cov = np.empty((nsamples, nobs, nobs))
+
+                #TEMPORARY REDUCE EMU COVARIANCE BY FACTOR
+                #cov *= 0.1
+
                 # add expt cov to model cov
                 cov += self._expt_cov[sys]
 
@@ -530,6 +547,8 @@ class Chain:
                         start = time.time()
                         sampler.run_mcmc(pos0, nsteps // 10)
                         end = time.time()
+                        logZ, dlogZ = sampler.log_evidence_estimate()
+                        print("logZ = " + str(logZ) + " +/- " + str(dlogZ))
                         print("... finished in " + str(end - start) + " sec")
 
 
@@ -619,7 +638,7 @@ class Chain:
     def samples(self, n=1):
         """
         Predict model output at `n` parameter points randomly drawn from the
-        chain.
+        chain. (Uses emulator given by idf setting in configurations.py)
 
         """
         with self.dataset() as d:
@@ -630,6 +649,21 @@ class Chain:
             ])
 
         return self._predict(X)
+
+    def samples_given_df(self, idf, n=1):
+        """
+        Predict model output at `n` parameter points randomly drawn from the
+        chain using a specific df model emulator selected by input argument.
+
+        """
+        with self.dataset() as d:
+            X = np.array([
+                d[i] for i in zip(*[
+                    np.random.randint(s, size=n) for s in d.shape[:2]
+                ])
+            ])
+
+        return self._predict_given_df(X, idf)
 
 
 def credible_interval(samples, ci=.9):
