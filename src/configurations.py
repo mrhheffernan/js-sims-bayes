@@ -225,12 +225,21 @@ if hold_parameters:
     print(hold_parameters_set)
 
 change_parameters_range = False
-#the set below will fix the ranges to be similar to those used in J. Bernhard's study
-#                                   p               w               tau_r       zeta/s max    zeta/s T_peak      zeta/s width
-change_parameters_range_set = [(1, -0.5, 0.5), (3, 0.5, 1.0), (5, 0.3, 1.5), (11, 0.01, 0.1), (12, 0.15, 0.2), (13, 0.025, 0.1)  ]
 if change_parameters_range:
+    #first check if a file exists to change the ranges
+    if os.path.exists('restricted_prior_ranges/prior_range.dat'):
+        par_dtype = [ ('idx', int), ('min', float), ('max', float) ]
+        with open('restricted_prior_ranges/prior_range.dat', 'r') as f:
+            change_parameters_range_set = np.fromiter( (tuple(l.split()) for l in f if not l.startswith('#')), dtype=par_dtype )
+    #if this file does not exist, use the hardcoded values
+    else:
+        #the set below will fix the ranges to be similar to those used in J. Bernhard's study
+        #                                   p               w               tau_r       zeta/s max    zeta/s T_peak      zeta/s width
+        change_parameters_range_set = [(1, -0.5, 0.5), (3, 0.5, 1.0), (5, 0.3, 1.5), (11, 0.01, 0.1), (12, 0.15, 0.2), (13, 0.025, 0.1)  ]
+
     print("Warning : changing parameter ranges : ")
     print(change_parameters_range_set)
+
 
 #if this switch is turned on, the emulator will be trained on the values of
 # eta/s (T_i) and zeta/s (T_i), where T_i are a grid of temperatures, rather
@@ -378,7 +387,7 @@ MAP_params = {}
 MAP_params['Pb-Pb-2760'] = {}
 MAP_params['Au-Au-200'] = {}
 
-#old values with small change
+#values from EnsembleSampler chains with 100 walkers and 10k steps
 #                                     N       p   sigma_k   w      d3   tau_R  alpha T_eta,kink a_low   a_high eta_kink zeta_max T_(zeta,peak) w_zeta lambda_zeta b_pi    T_s
 #MAP_params['Pb-Pb-2760']['Grad'] = [14.218, 0.06,  1.041, 1.117, 2.993,  1.48, 0.047,  0.223,  -0.756,  0.218,   0.096,   0.129,     0.12,     0.089,    -0.194,  4.542, 0.136]
 #MAP_params['Au-Au-200']['Grad'] =  [5.765,  0.089, 1.054, 1.064, 4.227, 1.507, 0.113,  0.223,  -1.585,  0.32,    0.056,   0.11,      0.16,     0.093,    -0.084,  4.666, 0.136]
@@ -387,10 +396,22 @@ MAP_params['Au-Au-200'] = {}
 #MAP_params['Pb-Pb-2760']['P.B.'] = [13.344, 0.181, 0.909, 0.858, 3.235, 1.693, -0.072, 0.183,  -0.511,  2.0,     0.092,   0.091,     0.12,     0.049,    -0.068,  5.651, 0.149]
 #MAP_params['Au-Au-200']['P.B.'] =  [5.193,  0.181, 0.909, 0.858, 3.235, 1.693, -0.072, 0.183,  -0.511,  2.0,     0.092,   0.091,     0.12,     0.049,    -0.068,  5.651, 0.149]
 
+#values from EnsembleSampler chains with 2k walkers and 10k steps
 #                                     N      p   sigma_k   w     d3   tau_R  alpha T_eta,kink a_low   a_high eta_kink zeta_max T_(zeta,peak) w_zeta lambda_zeta    b_pi   T_s
-MAP_params['Pb-Pb-2760']['Grad'] = [14.2,  0.07,  1.03,  1.11,  3.05,  1.50,  0.054,  0.223,  -0.78,   0.21,    0.093,   0.13,      0.12,      0.089,    -0.15,   4.56 , 0.136]
-MAP_params['Au-Au-200']['Grad'] =  [5.73,  0.07,  1.03,  1.11,  3.05,  1.50,  0.054,  0.223,  -0.78,   0.21,    0.093,   0.13,      0.12,      0.089,    -0.15,   4.56 , 0.136]
-MAP_params['Pb-Pb-2760']['C.E.'] = [15.7,  0.06,  1.00,  1.20,  2.45,  1.02,  0.022,  0.253,  -0.76,   0.12,    0.051,   0.14,      0.12,      0.025,    -0.03,   5.66,  0.146]
-MAP_params['Au-Au-200']['C.E.'] =  [6.24,  0.06,  1.00,  1.20,  2.45,  1.02,  0.022,  0.253,  -0.76,   0.12,    0.051,   0.14,      0.12,      0.025,    -0.03,   5.66,  0.146]
-MAP_params['Pb-Pb-2760']['P.B.'] = [13.3,  0.18,  0.88,  0.88,  3.05,  1.74, -0.041,  0.183,  -0.35,   1.62,    0.094,   0.10,      0.12,      0.039,    -0.07,   5.58,  0.149]
-MAP_params['Au-Au-200']['P.B.'] =  [5.26,  0.18,  0.88,  0.88,  3.05,  1.74, -0.041,  0.183,  -0.35,   1.62,    0.094,   0.10,      0.12,      0.039,    -0.07,   5.58,  0.149]
+#MAP_params['Pb-Pb-2760']['Grad'] = [14.2,  0.07,  1.03,  1.11,  3.05,  1.50,  0.054,  0.223,  -0.78,   0.21,    0.093,   0.13,      0.12,      0.089,    -0.15,   4.56 , 0.136]
+#MAP_params['Au-Au-200']['Grad'] =  [5.73,  0.07,  1.03,  1.11,  3.05,  1.50,  0.054,  0.223,  -0.78,   0.21,    0.093,   0.13,      0.12,      0.089,    -0.15,   4.56 , 0.136]
+#MAP_params['Pb-Pb-2760']['C.E.'] = [15.7,  0.06,  1.00,  1.20,  2.45,  1.02,  0.022,  0.253,  -0.76,   0.12,    0.051,   0.14,      0.12,      0.025,    -0.03,   5.66,  0.146]
+#MAP_params['Au-Au-200']['C.E.'] =  [6.24,  0.06,  1.00,  1.20,  2.45,  1.02,  0.022,  0.253,  -0.76,   0.12,    0.051,   0.14,      0.12,      0.025,    -0.03,   5.66,  0.146]
+#MAP_params['Pb-Pb-2760']['P.B.'] = [13.3,  0.18,  0.88,  0.88,  3.05,  1.74, -0.041,  0.183,  -0.35,   1.62,    0.094,   0.10,      0.12,      0.039,    -0.07,   5.58,  0.149]
+#MAP_params['Au-Au-200']['P.B.'] =  [5.26,  0.18,  0.88,  0.88,  3.05,  1.74, -0.041,  0.183,  -0.35,   1.62,    0.094,   0.10,      0.12,      0.039,    -0.07,   5.58,  0.149]
+
+#values from ptemcee sampler with 500 walkers, 2k step adaptive burn in, 10k steps, 20 temperatures
+#                                     N      p   sigma_k   w     d3   tau_R  alpha T_eta,kink a_low   a_high eta_kink zeta_max T_(zeta,peak) w_zeta lambda_zeta    b_pi   T_s
+MAP_params['Pb-Pb-2760']['Grad'] = [14.2,  0.06,  1.05,  1.12,  3.00,  1.46,  0.031,  0.223,  -0.78,   0.37,    0.096,   0.13,      0.12,      0.072,    -0.12,   4.65 , 0.136]
+MAP_params['Au-Au-200']['Grad'] =  [5.73,  0.06,  1.05,  1.12,  3.00,  1.46,  0.031,  0.223,  -0.78,   0.37,    0.096,   0.13,      0.12,      0.072,    -0.12,   4.65 , 0.136]
+
+MAP_params['Pb-Pb-2760']['C.E.'] = [15.6,  0.06,  1.00,  1.19,  2.60,  1.04,  0.024,  0.268,  -0.73,   0.38,    0.042,   0.127,     0.12,      0.025,    0.095,   5.6,  0.146]
+MAP_params['Au-Au-200']['C.E.'] =  [6.24,  0.06,  1.00,  1.19,  2.60,  1.04,  0.024,  0.268,  -0.73,   0.38,    0.042,   0.127,     0.12,      0.025,    0.095,   5.6,  0.146]
+
+MAP_params['Pb-Pb-2760']['P.B.'] = [13.2,  0.14,  0.98,  0.81,  3.11,  1.46,  0.017,  0.194,  -0.47,   1.62,    0.105,   0.165,     0.194,      0.026,    -0.072,  5.54,  0.147]
+MAP_params['Au-Au-200']['P.B.'] =  [5.31,  0.14,  0.98,  0.81,  3.11,  1.46,  0.017,  0.194,  -0.47,   1.62,    0.105,   0.165,     0.194,      0.026,    -0.072,  5.54,  0.147]
