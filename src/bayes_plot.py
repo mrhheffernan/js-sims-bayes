@@ -470,10 +470,10 @@ def observables_posterior_discrepancy_PRL():
     lw = 2
 
     Ymodels = []
-    for idf in df_choices:
-        print("idf = " + str(idf))
-        chain = Chain(path=workdir/'mcmc'/'chain-idf-{:}_LHC_RHIC_PTEMCEE.hdf'.format(idf))
-        Ymodel = chain.samples_given_df(idf, n_samples)
+    for idf_loc in df_choices:
+        print("idf_loc = " + str(idf_loc))
+        chain = Chain(path=workdir/'mcmc'/'chain-idf-{:}_LHC_RHIC_PTEMCEE.hdf'.format(idf_loc))
+        Ymodel = chain.samples_given_df(idf_loc, n_samples)
         Ymodels.append(Ymodel)
 
     Yexp = Y_exp_data
@@ -497,12 +497,12 @@ def observables_posterior_discrepancy_PRL():
             #ax.errorbar(x, np.zeros_like(x), yerr=exp_err/exp_mean,fmt='ko')
 
             # plot calc
-            for i, idf in enumerate(df_choices):
+            for i, idf_loc in enumerate(df_choices):
                 Ymodel = Ymodels[i]
                 Y = Ymodel[system][obs]
                 y = (Y - exp_mean)/exp_err # model number of expt std deviations from expt mean
                 #y = (Y - exp_mean)/exp_mean # model percent error with data
-                color = color_idf[idf]
+                color = color_idf[idf_loc]
 
                 #fill between credible intervals
                 ax.fill_between(x, np.percentile(y, 5, axis=0), np.percentile(y, 95, axis=0),
@@ -511,10 +511,6 @@ def observables_posterior_discrepancy_PRL():
                 ax.fill_between(x, np.percentile(y, 49, axis=0), np.percentile(y, 51, axis=0),
                                 color=color, alpha=1, lw=lw
                                 )
-
-                #plot samples
-                #for n in range(n_samples):
-                #    ax.plot(x, y[n], color=color, alpha=alpha)
 
 
             ax.set_xlim(0, 70)
@@ -555,10 +551,10 @@ def observables_joint_posterior_discrepancy_PRL():
     lw = 2
 
     Ymodels = []
-    for idf in df_choices:
-        print("idf = " + str(idf))
-        chain = Chain(path=workdir/'mcmc'/'chain-idf-{:}_LHC_RHIC_PTEMCEE.hdf'.format(idf))
-        Ymodel = chain.samples_given_df(idf, n_samples)
+    for idf_loc in df_choices:
+        print("idf_loc = " + str(idf_loc))
+        chain = Chain(path=workdir/'mcmc'/'chain-idf-{:}_LHC_RHIC_PTEMCEE.hdf'.format(idf_loc))
+        Ymodel = chain.samples_given_df(idf_loc, n_samples)
         Ymodels.append(Ymodel)
 
     Yexp = Y_exp_data
@@ -589,7 +585,7 @@ def observables_joint_posterior_discrepancy_PRL():
                     continue
 
                 # plot calc
-                for i, idf in enumerate(df_choices):
+                for i, idf_loc in enumerate(df_choices):
                     Ymodel = Ymodels[i]
 
                     Y1 = Ymodel[system][obs1][:, cent_bin]
@@ -597,8 +593,8 @@ def observables_joint_posterior_discrepancy_PRL():
 
                     Y2 = Ymodel[system][obs2][:, cent_bin]
                     y2 = (Y2 - exp_mean2)/exp_err2 # model number of expt std deviations from expt mean
-                    cmap = cmaps_idf[idf]
-                    color = colors_idf[idf]
+                    cmap = cmaps_idf[idf_loc]
+                    color = colors_idf[idf_loc]
 
                     binsx = np.linspace(-4, 4, 50)
                     binsy = np.linspace(-4, 4, 50)
