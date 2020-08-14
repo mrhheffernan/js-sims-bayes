@@ -279,7 +279,7 @@ class Chain:
             # modify the ranges of a set of parameters
             for (idx, pmin, pmax) in self.change_range:
                 if pmin < self.min[idx] or self.max[idx] < pmax:
-                    print("update range value out of design range for idx = ", idx, ", value = ", value)
+                    print("update range value out of design range for idx = " + str(idx) + " : pmin = " + str(pmin) + " , pmax = " + str(pmax) )
                     print("design range is [" + str(self.min[idx]) + " , " + str(self.max[idx]) + " ]")
                     exit(-1)
 
