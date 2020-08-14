@@ -1,5 +1,5 @@
 #download the expt data
-sh download_experimental_data.sh
+git clone https://github.com/derekeverett/HIC_experimental_data.git
 
 #unzip the design points
 cd production_designs/500pts/
