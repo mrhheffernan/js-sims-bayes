@@ -10,8 +10,7 @@ explicitly --- the emulators will be trained automatically when needed).  Run
 Uses the `scikit-learn <http://scikit-learn.org>`_ implementations of
 `principal component analysis (PCA)
 <http://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html>`_
-and `Gaussian process regression
-<http://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.GaussianProcessRegressor.html>`_.
+and uses GPy implementation of Gaussian Process Regression.
 """
 
 import logging
@@ -24,8 +23,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.decomposition import KernelPCA
 from sklearn.externals import joblib
-from sklearn.gaussian_process import GaussianProcessRegressor as GPR
-from sklearn.gaussian_process import kernels
+import GPy
 from sklearn.preprocessing import StandardScaler
 
 from configurations import *
@@ -130,49 +128,46 @@ class Emulator:
         # Standardize observables and transform through PCA.  Use the first
         # `npc` components but save the full PC transformation for later.
         Z = self.pca.fit_transform( self.scaler.fit_transform(Y) )[:, :npc] # save all the rows (design points), but keep first npc columns
+        self.Z = Z
 
         design, design_max, design_min, labels = prepare_emu_design(system_str)
-
         #delete undesirable data
         if len(delete_design_pts_set) > 0:
             print("Warning! Deleting " + str(len(delete_design_pts_set)) + " points from data")
         design = np.delete(design, list(delete_design_pts_set), 0)
+        self.design = design
 
         ptp = design_max - design_min
         print("Design shape[Ndesign, Nparams] = " + str(design.shape))
-        # Define kernel (covariance function):
-        # Gaussian correlation (RBF) plus a noise term.
-        # noise term is necessary since model calculations contain statistical noise
-        k0 = 1. * kernels.RBF(
-                      length_scale=ptp,
-                      length_scale_bounds=np.outer(ptp, (4e-1, 1e2)),
-                      #nu = 3.5
-                   )
-        k1 = kernels.ConstantKernel()
-        k2 = kernels.WhiteKernel(
-                                 noise_level=.1,
-                                 noise_level_bounds=(1e-2, 1e2)
-                                 )
+        n_params = design.shape[1]
 
-        #kernel = (k0 + k1 + k2) #this includes a constant kernel
-        kernel = (k0 + k2) # this does not
+        # Define kernel (covariance function):
+        #the Squared Exponential Kernel
+        #rbf_kern = GPy.kern.RBF(input_dim=n_params, variance=1., lengthscale=ptp)
+        rbf_kern = GPy.kern.RBF(input_dim=n_params, ARD=True)
+
+        #this is a linear kernel, which can be useful in describing the global behavior,
+        #or in better describing its asymptotic behavior away from training points
+        linear_kern = GPy.kern.Linear(input_dim=n_params, ARD=True)
+
+        # noise term is necessary since model calculations contain statistical noise
+        #this term is homoschedastic or heteroschedastic?
+        noise_level = 0.1
+        white_kern = GPy.kern.White(input_dim=n_params, variance=noise_level)
+
+        kernel = (rbf_kern + linear_kern + white_kern)
 
         # Fit a GP (optimize the kernel hyperparameters) to each PC.
-
         self.gps = []
         for i, z in enumerate(Z.T):
             print("Fitting PC #", i)
-            self.gps.append(
-                GPR(
-                kernel=kernel,
-                alpha=0.01,
-                n_restarts_optimizer=nrestarts,
-                copy_X_train=False
-                ).fit(design, z)
-            )
+            z = z.reshape(-1, 1)
+            my_gp = GPy.models.GPRegression(design, z, kernel)
+            my_gp.optimize(messages=False)
+            self.gps.append(my_gp)
 
-        for n, (z, gp) in enumerate(zip(Z.T, self.gps)):
-            print("GP " + str(n) + " score : " + str(gp.score(design, z)))
+        #for n, (z, gp) in enumerate(zip(Z.T, self.gps)):
+        #    print("GP " + str(n) + " score : " + str(gp.score(design, z)))
 
         print("Constructing full linear transformation matrix")
         # Construct the full linear transformation matrix, which is just the PC
@@ -236,8 +231,6 @@ class Emulator:
         Y = np.dot(Z, self._trans_matrix[:Z.shape[-1]])
         Y += self.scaler.mean_
 
-
-
         """
         return {
             obs: {
@@ -250,6 +243,7 @@ class Emulator:
         return {
             obs: Y[..., s] for obs, s in self._slices.items()
         }
+
 
     def predict(self, X, return_cov=False, extra_std=0):
         """
@@ -289,10 +283,11 @@ class Emulator:
         may either be a scalar or an array-like of length nsamples.
 
         """
+
         if do_transform_design:
             X = transform_design(X)
 
-        gp_mean = [gp.predict(X, return_cov=return_cov) for gp in self.gps]
+        gp_mean = [gp.predict(X, full_cov=return_cov) for gp in self.gps]
 
         if return_cov:
             gp_mean, gp_cov = zip(*gp_mean)
@@ -346,6 +341,31 @@ class Emulator:
             ], axis=2)
         )
 
+def load_emu_from_dill(s, idf_loc):
+    """
+    Load the emulator from file, and loading the parameters for each GP model separately.
+    This is necessary because GPy models can not be pickled at this time...
+    """
+    #load the dill
+    with open('emulator/emulator-' + s + '-idf-' + str(idf_loc) + '.dill', 'rb') as f:
+        emu = pickle.load(f)
+
+    """
+    for pc, z in enumerate(emu.Z.T):
+        print("loading GP for pc " + str(pc))
+        z = z.reshape(-1, 1)
+        print("z.shape = " + str(z.shape))
+        print("design.shape = " + str(emu.design.shape))
+        m_load = GPy.models.GPRegression(emu.design, z, initialize=False)
+        m_load.update_model(False) # do not call the underlying expensive algebra on load
+        m_load.initialize_parameter() # Initialize the parameters (connect the parameters up)
+        m_load[:] = np.load('emulator/pc_' + str(pc) + '_params.npy') # Load the parameters
+        m_load.update_model(True) # Call the algebra only once
+        emu.gps[pc] = m_load
+    """
+
+    return emu
+
 def main():
     import argparse
 
@@ -386,26 +406,33 @@ def main():
         #    )
 
         #dill the emulator to be loaded later
+        #for pc, gp in enumerate(emu.gps):
+        #    np.save('emulator/pc_' + str(pc) + '_params.npy', gp.param_array)
+        #    emu.gps[pc] = gp.to_dict()
         with open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', 'wb') as file:
-            dill.dump(emu, file)
-
+            pickle.dump(emu, file)
 
 if __name__ == "__main__":
     main()
 
+
 Trained_Emulators = {}
 for s in system_strs:
     try:
-        Trained_Emulators[s] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+        #Trained_Emulators[s] = pickle.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+        Trained_Emulators[s] = load_emu_from_dill(s, idf)
     except:
-        print("WARNING! Can't load emulator for system " + s)
+    #    print("WARNING! Can't load emulator for system " + s + " , idf = " + str(idf))
+        pass
 
 #contains all the emulators for all df models
 Trained_Emulators_all_df = {}
 for s in system_strs:
     Trained_Emulators_all_df[s] = {}
-    for idf in [0, 1, 2, 3]:
+    for idf_loc in [0, 1, 2, 3]:
         try:
-            Trained_Emulators_all_df[s][idf] = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+            #Trained_Emulators_all_df[s][idf_loc] = pickle.load(open('emulator/emulator-' + s + '-idf-' + str(idf_loc) + '.dill', "rb"))
+            Trained_Emulators_all_df[s][idf_loc] = load_emu_from_dill(s, idf_loc)
         except:
-            print("WARNING! Can't load emulator for system " + s)
+        #    print("WARNING! Can't load emulator for system " + s + " , idf = " + str(idf_loc))
+            pass

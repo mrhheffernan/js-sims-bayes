@@ -2,6 +2,7 @@
 import logging
 import dill
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 import numpy as np
 from string import ascii_letters
@@ -11,6 +12,7 @@ from emulator import *
 from calculations_load import validation_data, trimmed_model_data
 from bayes_mcmc import Chain, credible_interval
 from bayes_plot import obs_tex_labels_2
+
 def plot_residuals(system_str, emu, design, cent_bin, observables, nrows, ncols):
     """
     Plot a histogram of the percent difference between the emulator
@@ -113,6 +115,8 @@ def plot_scatter(system_str, emu, design, cent_bin, observables):
     design points in either training or testing set.
     """
 
+    sns.set()
+
     print("Plotting scatter plot of emulator vs model")
     ncols = 3
     nrows = 2
@@ -142,24 +146,25 @@ def plot_scatter(system_str, emu, design, cent_bin, observables):
 
         else :
             for pt, params in enumerate(design.values):
-                mean, cov = emu.predict(np.array([params]), return_cov = True)
-                y_true = validation_data[system_str][pt, idf][obs]['mean'][cent_bin]
-                y_emu = mean[obs][0][cent_bin]
-                is_mult = ('dN' in obs) or ('dET' in obs)
-                if is_mult and transform_multiplicities:
-                    y_emu = np.exp(y_emu) - 1.
-                    y_true = np.exp(y_true) - 1.
-                #dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
-                Y_true.append(y_true)
-                Y_emu.append(y_emu)
-                if pt in delete_design_pts_validation_set:
-                    ax.scatter(y_true, y_emu, color='red')
+                if pt not in delete_design_pts_validation_set:
+                    mean, cov = emu.predict(np.array([params]), return_cov = True)
+                    y_true = validation_data[system_str][pt, idf][obs]['mean'][cent_bin]
+                    y_emu = mean[obs][0][cent_bin]
+                    is_mult = ('dN' in obs) or ('dET' in obs)
+                    if is_mult and transform_multiplicities:
+                        y_emu = np.exp(y_emu) - 1.
+                        y_true = np.exp(y_true) - 1.
+                    #dy_emu = (np.diagonal(cov[obs, obs])**.5)[:,0]
+                    Y_true.append(y_true)
+                    Y_emu.append(y_emu)
+                    #if pt in delete_design_pts_validation_set:
+                    #    ax.scatter(y_true, y_emu, color='red')
 
         Y_true = np.array(Y_true)
         Y_emu = np.array(Y_emu)
         ym, yM = np.min(Y_emu), np.max(Y_emu)
-        #h = ax.hist2d(Y_emu, Y_true, bins=31, cmap='coolwarm', range=[(ym, yM),(ym, yM)])
-        ax.scatter(Y_emu, Y_true)
+        #ax.scatter(Y_emu, Y_true)
+        sns.scatterplot(Y_emu, Y_true, ax=ax)
         ym, yM = ym-(yM-ym)*.05, yM+(yM-ym)*.05
         ax.plot([ym,yM],[ym,yM],'k--', zorder=100)
 
@@ -286,6 +291,9 @@ def closure_test_credibility_eta_zeta(system_str, design):
 
 def main():
 
+    if os.path.exists('validation_plots') == False:
+        os.mkdir('validation_plots')
+
     cent_bin = 3
 
     for s in system_strs:
@@ -307,7 +315,8 @@ def main():
 
         #load the dill'ed emulator from emulator file
         print("Loading emulators from emulator/emulator-" + s + '-idf-' + str(idf) + '.dill' )
-        emu = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+        #emu = dill.load(open('emulator/emulator-' + s + '-idf-' + str(idf) + '.dill', "rb"))
+        emu = load_emu_from_dill(s, idf)
         print("NPC = " + str(emu.npc))
         print("idf = " + str(idf))
 
