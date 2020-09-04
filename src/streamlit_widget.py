@@ -159,9 +159,35 @@ def update_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf, charts0, charts1, charts2
 
         charts0.add_rows(df_emu)
 
+
+def make_plot_eta_zeta(params):
+    T_low = 0.1
+    T_high = 0.35
+    T = np.linspace(T_low, T_high, 100)
+    eta_s = eta_over_s(T, *params[7:11])
+    zeta_s = zeta_over_s(T, *params[11:15])
+
+    df_eta_zeta = pd.DataFrame({'T': T, 'eta':eta_s, 'zeta':zeta_s})
+
+    chart_eta = alt.Chart(df_eta_zeta).mark_line().encode(
+    x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
+    y=alt.Y('eta', axis=alt.Axis(title='specific shear visc.'), scale=alt.Scale(domain=(0., 0.5 ))  )
+    ).properties(width=150,height=150)
+
+    chart_zeta = alt.Chart(df_eta_zeta).mark_line().encode(
+    x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
+    y=alt.Y('zeta', axis=alt.Axis(title='specific bulk visc.'), scale=alt.Scale(domain=(0., 0.5 ))  )
+    ).properties(width=150,height=150)
+
+    #st_chart = st.altair_chart(chart)
+    charts = alt.hconcat(chart_zeta, chart_eta)
+    st.write(charts)
+
+
 st.title('Heavy Ion Model Emulator')
 st.markdown(r'Our model(s) for [heavy ion collisions](https://en.wikipedia.org/wiki/High-energy_nuclear_physics) include many parameters. Try varying any of them using the sliders in the sidebar(left), and see how each of the model observables (blue band) as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV change.')
 st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
+st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities, given their input parameters.')
 st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
 st.markdown(r'The viscous correction is an important model choice we make when converting hydrodynamic fields into particles. You can try three different viscous correction models by clicking the viscous correction button below.')
 
@@ -191,7 +217,6 @@ params = []
 #        max = design_max[i_s]
 #        p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s])
 
-
 #updated params
 for i_s, s_name in enumerate(short_names.keys()):
     min = design_min[i_s]
@@ -200,10 +225,14 @@ for i_s, s_name in enumerate(short_names.keys()):
     p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s], step=step)
     params.append(p)
 
+#get plots of eta/s and zeta/s
+
 #get emu prediction
 Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
 
 make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
+
+make_plot_eta_zeta(params)
 
 st.header('How it works')
 st.markdown('A description of the physics model and parameters can be found [here](https://indico.bnl.gov/event/6998/contributions/35770/attachments/27166/42261/JS_WS_2020_SIMS_v2.pdf).')
