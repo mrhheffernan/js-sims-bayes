@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import time
+import os
 import matplotlib
 import altair as alt
 import dill
@@ -221,7 +222,7 @@ params = []
 for i_s, s_name in enumerate(short_names.keys()):
     min = design_min[i_s]
     max = design_max[i_s]
-    step = (max - min)/100
+    step = (max - min)/100.
     p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s], step=step)
     params.append(p)
 
@@ -239,3 +240,6 @@ st.markdown('A description of the physics model and parameters can be found [her
 st.markdown('The observables you see above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
 st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
 st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
+
+if st.button('(Pull latest updates)'):
+    os.system('git pull origin master')
