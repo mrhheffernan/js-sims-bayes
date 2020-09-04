@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import time
 import os
+import subprocess
 import matplotlib
 import altair as alt
 import dill
@@ -242,4 +243,5 @@ st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_
 st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
 
 if st.button('(Pull latest updates and refresh)'):
-    os.system('git pull origin master')
+    #os.system('git pull origin master')
+    subprocess.run("git pull origin master", shell=True, check=True)
