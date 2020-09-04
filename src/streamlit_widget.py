@@ -242,6 +242,7 @@ st.markdown('The observables you see above (and additional ones unshown) are com
 st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
 st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
 
-if st.button('(Pull latest updates and refresh)'):
-    #os.system('git pull origin master')
+
+st.markdown('To update the widget with latest changes, click the button below, and then refresh your webpage.')
+if st.button('(Update widget)'):
     subprocess.run("git pull origin master", shell=True, check=True)
