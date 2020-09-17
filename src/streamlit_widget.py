@@ -99,7 +99,7 @@ def emu_predict(params):
     time_emu = end - start
     return Yemu_mean, Yemu_cov, time_emu
 
-#@st.cache(suppress_st_warning=True)
+@st.cache(suppress_st_warning=True)
 def make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf):
     for iobs, obs in enumerate(observables):
         xbins = np.array(obs_cent_list[system][obs])
