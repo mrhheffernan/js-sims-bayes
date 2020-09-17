@@ -185,7 +185,6 @@ def make_plot_eta_zeta(params):
     charts = alt.hconcat(chart_zeta, chart_eta)
     st.write(charts)
 
-
 st.title('Heavy Ion Model Emulator')
 st.markdown(r'Our model(s) for [heavy ion collisions](https://en.wikipedia.org/wiki/High-energy_nuclear_physics) include many parameters. Try varying any of them using the sliders in the sidebar(left), and see how each of the model observables (blue band) as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV change.')
 st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
@@ -213,11 +212,9 @@ params_0 = MAP_params[system][ idf_label_short[idf] ]
 params = []
 
 if st.button('Reset parameters to best fit values'):
-    params = params_0
-#    for i_s, s_name in enumerate(short_names.keys()):
-#        min = design_min[i_s]
-#        max = design_max[i_s]
-#        p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s])
+    params=params_0
+    make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
+    make_plot_eta_zeta(params)
 
 #updated params
 for i_s, s_name in enumerate(short_names.keys()):
@@ -233,7 +230,6 @@ for i_s, s_name in enumerate(short_names.keys()):
 Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
 
 make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
-
 make_plot_eta_zeta(params)
 
 st.header('How it works')
