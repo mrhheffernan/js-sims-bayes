@@ -212,8 +212,8 @@ params_0 = MAP_params[system][ idf_label_short[idf] ]
 
 params = []
 
-#if st.button('Reset to MAP'):
-#    params = params_0
+if st.button('Reset parameters to best fit values'):
+    params = params_0
 #    for i_s, s_name in enumerate(short_names.keys()):
 #        min = design_min[i_s]
 #        max = design_max[i_s]
