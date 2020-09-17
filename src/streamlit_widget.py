@@ -60,7 +60,7 @@ obs_word_labels = {
 
 system = 'Pb-Pb-2760'
 
-#@st.cache(persist=True)
+@st.cache(persist=True)
 def load_design(system):
     #load the design
     design_file = SystemsInfo[system]["main_design_file"]
@@ -74,7 +74,7 @@ def load_design(system):
     return design, labels, design_max, design_min
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True, show_spinner=False)
 def load_emu(system, idf):
     #load the emulator
     emu = dill.load(open('emulator/emulator-' + system + '-idf-' + str(idf) + '.dill', "rb"))
@@ -88,8 +88,8 @@ def load_obs(system):
     return observables, nobs, Yexp
 
 
-#@st.cache(allow_output_mutation=True)
-def emu_predict(params):
+#@st.cache(allow_output_mutation=True, show_spinner=False)
+def emu_predict(emu, params):
     start = time.time()
     Yemu_cov = 0
     #Yemu_mean = emu.predict( np.array( [params] ), return_cov=False )
@@ -98,8 +98,8 @@ def emu_predict(params):
     time_emu = end - start
     return Yemu_mean, Yemu_cov, time_emu
 
-#@st.cache(suppress_st_warning=True)
-def make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf):
+#@st.cache(show_spinner=False)
+def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
     for iobs, obs in enumerate(observables):
         xbins = np.array(obs_cent_list[system][obs])
         #centrality bins
@@ -138,7 +138,6 @@ def make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf):
             charts2 = chart
         if iobs in [7, 8]:
             charts2 = alt.hconcat(charts2, chart)
-
 
     charts0 = st.altair_chart(charts0)
     charts1 = st.altair_chart(charts1)
@@ -184,52 +183,57 @@ def make_plot_eta_zeta(params):
     charts = alt.hconcat(chart_zeta, chart_eta)
     st.write(charts)
 
-st.title('Heavy Ion Model Emulator')
-st.markdown(r'Our model(s) for [heavy ion collisions](https://en.wikipedia.org/wiki/High-energy_nuclear_physics) include many parameters. Try varying any of them using the sliders in the sidebar(left), and see how each of the model observables (blue band) as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV change.')
-st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
-st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities, given their input parameters.')
-st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
-st.markdown(r'The viscous correction is an important model choice we make when converting hydrodynamic fields into particles. You can try three different viscous correction models by clicking the viscous correction button below.')
+def main():
+    st.title('Heavy Ion Model Emulator')
+    st.markdown(r'Our model(s) for [heavy ion collisions](https://en.wikipedia.org/wiki/High-energy_nuclear_physics) include many parameters. Try varying any of them using the sliders in the sidebar(left), and see how each of the model observables (blue band) as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV change.')
+    st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
+    st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities, given their input parameters.')
+    st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
+    st.markdown(r'The viscous correction is an important model choice we make when converting hydrodynamic fields into particles. You can try three different viscous correction models by clicking the viscous correction button below.')
 
-idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Bernhard']
-idf_name = st.selectbox('Viscous Correction',idf_names)
-inverted_idf_label = dict([[v,k] for k,v in idf_label.items()])
-idf = inverted_idf_label[idf_name]
+    idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Bernhard']
+    idf_name = st.selectbox('Viscous Correction',idf_names)
+    inverted_idf_label = dict([[v,k] for k,v in idf_label.items()])
+    idf = inverted_idf_label[idf_name]
 
-#load the design
-design, labels, design_max, design_min = load_design(system)
+    #load the design
+    design, labels, design_max, design_min = load_design(system)
 
-#load the emu
-emu = load_emu(system, idf)
+    #load the emu
+    emu = load_emu(system, idf)
 
-#load the exp obs
-observables, nobs, Yexp = load_obs(system)
+    #load the exp obs
+    observables, nobs, Yexp = load_obs(system)
 
-#initialize parameters
-params_0 = MAP_params[system][ idf_label_short[idf] ]
-params = []
+    #initialize parameters
+    params_0 = MAP_params[system][ idf_label_short[idf] ]
+    params = []
 
-#updated params
-for i_s, s_name in enumerate(short_names.keys()):
-    min = design_min[i_s]
-    max = design_max[i_s]
-    step = (max - min)/100.
-    p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s], step=step)
-    params.append(p)
+    #updated params
+    for i_s, s_name in enumerate(short_names.keys()):
+        min = design_min[i_s]
+        max = design_max[i_s]
+        step = (max - min)/100.
+        p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s], step=step)
+        params.append(p)
 
-#get emu prediction
-Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
+    #get emu prediction
+    Yemu_mean, Yemu_cov, time_emu = emu_predict(emu, params)
 
-#redraw plots
-make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
-make_plot_eta_zeta(params)
+    #redraw plots
+    make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf)
+    make_plot_eta_zeta(params)
 
-st.header('How it works')
-st.markdown('A description of the physics model and parameters can be found [here](https://indico.bnl.gov/event/6998/contributions/35770/attachments/27166/42261/JS_WS_2020_SIMS_v2.pdf).')
-st.markdown('The observables you see above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
-st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
-st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
+    st.header('How it works')
+    st.markdown('A description of the physics model and parameters can be found [here](https://indico.bnl.gov/event/6998/contributions/35770/attachments/27166/42261/JS_WS_2020_SIMS_v2.pdf).')
+    st.markdown('The observables you see above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
+    st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
+    st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
 
-st.markdown('To update the widget with latest changes, click the button below, and then refresh your webpage.')
-if st.button('(Update widget)'):
-    subprocess.run("git pull origin master", shell=True)
+    st.markdown('To update the widget with latest changes, click the button below, and then refresh your webpage.')
+    if st.button('(Update widget)'):
+        subprocess.run("git pull origin master", shell=True)
+
+
+if __name__ == "__main__":
+    main()
