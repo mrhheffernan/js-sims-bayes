@@ -80,7 +80,6 @@ def load_emu(system, idf):
     emu = dill.load(open('emulator/emulator-' + system + '-idf-' + str(idf) + '.dill', "rb"))
     return emu
 
-
 @st.cache(persist=True)
 def load_obs(system):
     observables = system_observables[system]
@@ -99,7 +98,7 @@ def emu_predict(params):
     time_emu = end - start
     return Yemu_mean, Yemu_cov, time_emu
 
-@st.cache(suppress_st_warning=True)
+#@st.cache(suppress_st_warning=True)
 def make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf):
     for iobs, obs in enumerate(observables):
         xbins = np.array(obs_cent_list[system][obs])
@@ -208,7 +207,6 @@ observables, nobs, Yexp = load_obs(system)
 
 #initialize parameters
 params_0 = MAP_params[system][ idf_label_short[idf] ]
-
 params = []
 
 #updated params
@@ -219,11 +217,10 @@ for i_s, s_name in enumerate(short_names.keys()):
     p = st.sidebar.slider(short_names[s_name], min_value=min, max_value=max, value=params_0[i_s], step=step)
     params.append(p)
 
-#get plots of eta/s and zeta/s
-
 #get emu prediction
 Yemu_mean, Yemu_cov, time_emu = emu_predict(params)
 
+#redraw plots
 make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
 make_plot_eta_zeta(params)
 
@@ -232,12 +229,6 @@ st.markdown('A description of the physics model and parameters can be found [her
 st.markdown('The observables you see above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
 st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
 st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
-
-
-#if st.button('Reset parameters to best fit values'):
-#    params=params_0
-#    make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
-#    make_plot_eta_zeta(params)
 
 st.markdown('To update the widget with latest changes, click the button below, and then refresh your webpage.')
 if st.button('(Update widget)'):
