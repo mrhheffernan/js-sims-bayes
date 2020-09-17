@@ -245,4 +245,4 @@ st.markdown('The GP is then able to interpolate between these points, while esti
 
 st.markdown('To update the widget with latest changes, click the button below, and then refresh your webpage.')
 if st.button('(Update widget)'):
-    subprocess.run("git pull origin master", shell=True, check=True)
+    subprocess.run("git pull origin master", shell=True)
