@@ -234,10 +234,10 @@ st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_
 st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
 
 
-if st.button('Reset parameters to best fit values'):
-    params=params_0
-    make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
-    make_plot_eta_zeta(params)
+#if st.button('Reset parameters to best fit values'):
+#    params=params_0
+#    make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
+#    make_plot_eta_zeta(params)
 
 st.markdown('To update the widget with latest changes, click the button below, and then refresh your webpage.')
 if st.button('(Update widget)'):
