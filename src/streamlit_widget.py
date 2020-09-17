@@ -211,11 +211,6 @@ params_0 = MAP_params[system][ idf_label_short[idf] ]
 
 params = []
 
-if st.button('Reset parameters to best fit values'):
-    params=params_0
-    make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
-    make_plot_eta_zeta(params)
-
 #updated params
 for i_s, s_name in enumerate(short_names.keys()):
     min = design_min[i_s]
@@ -238,6 +233,11 @@ st.markdown('The observables you see above (and additional ones unshown) are com
 st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
 st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
 
+
+if st.button('Reset parameters to best fit values'):
+    params=params_0
+    make_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf)
+    make_plot_eta_zeta(params)
 
 st.markdown('To update the widget with latest changes, click the button below, and then refresh your webpage.')
 if st.button('(Update widget)'):
