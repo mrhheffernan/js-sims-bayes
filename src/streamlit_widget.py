@@ -60,7 +60,7 @@ obs_word_labels = {
 
 system = 'Pb-Pb-2760'
 
-@st.cache(persist=True)
+#@st.cache(persist=True)
 def load_design(system):
     #load the design
     design_file = SystemsInfo[system]["main_design_file"]
