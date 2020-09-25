@@ -1911,9 +1911,9 @@ def bayes_model_avg_viscous_posterior_2():
     T = np.linspace(0.135, 0.35, 200)
 
     #chains of each model
-    chain_a = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf') #Grad
-    chain_b = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf') #CE
-    chain_c = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf') #PTB
+    chain_a = Chain(path=workdir/'mcmc_default'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf') #Grad
+    chain_b = Chain(path=workdir/'mcmc_default'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf') #CE
+    chain_c = Chain(path=workdir/'mcmc_default'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf') #PTB
 
     data_a = chain_a.load_wo_reshape(thin=thin_factor)
     data_b = chain_b.load_wo_reshape(thin=thin_factor)
@@ -1969,8 +1969,9 @@ def bayes_model_avg_viscous_posterior_2():
     samples_mix = np.append(samples_a, samples_b, axis=0)
     samples_mix = np.append(samples_mix, samples_c, axis=0)
 
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6,3),
-                    sharex=True, sharey=False, constrained_layout=True)
+    height_ratios = [1., .3]
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(6,3.5),
+                    sharex=True, sharey=False, constrained_layout=True, gridspec_kw={'height_ratios': height_ratios})
 
 
     ##########################
@@ -1984,9 +1985,10 @@ def bayes_model_avg_viscous_posterior_2():
                 np.random.uniform( min(design['zeta_over_s_width_in_GeV']), max(design['zeta_over_s_width_in_GeV']), n_samples_prior),
                 np.random.uniform( min(design['zeta_over_s_lambda_asymm']), max(design['zeta_over_s_lambda_asymm']), n_samples_prior)
                 ):
-        prior_zetas.append(zeta_over_s(T, zm, T0, w, asym))
+        prior_zetas.append( zeta_over_s(T, zm, T0, w, asym) )
+    prior_zetas = np.array(prior_zetas)
 
-    axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
+    axes[0, 0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
                             np.percentile(prior_zetas, 95, axis=0),
                             color='gray', alpha=0.3, lw=2)
 
@@ -1996,13 +1998,33 @@ def bayes_model_avg_viscous_posterior_2():
 
     posterior_zetas_mix = [ zeta_over_s(T, *d[11:15]) for d in samples_mix ]
 
-    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 5, axis=0),
+    posterior_zetas_mix = np.array(posterior_zetas_mix)
+
+    #calculate the information gain between the posterior and prior as func. of T
+    nbins = 40
+    range_zeta_bins = [0., 0.5]
+    info_gain_zeta = []
+    fig = matplotlib.figure.Figure()
+    ax = matplotlib.axes.Axes(fig, (0,0,0,0))
+    for iT, T0 in enumerate(T):
+        H0, bins, _ = ax.hist(prior_zetas[:, iT], bins=nbins, histtype='step', range=range_zeta_bins, density=True)
+        H1, _, _ = ax.hist(posterior_zetas_mix[:, iT], bins=nbins, histtype='step', range=range_zeta_bins, density=True)
+        bin_width = bins[1] - bins[0]
+        info = calculate_information_gain(H0, H1, bin_width)
+        info_gain_zeta.append(info)
+    del ax, fig
+
+    axes[1, 0].plot(T, info_gain_zeta, lw=2)
+    axes[1, 0].set_ylabel(r'$KL(\zeta/s(T))$')
+
+
+    axes[0, 0].fill_between(T, np.percentile(posterior_zetas_mix, 5, axis=0),
                             np.percentile(posterior_zetas_mix, 95, axis=0),
                             color=colors[0], lw=2)
     #axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 15, axis=0),
     #                        np.percentile(posterior_zetas_mix, 85, axis=0),
     #                        color=colors[1])
-    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 20, axis=0),
+    axes[0, 0].fill_between(T, np.percentile(posterior_zetas_mix, 20, axis=0),
                             np.percentile(posterior_zetas_mix, 80, axis=0),
                             color=colors[1], lw=2)
 
@@ -2013,7 +2035,7 @@ def bayes_model_avg_viscous_posterior_2():
     #                        np.percentile(posterior_zetas_mix, 65, axis=0),
     #                        color=colors[3])
 
-    axes[0].fill_between(T, np.percentile(prior_zetas, 20, axis=0),
+    axes[0, 0].fill_between(T, np.percentile(prior_zetas, 20, axis=0),
                             np.percentile(prior_zetas, 80, axis=0),
                             edgecolor='gray', facecolor='None', ls='--', lw=2)
 
@@ -2029,9 +2051,9 @@ def bayes_model_avg_viscous_posterior_2():
                 np.random.uniform( min(design['eta_over_s_at_kink']), max(design['eta_over_s_at_kink']), n_samples_prior)
                 ):
         prior_etas.append(eta_over_s(T, T_k, alow, ahigh, etas_k))
+    prior_etas = np.array(prior_etas)
 
-
-    axes[1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
+    axes[0, 1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
                             np.percentile(prior_etas, 95, axis=0),
                             color='gray', alpha=0.3, lw=2, label='$90$% CI Prior')
 
@@ -2040,14 +2062,32 @@ def bayes_model_avg_viscous_posterior_2():
     posterior_etas_3 = [ eta_over_s(T, *d[7:11]) for d in samples3 ]
 
     posterior_etas_mix = [ eta_over_s(T, *d[7:11]) for d in samples_mix ]
+    posterior_etas_mix = np.array(posterior_etas_mix)
 
-    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 5, axis=0),
+    #calculate the information gain between the posterior and prior as func. of T
+    nbins = 40
+    range_eta_bins = [0., 0.7]
+    info_gain_eta = []
+    fig = matplotlib.figure.Figure()
+    ax = matplotlib.axes.Axes(fig, (0,0,0,0))
+    for iT, T0 in enumerate(T):
+        H0, bins, _ = ax.hist(prior_etas[:, iT], bins=nbins, histtype='step', range=range_eta_bins, density=True)
+        H1, _, _ = ax.hist(posterior_etas_mix[:, iT], bins=nbins, histtype='step', range=range_eta_bins, density=True)
+        bin_width = bins[1] - bins[0]
+        info = calculate_information_gain(H0, H1, bin_width)
+        info_gain_eta.append(info)
+    del ax, fig
+
+    axes[1, 1].plot(T, info_gain_eta, lw=2)
+    axes[1, 1].set_ylabel(r'$KL(\eta/s(T))$')
+
+    axes[0, 1].fill_between(T, np.percentile(posterior_etas_mix, 5, axis=0),
                             np.percentile(posterior_etas_mix, 95, axis=0),
                             color=colors[0], label=r'$90$% CI Posterior', lw=2)
     #axes[1].fill_between(T, np.percentile(posterior_etas_mix, 15, axis=0),
     #                        np.percentile(posterior_etas_mix, 85, axis=0),
     #                        color=colors[1], label=r'$70$%')
-    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 20, axis=0),
+    axes[0, 1].fill_between(T, np.percentile(posterior_etas_mix, 20, axis=0),
                             np.percentile(posterior_etas_mix, 80, axis=0),
                             color=colors[1], label=r'$60$% CI Posterior', lw=2)
     #axes[1].fill_between(T, np.percentile(posterior_etas_mix, 25, axis=0),
@@ -2057,26 +2097,27 @@ def bayes_model_avg_viscous_posterior_2():
     #                        np.percentile(posterior_etas_mix, 65, axis=0),
     #                        color=colors[3], label=r'$30$%')
 
-    axes[1].fill_between(T, np.percentile(prior_etas, 20, axis=0),
+    axes[0, 1].fill_between(T, np.percentile(prior_etas, 20, axis=0),
                             np.percentile(prior_etas, 80, axis=0),
                             edgecolor='gray', facecolor='None', ls='--', lw=2, label='$60$% CI Prior')
 
-    axes[1].legend(fontsize=7, loc='upper center')
+    axes[0, 1].legend(fontsize=7, loc='upper center')
 
-    axes[0].set_ylabel(r"$\zeta/s$")
-    axes[1].set_ylabel(r"$\eta/s$")
+    axes[0, 0].set_ylabel(r"$\zeta/s$")
+    axes[0, 1].set_ylabel(r"$\eta/s$")
 
-    axes[0].set_xlabel(r"$T$ [GeV]")
-    axes[1].set_xlabel(r"$T$ [GeV]")
+    axes[1, 0].set_xlabel(r"$T$ [GeV]")
+    axes[1, 1].set_xlabel(r"$T$ [GeV]")
 
-    axes[0].set_xlim([0.135, 0.35])
-    axes[1].set_xlim([0.135, 0.35])
+    axes[1, 0].set_xlim([0.135, 0.35])
+    axes[1, 1].set_xlim([0.135, 0.35])
 
     T_ticks = [0.15, 0.2, 0.25, 0.3, 0.35]
-    axes[0].set_xticks(T_ticks)
-    axes[1].set_xticks(T_ticks)
+    axes[1, 0].set_xticks(T_ticks)
+    axes[1, 1].set_xticks(T_ticks)
 
     plt.tight_layout(True)
+    plt.subplots_adjust(wspace=0.3, hspace=0.1)
 
 @plot
 def bayes_model_avg_viscous_posterior_density():
