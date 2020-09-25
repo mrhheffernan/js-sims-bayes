@@ -461,9 +461,10 @@ def observables_posterior_discrepancy_PRL():
 
     """
 
-    df_choices = [0, 1] # choose which df models to plot
+    df_choices = [0, 1, 3] # choose which df models to plot
 
     color_idf = {0:'blue', 1:'red', 2:'magenta', 3:'green'} # colors for different df models
+    ls_idf = {0:'-', 1:'--', 3:':'}
 
     n_samples = 10000 #number of draws from posterior
     alpha = 0.4 #alpha of plot
@@ -503,18 +504,20 @@ def observables_posterior_discrepancy_PRL():
                 y = (Y - exp_mean)/exp_err # model number of expt std deviations from expt mean
                 #y = (Y - exp_mean)/exp_mean # model percent error with data
                 color = color_idf[idf]
+                ls = ls_idf[idf]
 
                 #fill between credible intervals
                 ax.fill_between(x, np.percentile(y, 5, axis=0), np.percentile(y, 95, axis=0),
-                                edgecolor=color, facecolor=color, alpha=alpha, lw=lw
+                                edgecolor=color, facecolor='None', lw=lw, ls=ls, label=idf_label_short[idf]
                                 )
-                ax.fill_between(x, np.percentile(y, 49, axis=0), np.percentile(y, 51, axis=0),
-                                color=color, alpha=1, lw=lw
-                                )
+                #ax.fill_between(x, np.percentile(y, 49, axis=0), np.percentile(y, 51, axis=0),
+                #                color=color, lw=lw, ls='--'
+                #                )
 
                 #plot samples
                 #for n in range(n_samples):
                 #    ax.plot(x, y[n], color=color, alpha=alpha)
+
 
 
             ax.set_xlim(0, 70)
@@ -529,6 +532,9 @@ def observables_posterior_discrepancy_PRL():
 
             ax.set_ylabel(obs_tex_labels_2[obs])
 
+    axes[0,2].legend(fontsize=7, borderpad=0, labelspacing=0.2,
+                    handlelength=4, #handletextpad=0.2,
+                    loc='upper left')
     plt.tight_layout(True)
     plt.subplots_adjust(hspace=0.2)
 
@@ -539,24 +545,24 @@ def observables_joint_posterior_discrepancy_PRL():
 
     """
 
-    sns.set()
+    #sns.set()
+    gridsize=25
+    n_samples = int(1e5) #number of draws from posterior
+    alpha = 0.6 #alpha of plot
+    lw = 2
+    fontsize=7
 
-    obs_choices = ['dNch_deta', 'dN_dy_pion', 'dN_dy_proton']
+    obs_choices = ['dNch_deta', 'dN_dy_pion', 'dN_dy_proton', 'v22']
     n_obs = len(obs_choices)
 
-    df_choices = [1, 0] # choose which df models to plot
+    df_choices = [0, 1] # choose which df models to plot
     cent_bin = 0
 
     cmaps_idf = {0:plt.get_cmap('Blues'), 1:plt.get_cmap('Reds'), 3:plt.get_cmap('Greens')} # colors for different df models
     colors_idf = {0:'blue', 1:'red', 3:'green'}
 
-    n_samples = int(1e5) #number of draws from posterior
-    alpha = 0.6 #alpha of plot
-    lw = 2
-
     Ymodels = []
     for idf in df_choices:
-        print("idf = " + str(idf))
         chain = Chain(path=workdir/'mcmc'/'chain-idf-{:}_LHC_RHIC_PTEMCEE.hdf'.format(idf))
         Ymodel = chain.samples_given_df(idf, n_samples)
         Ymodels.append(Ymodel)
@@ -564,29 +570,26 @@ def observables_joint_posterior_discrepancy_PRL():
     Yexp = Y_exp_data
 
     for system in ['Pb-Pb-2760']:
-        fig, axes = plt.subplots(nrows=n_obs, ncols=n_obs, figsize=(3*n_obs,3*n_obs))
+        fig, axes = plt.subplots(nrows=n_obs, ncols=n_obs, figsize=(1.5*n_obs,1.5*n_obs))
         for col, obs1 in enumerate(obs_choices):
             # Centrality bins
             xbins1 = np.array(obs_cent_list[system][obs1])
             x1 = (xbins1[:,0]+xbins1[:,1])/2.
             x1_bin = x1[cent_bin]
             # plot exp
-            try:
-                exp_mean1 = Yexp[system][obs1]['mean'][0, cent_bin]
-                exp_err1 = Yexp[system][obs1]['err'][0, cent_bin]
-            except KeyError:
-                continue
+
+            exp_mean1 = Yexp[system][obs1]['mean'][0, cent_bin]
+            exp_err1 = Yexp[system][obs1]['err'][0, cent_bin]
+
             for row, obs2 in enumerate(obs_choices):
                 # Centrality bins
                 xbins2 = np.array(obs_cent_list[system][obs2])
                 x2 = (xbins2[:,0]+xbins2[:,1])/2.
                 x2_bin = x2[cent_bin]
                 # plot exp
-                try:
-                    exp_mean2 = Yexp[system][obs2]['mean'][0, cent_bin]
-                    exp_err2 = Yexp[system][obs2]['err'][0, cent_bin]
-                except KeyError:
-                    continue
+
+                exp_mean2 = Yexp[system][obs2]['mean'][0, cent_bin]
+                exp_err2 = Yexp[system][obs2]['err'][0, cent_bin]
 
                 # plot calc
                 for i, idf in enumerate(df_choices):
@@ -600,22 +603,51 @@ def observables_joint_posterior_discrepancy_PRL():
                     cmap = cmaps_idf[idf]
                     color = colors_idf[idf]
 
-                    binsx = np.linspace(-4, 4, 50)
-                    binsy = np.linspace(-4, 4, 50)
-
                     if row == col:
-                        axes[row, col].hist(y1, edgecolor=color, facecolor='None', bins=binsx, density=True)
-                        axes[row, col].set_xlabel(obs_tex_labels_2[obs1])
+                        #axes[row, col].hist(y1, edgecolor=color, facecolor='None', bins=binsx, density=True)
+                        sns.kdeplot(y1, color=color, ax=axes[row, col], shade=True)
                         auto_ticks(axes[row,col], 'x', nbins=5, minor=2)
-                    else:
-                        axes[row, col].hist2d(y1, y2, cmap=cmap, bins=[binsx, binsy], alpha=alpha)
-                        axes[row, col].set_xlabel(obs_tex_labels_2[obs1])
-                        axes[row, col].set_ylabel(obs_tex_labels_2[obs2])
+                        axes[row,col].get_yaxis().set_visible(False)
+                    elif col < row:
+                        #axes[row, col].hist2d(y1, y2, cmap=cmap, bins=[binsx, binsy], alpha=alpha)
+                        axes[row,col].axhline(0, ls='--', color='gray')
+                        axes[row,col].axvline(0, ls='--', color='gray')
+                        sns.kdeplot(y1, y2, color=color, shade=True, ax=axes[row, col],
+                        gridsize=gridsize, shade_lowest=False, alpha=alpha, levels=5)
                         auto_ticks(axes[row,col], 'x', nbins=5, minor=2)
                         auto_ticks(axes[row,col], 'y', nbins=7, minor=2)
+                    else:
+                        axes[row,col].set_visible(False)
 
+                if axes[row,col].is_last_row():
+                    axes[row, col].set_xlabel(obs_tex_labels_2[obs1])
+                if axes[row,col].is_first_col():
+                    axes[row, col].set_ylabel(obs_tex_labels_2[obs2])
+
+                if col == 0:
+                    axes[row,col].set_xlim(-5, 0.9)
+                if col == 1:
+                    axes[row,col].set_xlim(-3, 0.9)
+                if col == 2:
+                    axes[row,col].set_xlim(-2, 2)
+                if col == 3:
+                    axes[row,col].set_xlim(-5, 5)
+
+                if row != col:
+                    if row == 1:
+                        axes[row,col].set_ylim(-3, 0.9)
+                    if row == 2:
+                        axes[row,col].set_ylim(-2, 2)
+                    if row == 3:
+                        axes[row,col].set_ylim(-5, 5)
+
+                if ( axes[row,col].is_last_row() == False ):
+                    axes[row,col].get_xaxis().set_visible(False)
+                if ( axes[row,col].is_first_col() == False ):
+                    axes[row,col].get_yaxis().set_visible(False)
 
     plt.tight_layout(True)
+    plt.subplots_adjust(wspace=0, hspace=0)
 
 @plot
 def observables_fit():
@@ -1012,10 +1044,10 @@ def observables_fit_model_calc_compare():
     print("Plotting observables calculated at 2 param sets by hybrid model")
 
     obs_groups = {
-                'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dNch_deta', 'dET_deta'],
-                #'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dN_dy_d'],
-                'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
-                #'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton', 'mean_pT_d'],
+                #'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dNch_deta', 'dET_deta'],
+                'yields' : ['dN_dy_pion', 'dN_dy_kaon', 'dN_dy_proton', 'dN_dy_d'],
+                #'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton'],
+                'mean_pT' : ['mean_pT_pion', 'mean_pT_kaon', 'mean_pT_proton', 'mean_pT_d'],
                 'flows' : ['v22', 'v32', 'v42'],
                 #'flows' : ['v32', 'v42'],
                 'fluct' : ['pT_fluct']
@@ -1125,7 +1157,7 @@ def observables_fit_model_calc_compare():
         fig.delaxes(axes[3][1])
     plt.tight_layout(True)
     set_tight(fig, rect=[0, 0, 1, .93])
-    fig.suptitle("Varying Pre-hydodynamic Viscosity", wrap=True)
+    #fig.suptitle("Varying Pre-hydodynamic Viscosity", wrap=True)
 
 
 @plot
@@ -1848,7 +1880,7 @@ def bayes_model_avg_viscous_posterior_1():
                             np.percentile(posterior_etas_3, 95, axis=0),
                             edgecolor='green', facecolor='None', ls=':', lw=2, label=idf_label_short[3])
 
-    axes[1].legend(fontsize=7, loc='upper center')
+    axes[1].legend(fontsize=9, loc='upper center')
 
     axes[0].set_ylabel(r"$\zeta/s$")
     axes[1].set_ylabel(r"$\eta/s$")
@@ -1956,7 +1988,7 @@ def bayes_model_avg_viscous_posterior_2():
 
     axes[0].fill_between(T, np.percentile(prior_zetas, 5, axis=0),
                             np.percentile(prior_zetas, 95, axis=0),
-                            color='gray', alpha=0.3)
+                            color='gray', alpha=0.3, lw=2)
 
     posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1 ]
     posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2 ]
@@ -1966,16 +1998,24 @@ def bayes_model_avg_viscous_posterior_2():
 
     axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 5, axis=0),
                             np.percentile(posterior_zetas_mix, 95, axis=0),
-                            color=colors[0])
-    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 15, axis=0),
-                            np.percentile(posterior_zetas_mix, 85, axis=0),
-                            color=colors[1])
-    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 25, axis=0),
-                            np.percentile(posterior_zetas_mix, 75, axis=0),
-                            color=colors[2])
-    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 35, axis=0),
-                            np.percentile(posterior_zetas_mix, 65, axis=0),
-                            color=colors[3])
+                            color=colors[0], lw=2)
+    #axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 15, axis=0),
+    #                        np.percentile(posterior_zetas_mix, 85, axis=0),
+    #                        color=colors[1])
+    axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 20, axis=0),
+                            np.percentile(posterior_zetas_mix, 80, axis=0),
+                            color=colors[1], lw=2)
+
+    #axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 25, axis=0),
+    #                        np.percentile(posterior_zetas_mix, 75, axis=0),
+    #                        color=colors[2])
+    #axes[0].fill_between(T, np.percentile(posterior_zetas_mix, 35, axis=0),
+    #                        np.percentile(posterior_zetas_mix, 65, axis=0),
+    #                        color=colors[3])
+
+    axes[0].fill_between(T, np.percentile(prior_zetas, 20, axis=0),
+                            np.percentile(prior_zetas, 80, axis=0),
+                            edgecolor='gray', facecolor='None', ls='--', lw=2)
 
 
     ##########################
@@ -1993,7 +2033,7 @@ def bayes_model_avg_viscous_posterior_2():
 
     axes[1].fill_between(T, np.percentile(prior_etas, 5, axis=0),
                             np.percentile(prior_etas, 95, axis=0),
-                            color='gray', alpha=0.3)
+                            color='gray', alpha=0.3, lw=2, label='$90$% CI Prior')
 
     posterior_etas_1 = [ eta_over_s(T, *d[7:11]) for d in samples1 ]
     posterior_etas_2 = [ eta_over_s(T, *d[7:11]) for d in samples2 ]
@@ -2003,16 +2043,23 @@ def bayes_model_avg_viscous_posterior_2():
 
     axes[1].fill_between(T, np.percentile(posterior_etas_mix, 5, axis=0),
                             np.percentile(posterior_etas_mix, 95, axis=0),
-                            color=colors[0], label=r'$90$%')
-    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 15, axis=0),
-                            np.percentile(posterior_etas_mix, 85, axis=0),
-                            color=colors[1], label=r'$70$%')
-    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 25, axis=0),
-                            np.percentile(posterior_etas_mix, 75, axis=0),
-                            color=colors[2], label=r'$50$%')
-    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 35, axis=0),
-                            np.percentile(posterior_etas_mix, 65, axis=0),
-                            color=colors[3], label=r'$30$%')
+                            color=colors[0], label=r'$90$% CI Posterior', lw=2)
+    #axes[1].fill_between(T, np.percentile(posterior_etas_mix, 15, axis=0),
+    #                        np.percentile(posterior_etas_mix, 85, axis=0),
+    #                        color=colors[1], label=r'$70$%')
+    axes[1].fill_between(T, np.percentile(posterior_etas_mix, 20, axis=0),
+                            np.percentile(posterior_etas_mix, 80, axis=0),
+                            color=colors[1], label=r'$60$% CI Posterior', lw=2)
+    #axes[1].fill_between(T, np.percentile(posterior_etas_mix, 25, axis=0),
+    #                        np.percentile(posterior_etas_mix, 75, axis=0),
+    #                        color=colors[2], label=r'$50$%')
+    #axes[1].fill_between(T, np.percentile(posterior_etas_mix, 35, axis=0),
+    #                        np.percentile(posterior_etas_mix, 65, axis=0),
+    #                        color=colors[3], label=r'$30$%')
+
+    axes[1].fill_between(T, np.percentile(prior_etas, 20, axis=0),
+                            np.percentile(prior_etas, 80, axis=0),
+                            edgecolor='gray', facecolor='None', ls='--', lw=2, label='$60$% CI Prior')
 
     axes[1].legend(fontsize=7, loc='upper center')
 
@@ -2321,6 +2368,245 @@ def viscous_posterior_overlay():
 
     plt.tight_layout(True)
     set_tight(fig, rect=[0, 0, 0.98, .9])
+
+
+@plot
+def viscous_prior_sensitivity():
+    """
+    Plot the sensitivity of the posterior credible intervals to changes in the range of the prior.
+    """
+    sns.set()
+
+    T = 0.15 # the Temperature
+
+    color_idf = {0 : 'blue', 1 : 'red', 2 : 'green', 3 : 'magenta'}
+
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
+    data1 = chain1.load_wo_reshape(thin=10)
+    data1 = data1.reshape(-1, 19)
+
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
+    data2 = chain2.load_wo_reshape(thin=10)
+    data2 = data2.reshape(-1, 19)
+
+    chain3 = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf')
+    data3 = chain3.load_wo_reshape(thin=10)
+    data3 = data3.reshape(-1, 19)
+
+    index1 = np.random.choice(np.arange(data1.shape[0]), 50000)
+    index2 = np.random.choice(np.arange(data2.shape[0]), 50000)
+    index3 = np.random.choice(np.arange(data3.shape[0]), 50000)
+
+    samples1 = data1[index1, 1:]
+    samples2 = data2[index2, 1:]
+    samples3 = data3[index3, 1:]
+
+    #the prior density
+    design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+
+    #now find the restricted-prior posteriors
+
+    #zeta/s
+    bounds_zeta_1 = []
+    bounds_zeta_2 = []
+    bounds_zeta_3 = []
+
+    zeta_min = 0.05
+    zeta_upper = 0.25
+    idx_restrict = 11
+    zeta_lim_arr = np.linspace(zeta_min, zeta_upper, 10)
+    for zeta_max in zeta_lim_arr:
+        samples1_restrict = samples1[ (samples1[:, idx_restrict] <= zeta_max) ]
+        posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1_restrict ]
+
+        samples2_restrict = samples2[ (samples2[:, idx_restrict] <= zeta_max) ]
+        posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2_restrict ]
+
+        samples3_restrict = samples3[ (samples3[:, idx_restrict] <= zeta_max) ]
+        posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3_restrict ]
+
+        #calculate the 90% credible bounds
+        bounds_zeta_1.append( np.percentile(posterior_zetas_1, 95, axis=0) )
+        bounds_zeta_2.append( np.percentile(posterior_zetas_2, 95, axis=0) )
+        bounds_zeta_3.append( np.percentile(posterior_zetas_3, 95, axis=0) )
+
+    #eta/s
+    bounds_eta_1 = []
+    bounds_eta_2 = []
+    bounds_eta_3 = []
+
+    eta_min = .5
+    eta_upper = -2.
+    idx_restrict = 8
+    eta_lim_arr = np.linspace(eta_min, eta_upper, 10)
+    for eta_max in eta_lim_arr:
+        samples1_restrict = samples1[ (samples1[:, idx_restrict] >= eta_max) ]
+        posterior_etas_1 = [ eta_over_s(T, *d[7:11]) for d in samples1_restrict ]
+
+        samples2_restrict = samples2[ (samples2[:, idx_restrict] >= eta_max) ]
+        posterior_etas_2 = [ eta_over_s(T, *d[7:11]) for d in samples2_restrict ]
+
+        samples3_restrict = samples3[ (samples3[:, idx_restrict] >= eta_max) ]
+        posterior_etas_3 = [ eta_over_s(T, *d[7:11]) for d in samples3_restrict ]
+
+        #calculate the 90% credible bounds
+        bounds_eta_1.append( np.percentile(posterior_etas_1, 95, axis=0) )
+        bounds_eta_2.append( np.percentile(posterior_etas_2, 95, axis=0) )
+        bounds_eta_3.append( np.percentile(posterior_etas_3, 95, axis=0) )
+
+
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(7,3))
+    axes[0].plot(zeta_lim_arr, bounds_zeta_1, color=color_idf[0], lw=2, ls='-')
+    axes[0].plot(zeta_lim_arr, bounds_zeta_2, color=color_idf[1], lw=2, ls='--')
+    axes[0].plot(zeta_lim_arr, bounds_zeta_3, color=color_idf[2], lw=2, ls=':')
+    axes[0].set_xlabel(r'$\max( (\zeta/s)_0 ) $')
+    axes[0].set_ylabel(r'$  w[\zeta/s(T=0.15$ MeV $)$]' )
+    axes[0].set_ylim(0., 0.2)
+
+    axes[1].plot(eta_lim_arr, bounds_eta_1, color=color_idf[0], lw=2, ls='-')
+    axes[1].plot(eta_lim_arr, bounds_eta_2, color=color_idf[1], lw=2, ls='--')
+    axes[1].plot(eta_lim_arr, bounds_eta_3, color=color_idf[2], lw=2, ls=':')
+    axes[1].set_xlabel(r'$\min( a_{\rm low} ) $')
+    axes[1].set_ylabel(r'$ w[\eta/s(T=0.15$ MeV $)]$' )
+    axes[1].set_ylim(0., 0.3)
+
+    plt.tight_layout(True)
+
+@plot
+def viscous_prior_sensitivity_surface():
+    """
+    Plot the sensitivity of the posterior credible intervals to changes in the range of the prior.
+    """
+    sns.set()
+
+    color_idf = {0 : 'blue', 1 : 'red', 2 : 'green', 3 : 'magenta'}
+
+    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
+    data1 = chain1.load_wo_reshape(thin=10)
+    data1 = data1.reshape(-1, 19)
+
+    chain2 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
+    data2 = chain2.load_wo_reshape(thin=10)
+    data2 = data2.reshape(-1, 19)
+
+    chain3 = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf')
+    data3 = chain3.load_wo_reshape(thin=10)
+    data3 = data3.reshape(-1, 19)
+
+    index1 = np.random.choice(np.arange(data1.shape[0]), 50000)
+    index2 = np.random.choice(np.arange(data2.shape[0]), 50000)
+    index3 = np.random.choice(np.arange(data3.shape[0]), 50000)
+
+    samples1 = data1[index1, 1:]
+    samples2 = data2[index2, 1:]
+    samples3 = data3[index3, 1:]
+
+    #the prior density
+    design, dmin, dmax, labels = load_design(system_str=system_strs[0], pset='main')
+
+    fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(9,9), sharey=True )
+
+    #now find the restricted-prior posteriors
+    zeta_max_idx = 11
+    zeta_width_idx = 13
+
+    #find the correlations among the parameter posteriors
+    sns.kdeplot(samples1[:, zeta_max_idx], samples1[:, zeta_width_idx], color='blue', shade=True,
+    ax=axes[0, 0], n_levels=5, shade_lowest=False, gridsize=25)
+
+    sns.kdeplot(samples2[:, zeta_max_idx], samples2[:, zeta_width_idx], color='red', shade=True,
+    ax=axes[0, 1], n_levels=5, shade_lowest=False, gridsize=25)
+
+    sns.kdeplot(samples3[:, zeta_max_idx], samples3[:, zeta_width_idx], color='green', shade=True,
+    ax=axes[0, 2], n_levels=5, shade_lowest=False, gridsize=25)
+
+    T = 0.15 # the Temperature
+    #zeta/s
+    zeta_max_min = 0.02
+    zeta_max_upper = 0.25
+    zeta_max_arr = np.linspace(zeta_max_min, zeta_max_upper, 14)
+
+    zeta_width_min = 0.03
+    zeta_width_upper = 0.15
+    zeta_width_arr = np.linspace(zeta_width_min, zeta_width_upper, 15)
+
+    bounds_arr_1 = np.zeros( ( len(zeta_max_arr), len(zeta_width_arr) ) )
+    bounds_arr_2 = np.zeros( ( len(zeta_max_arr), len(zeta_width_arr) ) )
+    bounds_arr_3 = np.zeros( ( len(zeta_max_arr), len(zeta_width_arr) ) )
+
+    for i, zeta_max in enumerate(zeta_max_arr):
+        samples1_restrict = samples1[ (samples1[:, zeta_max_idx] <= zeta_max) ]
+        samples2_restrict = samples2[ (samples2[:, zeta_max_idx] <= zeta_max) ]
+        samples3_restrict = samples3[ (samples3[:, zeta_max_idx] <= zeta_max) ]
+
+        for j, zeta_width in enumerate(zeta_width_arr):
+            samples1_restrict_b = samples1_restrict[ (samples1_restrict[:, zeta_width_idx] <= zeta_width) ]
+            posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1_restrict_b ]
+
+            samples2_restrict_b = samples2_restrict[ (samples2_restrict[:, zeta_width_idx] <= zeta_width) ]
+            posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2_restrict_b ]
+
+            samples3_restrict_b = samples3_restrict[ (samples3_restrict[:, zeta_width_idx] <= zeta_width) ]
+            posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3_restrict_b ]
+
+            #calculate the 90% credible bounds
+            bounds_arr_1[i,j] = np.percentile(posterior_zetas_1, 90, axis=0)
+            bounds_arr_2[i,j] = np.percentile(posterior_zetas_2, 90, axis=0)
+            bounds_arr_3[i,j] = np.percentile(posterior_zetas_3, 90, axis=0)
+
+
+    im1 = axes[1, 0].contourf(zeta_max_arr, zeta_width_arr, bounds_arr_1.T, cmap=plt.get_cmap('Blues'))
+    im2 = axes[1, 1].contourf(zeta_max_arr, zeta_width_arr, bounds_arr_2.T, cmap=plt.get_cmap('Reds'))
+    im3 = axes[1, 2].contourf(zeta_max_arr, zeta_width_arr, bounds_arr_3.T, cmap=plt.get_cmap('Greens'))
+
+    T = 0.35 # the Temperature
+    for i, zeta_max in enumerate(zeta_max_arr):
+        samples1_restrict = samples1[ (samples1[:, zeta_max_idx] <= zeta_max) ]
+        samples2_restrict = samples2[ (samples2[:, zeta_max_idx] <= zeta_max) ]
+        samples3_restrict = samples3[ (samples3[:, zeta_max_idx] <= zeta_max) ]
+
+        for j, zeta_width in enumerate(zeta_width_arr):
+            samples1_restrict_b = samples1_restrict[ (samples1_restrict[:, zeta_width_idx] <= zeta_width) ]
+            posterior_zetas_1 = [ zeta_over_s(T, *d[11:15]) for d in samples1_restrict_b ]
+
+            samples2_restrict_b = samples2_restrict[ (samples2_restrict[:, zeta_width_idx] <= zeta_width) ]
+            posterior_zetas_2 = [ zeta_over_s(T, *d[11:15]) for d in samples2_restrict_b ]
+
+            samples3_restrict_b = samples3_restrict[ (samples3_restrict[:, zeta_width_idx] <= zeta_width) ]
+            posterior_zetas_3 = [ zeta_over_s(T, *d[11:15]) for d in samples3_restrict_b ]
+
+            #calculate the 90% credible bounds
+            bounds_arr_1[i,j] = np.percentile(posterior_zetas_1, 90, axis=0)
+            bounds_arr_2[i,j] = np.percentile(posterior_zetas_2, 90, axis=0)
+            bounds_arr_3[i,j] = np.percentile(posterior_zetas_3, 90, axis=0)
+
+
+    im1 = axes[2, 0].contourf(zeta_max_arr, zeta_width_arr, bounds_arr_1.T, cmap=plt.get_cmap('Blues'))
+    im2 = axes[2, 1].contourf(zeta_max_arr, zeta_width_arr, bounds_arr_2.T, cmap=plt.get_cmap('Reds'))
+    im3 = axes[2, 2].contourf(zeta_max_arr, zeta_width_arr, bounds_arr_3.T, cmap=plt.get_cmap('Greens'))
+
+    for j in range(3):
+    #    axes[2, j].set_xlabel(r'$(\zeta/s)_{\rm max}$')
+    #    axes[j, 0].set_ylabel(r'$w_{\zeta}$[GeV]')
+        for i in range(3):
+            axes[i,j].set_xlim(zeta_max_min, zeta_max_upper)
+            axes[i,j].set_ylim(zeta_width_min, zeta_width_upper)
+
+    axes[0, 0].set_ylabel(r'$w_{\zeta}$[GeV]')
+    axes[1, 0].set_ylabel(r'$\max( w_{\zeta}$[GeV] )')
+    axes[2, 0].set_ylabel(r'$\max( w_{\zeta}$[GeV] )')
+
+    axes[0, 0].set_xlabel(r'$(\zeta/s)_{\rm max}$')
+    axes[0, 1].set_xlabel(r'$(\zeta/s)_{\rm max}$')
+    axes[0, 2].set_xlabel(r'$(\zeta/s)_{\rm max}$')
+
+    for j in [0, 1, 2]:
+        axes[1, j].set_xlabel(r'$\max( (\zeta/s)_{\rm max} )$' )
+        axes[2, j].set_xlabel(r'$\max( (\zeta/s)_{\rm max} )$' )
+
+
+    plt.tight_layout(True)
+
 
 @plot
 def viscous_posterior_overlay_2():
@@ -3123,29 +3409,33 @@ def _posterior():
     labels = chain.labels
     ranges = chain.range
 
-    thin_factor=30
-    gridsize=25
-    indices = np.arange(17) #all
+    thin_factor=30 #factor by which we thin chain when loading
+    gridsize=25 # a parameter for the kdeplot
+    #indices = np.arange(17) #all
     #indices = [0, 1, 2, 3, 4, 5, 6, 7, 17]
     #indices = [1, 2, 3, 5, 6, 16]
-    resize_shape = 19
+    indices = [2, 3, 4, 5] #the selected parameters to include in the corner plot
+    resize_shape = 20 #typically for one system (one normalization) this is 18, for two systems 19, ...
 
-    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
-    #chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_PTEMCEE.hdf')
+    #chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf')
+    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_diff_nucl_width.hdf')
     data0 = chain0.load_wo_reshape(thin=thin_factor)
 
-    chain1 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
+    #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf')
     #chain1 = Chain(path=workdir/'mcmc'/'chain-idf-0_RHIC_PTEMCEE.hdf')
-    data1 = chain1.load_wo_reshape(thin=thin_factor)
+    #data1 = chain1.load_wo_reshape(thin=thin_factor)
 
     data0 = data0.reshape(-1, resize_shape).T
-    data1 = data1.reshape(-1, resize_shape).T
+    #data1 = data1.reshape(-1, resize_shape).T
 
     data0 = np.take(data0, indices, axis=0)
-    data1 = np.take(data1, indices, axis=0)
+    #data1 = np.take(data1, indices, axis=0)
 
     labels = np.take(labels, indices)
     ranges = np.take(ranges, indices)
+
+    #manual specification of labels if they do not match default chain labels
+    #labels = [r'$p$', r'$\sigma_k$', r'$w$[2.76 TeV] [fm]', r'$w$[0.2 TeV] [fm]' ]
 
     ndims, nsamples = data0.shape
 
@@ -3170,7 +3460,7 @@ def _posterior():
     cmap0.set_bad('white')
     cmap1.set_bad('white')
 
-    fontsize = 7
+    fontsize = 5.5
     fig, axes = plt.subplots(
         nrows=ndims, ncols=ndims,
         figsize=(.8*ndims, .8*ndims)
@@ -3180,8 +3470,8 @@ def _posterior():
         for j, ax in enumerate(row):
             x0 = data0[j]
             y0 = data0[i]
-            x1 = data1[j]
-            y1 = data1[i]
+            #x1 = data1[j]
+            #y1 = data1[i]
             xlabel = labels[j]
             xlim = ranges[j]
             ylabel = labels[i]
@@ -3190,11 +3480,11 @@ def _posterior():
                 #H0, _, _ = ax.hist(x0, bins=40, histtype='step', normed=True, color=color0)
                 #H1, _, _ = ax.hist(x1, bins=40, histtype='step', normed=True, color=color1)
                 sns.kdeplot(x0, color=color0, shade=True, ax=ax)
-                sns.kdeplot(x1, color=color1, shade=True, ax=ax)
+                #sns.kdeplot(x1, color=color1, shade=True, ax=ax)
                 stex0 = format_ci(x0)
-                stex1 = format_ci(x1)
+                #stex1 = format_ci(x1)
                 ax.annotate(stex0, xy=(0.1, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color0)
-                ax.annotate(stex1, xy=(.9, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color1)
+                #ax.annotate(stex1, xy=(.9, 1.), xycoords="axes fraction", ha='center', va='bottom', fontsize=5, color=color1)
                 ax.set_xlim(*xlim)
                 #if i < ndims-1:
                 #    ax.axvline(x=truth[i], color='r')
@@ -3205,11 +3495,11 @@ def _posterior():
                 ax.set_xlim(*xlim)
                 ax.set_ylim(*ylim)
             if i<j:
-                #ax.axis('off')
+                ax.axis('off')
                 #ax.hist2d(x1, y1, bins=40, cmap=cmap1, alpha=0.8, zorder=1)
-                sns.kdeplot(x1, y1, color=color1, shade=True, ax=ax, n_levels=5, shade_lowest=False, gridsize=gridsize)
-                ax.set_xlim(*xlim)
-                ax.set_ylim(*ylim)
+                #sns.kdeplot(x1, y1, color=color1, shade=True, ax=ax, n_levels=5, shade_lowest=False, gridsize=gridsize)
+                #ax.set_xlim(*xlim)
+                #ax.set_ylim(*ylim)
 
             if ax.is_first_col():
                 ax.set_ylabel(ylabel, fontsize=fontsize)
@@ -3246,7 +3536,7 @@ def information_gain():
     #factor to thin chains
     thin=1
 
-    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_PTEMCEE.hdf')
+    chain0 = Chain(path=workdir/'mcmc'/'chain-idf-0_RHIC_PTEMCEE.hdf')
     data0 = chain0.load_wo_reshape(thin=thin)
     data0 = data0.reshape(-1, 18).T
 
@@ -3257,8 +3547,12 @@ def information_gain():
     labels = chain1.labels
     ranges = np.array(chain0.range)
 
-    indices0 = [1, 2, 3, 4, 5, 6, 16] # TRENTo, FS and T_sw
-    indices1 = [2, 3, 4, 5, 6, 7, 17] # TRENTo, FS and T_sw
+    #indices0 = [1, 2, 3, 4, 5, 6, 16] # TRENTo, FS and T_sw
+    #indices1 = [2, 3, 4, 5, 6, 7, 17] # TRENTo, FS and T_sw
+
+    indices0 = np.arange(1, 17)
+    indices1 = np.arange(2, 18)
+
     data0 = np.take(data0, indices0, axis=0)
     data1 = np.take(data1, indices1, axis=0)
 
@@ -3287,6 +3581,9 @@ def information_gain():
             if i==j:
                 H0, bins, _ = ax.hist(x0, bins=nbins, histtype='step', range=ranges[i, :], normed=True, color=color0)
                 H1, _, _ = ax.hist(x1, bins=nbins, histtype='step', range=ranges[i, :], normed=True, color=color1)
+                sns.kdeplot(x0, color=color0, shade=True, ax=ax)
+                sns.kdeplot(x1, color=color1, shade=True, ax=ax)
+
                 bin_width = bins[1] - bins[0]
                 info = calculate_information_gain(H0, H1, bin_width)
                 info = "{:.1e}".format(info)
@@ -3516,6 +3813,154 @@ def observables_sensitivity():
             axes[row].tick_params(axis='x', pad=15)
             axes[row].axes.set_xticks(obs_indx)
             axes[row].axes.set_xticklabels( obs_labels )
+
+    fig.align_ylabels(axes)
+    plt.tight_layout(True)
+    set_tight(fig, rect=[0, 0, 1, .96])
+
+
+@plot
+def observables_sobol_sensitivity():
+
+    """
+    Plots Sobol Sensitivity index of model observables to model parameters.
+    (See https://journals.plos.org/plosone/article/file?type=supplementary&id=info:doi/10.1371/journal.pone.0095610.s003)
+
+    """
+
+    sns.set()
+    labels = [r'$S[N]$', r'$S[p]$', r'$S[\sigma_k]$', r'$S[w]$', r'$S[d_{\mathrm{min}}^3]$', r'$S[\tau_R]$', r'$S[\alpha]$', r'$S[T_{\eta,\mathrm{kink}}]$',
+    r'$S[a_{\eta,\mathrm{low}}]$', r'$S[a_{\eta,\mathrm{high}}]$', r'$S[(\eta/s)_{\mathrm{kink}}]$', r'$S[(\zeta/s)_{\max}]$', r'$S[T_{\zeta,c}]$',
+    r'$S[w_{\zeta}]$', r'$S[\lambda_{\zeta}]$', r'$S[b_{\pi}]$', r'$S[T_{\mathrm{sw}}]$', r'$S[\sigma_M]$']
+
+    n_samples = int(1e5)
+    n_fixed = int(1e1)
+
+    obs_names = ['dNch_deta', 'dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'v22', 'v32', 'v42', 'pT_fluct']
+    obs_labels = [obs_tex_labels_2[obs] for obs in obs_names]
+    obs_indx = np.arange(len(obs_labels))
+
+    system = 'Pb-Pb-2760'
+    design, design_min, design_max, labels = load_design(system)
+
+    #load the emulator
+    emu0 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-0.dill', "rb"))
+    #emu1 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-1.dill', "rb"))
+    #emu3 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-3.dill', "rb"))
+
+    choose_central_bin = True
+    if choose_central_bin:
+        cent_bin = 0 #0-5%
+        cent_pT_fl = 0 #0-5%
+    else:
+        cent_bin = 5 #40-50%
+        cent_pT_fl = 8 #40-45%
+
+    cent_bin_label = {0 : '0-5%', 5: '40-50%'}
+    width = 0.2
+
+    n_params = design.shape[1]
+
+    #fig, axes = plt.subplots(nrows=17, ncols=1, figsize=(6,13), sharex=True)
+    #plt.suptitle("Sobol Sensitivity Indices : " + cent_bin_label[cent_bin] + " Cent.")
+
+    #first sample all uniformly and independently within the prior
+    params_base = np.array([])
+    for ip in range(n_params):
+        min = design_min[ip]
+        max = design_max[ip]
+        x = np.random.uniform(low=min,high=max,size=n_samples)
+        params_base = np.append(params_base, x)
+
+    params_base = params_base.reshape( (n_samples, n_params))
+    #get predictions when all parameters are allowed to vary uniformly
+    Yemu_mean0 = emu0.predict( params_base, return_cov=False )
+
+    base_vars = {}
+    for iobs, obs in enumerate(obs_names):
+        Y = Yemu_mean0[obs][:, cent_pT_fl if obs == 'pT_fluct' else cent_bin]
+        print("obs = " + str(obs))
+        sns.distplot(Y, bins=30, norm_hist=True, kde=False, axlabel=obs_labels[iobs])
+        plt.title(obs_labels[iobs])
+        fstring = 'plots/sobol/' + obs + '.png'
+        plt.savefig(fstring, dpi=300)
+        plt.show()
+        var_Y = np.var(Y)
+        base_vars[obs] = var_Y
+
+    #loop over isolation of each parameter
+    for ip in range(n_params):
+        row = ip #for plotting
+        print("ip = " + str(ip))
+        min = design_min[ip]
+        max = design_max[ip]
+
+        vars = {}
+        for obs in obs_names:
+            vars[obs] = []
+
+        #for each parameter, fix it to random values within the prior
+        for ifix in range(n_fixed):
+            #sample the fixed value
+            p_fix = np.random.uniform(low=min, high=max, size=1)
+            p_fix_col = np.ones(n_samples) * p_fix
+
+            #get a fresh sampling of all other parameters with each iteration so they aren't correlated
+            params_base2 = np.array([])
+            for ip2 in range(n_params):
+                min2 = design_min[ip2]
+                max2 = design_max[ip2]
+                x2 = np.random.uniform(low=min,high=max,size=n_samples)
+                params_base2 = np.append(params_base2, x2)
+
+            params_base2 = params_base2.reshape( (n_samples, n_params))
+
+            params_fix = params_base2
+            params_fix[:, ip] = p_fix_col
+            #get emu predictions with certain parameter fixed
+            Yemu_mean0 = emu0.predict( params_fix, return_cov=False )
+            for obs in obs_names:
+                Y = Yemu_mean0[obs][:, cent_pT_fl if obs == 'pT_fluct' else cent_bin]
+                var_Y = np.var(Y)
+                #for each value of the fixed parameter, calculate the variance,
+                vars[obs].append(var_Y)
+
+        #now calculate the mean variance over iterations of fixed values
+        mean_vars = {}
+        for obs in obs_names:
+            mean_vars[obs] = np.mean(vars[obs])
+
+        #now the sobol sensitivity index is the ratio
+        sobol_index = {}
+        sobol_index_arr = []
+        for obs in obs_names:
+            s = ( base_vars[obs] - mean_vars[obs] ) / base_vars[obs]
+            sobol_index[obs] = s
+            sobol_index_arr.append(s)
+
+        axes[row].bar(obs_indx - width, sobol_index_arr, yerr = 0, width=width, bottom=None, align='center',
+                            facecolor='b', edgecolor='b')
+
+        #max_height0 = np.max( np.abs( per_diff_obs0 / per_diff_params ) )
+        #max_height1 = np.max( np.abs( per_diff_obs1 / per_diff_params) )
+        #max_height3 = np.max( np.abs( per_diff_obs3 / per_diff_params) )
+        #max_height = np.max([max_height0, max_height1])
+        #max_height = np.max([max_height, max_height3])
+
+
+        axes[row].set_ylabel(labels[row])
+        axes[row].spines['bottom'].set_position('zero')
+        #axes[row].set_ylim(-1.1 * max_height, 1.1 * max_height)
+        for tick in axes[row].yaxis.get_major_ticks():
+            tick.label.set_fontsize(7)
+        axes[row].tick_params(axis='x', pad=15)
+        axes[row].axes.set_xticks(obs_indx)
+        axes[row].axes.set_xticklabels( obs_labels )
+
+
+
+        #print(mean_vars)
+        print(sobol_index)
 
     fig.align_ylabels(axes)
     plt.tight_layout(True)
