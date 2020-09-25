@@ -1911,9 +1911,9 @@ def bayes_model_avg_viscous_posterior_2():
     T = np.linspace(0.135, 0.35, 200)
 
     #chains of each model
-    chain_a = Chain(path=workdir/'mcmc_default'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf') #Grad
-    chain_b = Chain(path=workdir/'mcmc_default'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf') #CE
-    chain_c = Chain(path=workdir/'mcmc_default'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf') #PTB
+    chain_a = Chain(path=workdir/'mcmc'/'chain-idf-0_LHC_RHIC_PTEMCEE.hdf') #Grad
+    chain_b = Chain(path=workdir/'mcmc'/'chain-idf-1_LHC_RHIC_PTEMCEE.hdf') #CE
+    chain_c = Chain(path=workdir/'mcmc'/'chain-idf-3_LHC_RHIC_PTEMCEE.hdf') #PTB
 
     data_a = chain_a.load_wo_reshape(thin=thin_factor)
     data_b = chain_b.load_wo_reshape(thin=thin_factor)
