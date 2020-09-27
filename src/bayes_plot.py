@@ -46,6 +46,9 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import seaborn as sns
 
+from SALib.sample import saltelli
+from SALib.analyze import sobol
+
 from bayes_mcmc import Chain, credible_interval
 from configurations import *
 from emulator import Trained_Emulators, _Covariance
@@ -3870,24 +3873,26 @@ def observables_sobol_sensitivity():
     """
 
     sns.set()
-    labels = [r'$S[N]$', r'$S[p]$', r'$S[\sigma_k]$', r'$S[w]$', r'$S[d_{\mathrm{min}}^3]$', r'$S[\tau_R]$', r'$S[\alpha]$', r'$S[T_{\eta,\mathrm{kink}}]$',
-    r'$S[a_{\eta,\mathrm{low}}]$', r'$S[a_{\eta,\mathrm{high}}]$', r'$S[(\eta/s)_{\mathrm{kink}}]$', r'$S[(\zeta/s)_{\max}]$', r'$S[T_{\zeta,c}]$',
-    r'$S[w_{\zeta}]$', r'$S[\lambda_{\zeta}]$', r'$S[b_{\pi}]$', r'$S[T_{\mathrm{sw}}]$', r'$S[\sigma_M]$']
+    labels = [r'$N$', r'$p$', r'$\sigma_k$', r'$w$', r'$d_{\mathrm{min}}^3$', r'$\tau_R$', r'$\alpha$', r'$T_{\eta,\mathrm{kink}}$',
+    r'$a_{\eta,\mathrm{low}}$', r'$a_{\eta,\mathrm{high}}$', r'$(\eta/s)_{\mathrm{kink}}$', r'$(\zeta/s)_{\max}$', r'$T_{\zeta,c}$',
+    r'$w_{\zeta}$', r'$\lambda_{\zeta}$', r'$b_{\pi}$', r'$T_{\mathrm{sw}}$']
+    label_indx = np.arange(len(labels))
 
-    n_samples = int(1e5)
-    n_fixed = int(1e1)
+    n_samples = int(1e3) # the number of samples for calculating Sobol should be large enough that result has converged
+    do_parallel = False
+    n_proc = 10 if do_parallel else None
 
-    obs_names = ['dNch_deta', 'dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'v22', 'v32', 'v42', 'pT_fluct']
+    obs_names = [ 'dET_deta' , 'dNch_deta', 'dN_dy_pion', 'dN_dy_proton', 'mean_pT_pion', 'mean_pT_proton', 'v22', 'v32', 'v42', 'pT_fluct']
     obs_labels = [obs_tex_labels_2[obs] for obs in obs_names]
     obs_indx = np.arange(len(obs_labels))
 
     system = 'Pb-Pb-2760'
-    design, design_min, design_max, labels = load_design(system)
+    design, design_min, design_max, design_labels = load_design(system)
 
-    #load the emulator
+    #load the emulator(s)
     emu0 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-0.dill', "rb"))
-    #emu1 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-1.dill', "rb"))
-    #emu3 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-3.dill', "rb"))
+    emu1 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-1.dill', "rb"))
+    emu3 = dill.load(open('emulator/emulator-' + 'Pb-Pb-2760' + '-idf-3.dill', "rb"))
 
     choose_central_bin = True
     if choose_central_bin:
@@ -3901,111 +3906,68 @@ def observables_sobol_sensitivity():
     width = 0.2
 
     n_params = design.shape[1]
+    fig, axes = plt.subplots(nrows=len(obs_names), ncols=1, figsize=(12,7), sharex=True)
 
-    #fig, axes = plt.subplots(nrows=17, ncols=1, figsize=(6,13), sharex=True)
-    #plt.suptitle("Sobol Sensitivity Indices : " + cent_bin_label[cent_bin] + " Cent.")
+    ########## USE SALib ##########
+    # following https://salib.readthedocs.io/en/latest/getting-started.html
 
-    #first sample all uniformly and independently within the prior
-    params_base = np.array([])
-    for ip in range(n_params):
-        min = design_min[ip]
-        max = design_max[ip]
-        x = np.random.uniform(low=min,high=max,size=n_samples)
-        params_base = np.append(params_base, x)
+    # Define the model inputs
+    bounds = np.column_stack( (design_min, design_max) )
+    #print("bounds = " + str(bounds))
+    problem = {
+                'num_vars': n_params,
+                'names': labels,
+                'bounds': bounds
+                }
+    # Generate samples
+    print("Generating " + str(n_samples) + " parameter samples")
+    param_values = saltelli.sample(problem, n_samples)
 
-    params_base = params_base.reshape( (n_samples, n_params))
-    #get predictions when all parameters are allowed to vary uniformly
-    Yemu_mean0 = emu0.predict( params_base, return_cov=False )
+    #run model
+    print("Evaluating model outputs")
+    Yemu_mean0 = emu0.predict( param_values, return_cov=False )
+    Yemu_mean1 = emu1.predict( param_values, return_cov=False )
+    Yemu_mean3 = emu3.predict( param_values, return_cov=False )
 
-    base_vars = {}
-    for iobs, obs in enumerate(obs_names):
-        Y = Yemu_mean0[obs][:, cent_pT_fl if obs == 'pT_fluct' else cent_bin]
-        print("obs = " + str(obs))
-        sns.distplot(Y, bins=30, norm_hist=True, kde=False, axlabel=obs_labels[iobs])
-        plt.title(obs_labels[iobs])
-        fstring = 'plots/sobol/' + obs + '.png'
-        plt.savefig(fstring, dpi=300)
-        plt.show()
-        var_Y = np.var(Y)
-        base_vars[obs] = var_Y
+    print("Calculating Sobol Indices and plotting")
+    for row, obs in enumerate(obs_names):
+        Y0 = Yemu_mean0[obs][:, cent_pT_fl if obs == 'pT_fluct' else cent_bin]
+        Y1 = Yemu_mean1[obs][:, cent_pT_fl if obs == 'pT_fluct' else cent_bin]
+        Y3 = Yemu_mean3[obs][:, cent_pT_fl if obs == 'pT_fluct' else cent_bin]
 
-    #loop over isolation of each parameter
-    for ip in range(n_params):
-        row = ip #for plotting
-        print("ip = " + str(ip))
-        min = design_min[ip]
-        max = design_max[ip]
+        Si_0 = sobol.analyze(problem, Y0, parallel=do_parallel, n_processors=n_proc, print_to_console=False)
+        Si_1 = sobol.analyze(problem, Y1, parallel=do_parallel, n_processors=n_proc, print_to_console=False)
+        Si_3 = sobol.analyze(problem, Y3, parallel=do_parallel, n_processors=n_proc, print_to_console=False)
 
-        vars = {}
-        for obs in obs_names:
-            vars[obs] = []
+        #first order sensitivity index and confidence 95% confidence intervals
+        s1_0 = Si_0['S1']
+        ds1_0 = Si_0['S1_conf']
 
-        #for each parameter, fix it to random values within the prior
-        for ifix in range(n_fixed):
-            #sample the fixed value
-            p_fix = np.random.uniform(low=min, high=max, size=1)
-            p_fix_col = np.ones(n_samples) * p_fix
+        s1_1 = Si_1['S1']
+        ds1_1 = Si_1['S1_conf']
 
-            #get a fresh sampling of all other parameters with each iteration so they aren't correlated
-            params_base2 = np.array([])
-            for ip2 in range(n_params):
-                min2 = design_min[ip2]
-                max2 = design_max[ip2]
-                x2 = np.random.uniform(low=min,high=max,size=n_samples)
-                params_base2 = np.append(params_base2, x2)
+        s1_3 = Si_3['S1']
+        ds1_3 = Si_3['S1_conf']
 
-            params_base2 = params_base2.reshape( (n_samples, n_params))
-
-            params_fix = params_base2
-            params_fix[:, ip] = p_fix_col
-            #get emu predictions with certain parameter fixed
-            Yemu_mean0 = emu0.predict( params_fix, return_cov=False )
-            for obs in obs_names:
-                Y = Yemu_mean0[obs][:, cent_pT_fl if obs == 'pT_fluct' else cent_bin]
-                var_Y = np.var(Y)
-                #for each value of the fixed parameter, calculate the variance,
-                vars[obs].append(var_Y)
-
-        #now calculate the mean variance over iterations of fixed values
-        mean_vars = {}
-        for obs in obs_names:
-            mean_vars[obs] = np.mean(vars[obs])
-
-        #now the sobol sensitivity index is the ratio
-        sobol_index = {}
-        sobol_index_arr = []
-        for obs in obs_names:
-            s = ( base_vars[obs] - mean_vars[obs] ) / base_vars[obs]
-            sobol_index[obs] = s
-            sobol_index_arr.append(s)
-
-        axes[row].bar(obs_indx - width, sobol_index_arr, yerr = 0, width=width, bottom=None, align='center',
+        axes[row].bar(label_indx - width, s1_0, yerr = ds1_0, width=width, bottom=None, align='center',
                             facecolor='b', edgecolor='b')
+        axes[row].bar(label_indx, s1_1, yerr = ds1_1, width=width, bottom=None, align='center',
+                            facecolor='r', edgecolor='r')
+        axes[row].bar(label_indx + width, s1_3, yerr = ds1_3, width=width, bottom=None, align='center',
+                            facecolor='g', edgecolor='g')
 
-        #max_height0 = np.max( np.abs( per_diff_obs0 / per_diff_params ) )
-        #max_height1 = np.max( np.abs( per_diff_obs1 / per_diff_params) )
-        #max_height3 = np.max( np.abs( per_diff_obs3 / per_diff_params) )
-        #max_height = np.max([max_height0, max_height1])
-        #max_height = np.max([max_height, max_height3])
-
-
-        axes[row].set_ylabel(labels[row])
+        axes[row].set_ylabel(obs_labels[row])
         axes[row].spines['bottom'].set_position('zero')
         #axes[row].set_ylim(-1.1 * max_height, 1.1 * max_height)
         for tick in axes[row].yaxis.get_major_ticks():
-            tick.label.set_fontsize(7)
-        axes[row].tick_params(axis='x', pad=15)
-        axes[row].axes.set_xticks(obs_indx)
-        axes[row].axes.set_xticklabels( obs_labels )
-
-
-
-        #print(mean_vars)
-        print(sobol_index)
+            tick.label.set_fontsize(4)
+        #axes[row].tick_params(axis='x', pad=15)
+        axes[row].axes.set_xticks(label_indx)
+        axes[row].axes.set_xticklabels(labels)
 
     fig.align_ylabels(axes)
     plt.tight_layout(True)
-    set_tight(fig, rect=[0, 0, 1, .96])
+
 
 @plot
 def posterior():
