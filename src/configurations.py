@@ -58,7 +58,7 @@ idf_label_short = {
 number_of_models_per_run = 4
 
 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
-idf = 0
+idf = 3
 print("Using idf = " + str(idf) + " : " + idf_label[idf])
 
 #the Collision systems
@@ -177,7 +177,7 @@ pseudovalidation = False
 #if true, we will omit 20% of the training design when training emulator
 crossvalidation = False
 
-fixed_validation_pt=0
+fixed_validation_pt=1
 
 if validation:
     print("Performing emulator validation type ...")
@@ -250,7 +250,8 @@ bayes_dtype = [    (s,
 
 # The active ones used in Bayes analysis (MCMC)
 active_obs_list = {}
-active_obs_list['Pb-Pb-2760'] = ['Tmunu0', 'Tmunu4', 'Tmunu7', 'Tmunu9', 'Tmunu_A', 'Tmunu_xy', 'Tmunu_tr']
+active_obs_list['Pb-Pb-2760'] = ['Tmunu0', #'Tmunu4', 'Tmunu7', 'Tmunu9',
+                                'Tmunu_A', 'Tmunu_xy', 'Tmunu_tr']
 
 print("The active observable list for calibration: " + str(active_obs_list))
 
