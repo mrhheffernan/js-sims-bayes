@@ -58,8 +58,11 @@ idf_label_short = {
 number_of_models_per_run = 4
 
 # the choice of viscous correction. 0 : 14 Moment, 1 : C.E. RTA, 2 : McNelis, 3 : Bernhard
-idf = 3
+idf = 1
 print("Using idf = " + str(idf) + " : " + idf_label[idf])
+
+#this fixes the idf method whose validation points are treated as pseduo-data for inference
+idf_pseduodata = 0
 
 #the Collision systems
 systems = [
@@ -177,7 +180,7 @@ pseudovalidation = False
 #if true, we will omit 20% of the training design when training emulator
 crossvalidation = False
 
-fixed_validation_pt=1
+fixed_validation_pt=0
 
 if validation:
     print("Performing emulator validation type ...")
