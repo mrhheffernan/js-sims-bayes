@@ -171,13 +171,13 @@ def make_plot_eta_zeta(params):
 
     chart_eta = alt.Chart(df_eta_zeta).mark_line().encode(
     x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
-    y=alt.Y('eta', axis=alt.Axis(title='specific shear viscosity 'r' $\eta/s(T)$'), scale=alt.Scale(domain=(0., 0.5 ))  ),
+    y=alt.Y('eta', axis=alt.Axis(title='specific shear viscosity '), scale=alt.Scale(domain=(0., 0.5 ))  ),
     color=alt.value("#FF0000")
     ).properties(width=150,height=150)
 
     chart_zeta = alt.Chart(df_eta_zeta).mark_line().encode(
     x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
-    y=alt.Y('zeta', axis=alt.Axis(title='specific bulk viscosity'r' $\eta/s(T)$'), scale=alt.Scale(domain=(0., 0.5 ))  ),
+    y=alt.Y('zeta', axis=alt.Axis(title='specific bulk viscosity'), scale=alt.Scale(domain=(0., 0.5 ))  ),
     color=alt.value("#FF0000")
     ).properties(width=150,height=150)
 
