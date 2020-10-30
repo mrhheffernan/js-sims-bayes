@@ -108,7 +108,7 @@ def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
         y_emu = Yemu_mean[obs][0]
 
         dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
-        df_emu = pd.DataFrame({'Centrality (%)': x, 'yl':y_emu - dy_emu, "yh":y_emu + dy_emu})
+        df_emu = pd.DataFrame({'cent': x, 'yl':y_emu - dy_emu, "yh":y_emu + dy_emu})
 
         chart_emu = alt.Chart(df_emu).mark_area().encode(x='Centrality (%)', y='yl', y2='yh').properties(width=150,height=150)
 
@@ -118,7 +118,7 @@ def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
         df_exp = pd.DataFrame({"cent": x, obs:exp_mean, "dy":exp_err})
 
         chart_exp = alt.Chart(df_exp).mark_circle(color='Black').encode(
-        x=alt.X( 'Centrality (%)', axis=alt.Axis(title='Centrality (%)'), scale=alt.Scale(domain=(0, 70)) ),
+        x=alt.X( 'cent', axis=alt.Axis(title='Centrality (%)'), scale=alt.Scale(domain=(0, 70)) ),
         y=alt.Y(obs, axis=alt.Axis(title=obs_word_labels[obs]), scale=alt.Scale(domain=(0, obs_lims[obs]))  )
         )
 
@@ -155,7 +155,7 @@ def update_plot_altair(Yemu_mean, Yemu_cov, Yexp, idf, charts0, charts1, charts2
         y_emu = Yemu_mean[obs][0]
 
         dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
-        df_emu = pd.DataFrame({'Centrality (%)': x, 'yl':y_emu - dy_emu, "yh":y_emu + dy_emu})
+        df_emu = pd.DataFrame({'cent': x, 'yl':y_emu - dy_emu, "yh":y_emu + dy_emu})
 
         charts0.add_rows(df_emu)
 
