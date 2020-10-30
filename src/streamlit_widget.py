@@ -13,10 +13,10 @@ from bayes_exp import Y_exp_data
 from bayes_plot import obs_tex_labels_2
 
 short_names = {
-                'norm' : r'Energy Norm.', #0
-                'trento_p' : r'TRENTo Red. Thickness', #1
+                'norm' : r'Energy Normalization', #0
+                'trento_p' : r'TRENTo Reduced Thickness', #1
                 'sigma_k' : r'Multiplicity Fluctuation', #2
-                'nucleon_width' : r'nucleon width [fm]', #3
+                'nucleon_width' : r'Nucleon width [fm]', #3
                 'dmin3' : r'Min. Distance btw. nucleons cubed [fm^3]', #4
                 'tau_R' : r'Free-streaming time scale [fm/c]', #5
                 'alpha' : r'Free-streaming energy dep.', #6
@@ -28,7 +28,7 @@ short_names = {
                 'zeta_over_s_T_peak_in_GeV' : r'Temperature of max. bulk viscosity [GeV]', #12
                 'zeta_over_s_width_in_GeV' : r'Width of bulk viscosity [GeV]', #13
                 'zeta_over_s_lambda_asymm' : r'Skewness of bulk viscosity', #14
-                'shear_relax_time_factor' : r'Shear relaxation time factor', #15
+                'shear_relax_time_factor' : r'Shear relaxation time normalization', #15
                 'Tswitch' : 'Particlization temperature [GeV]', #16
 }
 
@@ -176,7 +176,8 @@ def make_plot_eta_zeta(params):
 
     chart_zeta = alt.Chart(df_eta_zeta).mark_line().encode(
     x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
-    y=alt.Y('zeta', axis=alt.Axis(title='specific bulk visc.'), scale=alt.Scale(domain=(0., 0.5 ))  )
+    y=alt.Y('zeta', axis=alt.Axis(title='specific bulk visc.'), scale=alt.Scale(domain=(0., 0.5 ))  ),
+    color=alt.value("#FF0000")
     ).properties(width=150,height=150)
 
     #st_chart = st.altair_chart(chart)
@@ -184,15 +185,15 @@ def make_plot_eta_zeta(params):
     st.write(charts)
 
 def main():
-    st.title('Heavy Ion Model Emulator')
-    st.markdown(r'Our model(s) for [heavy ion collisions](https://en.wikipedia.org/wiki/High-energy_nuclear_physics) include many parameters. Try varying any of them using the sliders in the sidebar(left), and see how each of the model observables (blue band) as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV change.')
+    st.title('Hadronic Observable Emulator for Heavy Ion Collisions')
+    st.markdown(r'Our model(s) for the outcome of [ultrarelativistic heavy ion collisions](https://home.cern/science/physics/heavy-ions-and-quark-gluon-plasma) include many parameters which affects final hadronic observables in non-trivial ways. You can see how each observable (blue band) depend on the parameters by varying them using the sliders in the sidebar(left). All observables are plotted as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV.')
     st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
-    st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities, given their input parameters.')
+    st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities, as determined by different parameters on the left sidebar.')
     st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
-    st.markdown(r'The viscous correction is an important model choice we make when converting hydrodynamic fields into particles. You can try three different viscous correction models by clicking the viscous correction button below.')
+    st.markdown(r'An important modelling ingredient is tthe particlization model used to convert hydrodynamic fields into individual hadrons. Three different viscous correction models can be selected by clicking the ``Particlization model'' button below.')
 
     idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Bernhard']
-    idf_name = st.selectbox('Viscous Correction',idf_names)
+    idf_name = st.selectbox('Particlization model',idf_names)
     inverted_idf_label = dict([[v,k] for k,v in idf_label.items()])
     idf = inverted_idf_label[idf_name]
 
@@ -226,9 +227,9 @@ def main():
 
     st.header('How it works')
     st.markdown('A description of the physics model and parameters can be found [here](https://indico.bnl.gov/event/6998/contributions/35770/attachments/27166/42261/JS_WS_2020_SIMS_v2.pdf).')
-    st.markdown('The observables you see above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
-    st.markdown('We fit a [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) to each PC by running our physics model on a coarse space-filling set of points in parameter space. ')
-    st.markdown('The GP is then able to interpolate between these points, while estimating its own uncertainty. ')
+    st.markdown('The observables above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
+    st.markdown('A [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) is fitted to each of the dominant principal components by running our physics model on a coarse [space-filling](https://en.wikipedia.org/wiki/Latin_hypercube_sampling) set of points in parameter space.')
+    st.markdown('The Gaussian Process is then able to interpolate between these points, while estimating its own uncertainty.')
 
     st.markdown('To update the widget with latest changes, click the button below, and then refresh your webpage.')
     if st.button('(Update widget)'):
