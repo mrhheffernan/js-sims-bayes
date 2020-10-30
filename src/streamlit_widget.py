@@ -189,7 +189,7 @@ def main():
     st.title('Hadronic Observable Emulator for Heavy Ion Collisions')
     st.markdown(r'Our model(s) for the outcome of [ultrarelativistic heavy ion collisions](https://home.cern/science/physics/heavy-ions-and-quark-gluon-plasma) include many parameters which affects final hadronic observables in non-trivial ways. You can see how each observable (blue band) depend on the model parameters by varying the parameters using the sliders in the sidebar(left). All observables are plotted as a function of centrality for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV.')
     st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
-    st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities, as determined by different parameters on the left sidebar.')
+    st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities (red lines), as determined by different parameters on the left sidebar.')
     st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
     st.markdown(r'An important modelling ingredient is tthe particlization model used to convert hydrodynamic fields into individual hadrons. Three different viscous correction models can be selected by clicking the ``Particlization model'' button below.')
 
