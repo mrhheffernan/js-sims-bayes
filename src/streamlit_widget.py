@@ -203,6 +203,11 @@ def main():
 
     idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Torrieri-Bernhard']
     idf_name = st.selectbox('Particlization model',idf_names)
+
+    # Reset button
+    st.markdown('<a href="javascript:window.location.href=window.location.href">Reset</a>', unsafe_allow_html=True)
+
+
     inverted_idf_label = dict([[v,k] for k,v in idf_label.items()])
     idf = inverted_idf_label[idf_name]
 
