@@ -19,6 +19,10 @@ greek_alphabet = {v: k for k, v in greek_alphabet_inv.items()}
 zeta_over_s_str=greek_alphabet['zeta']+'/s(T)'
 eta_over_s_str=greek_alphabet['eta']+'/s(T)'
 
+v2_str='v'u'\u2082''{2}'
+v3_str='v'u'\u2083''{2}'
+v4_str='v'u'\u2084''{2}'
+
 
 short_names = {
                 'norm' : r'Energy Normalization', #0
@@ -61,9 +65,9 @@ obs_word_labels = {
                     'mean_pT_kaon' : r'kaon mean pT [GeV]',
                     'mean_pT_proton' : r'proton mean pT [GeV]',
                     'pT_fluct' : r'mean pT fluct.',
-                    'v22' : r'ellip. flow',
-                    'v32' : r'triang. flow',
-                    'v42' : r'quad. flow',
+                    'v22' : v2_str,
+                    'v32' : v3_str,
+                    'v42' : v4_str,
 }
 
 system = 'Pb-Pb-2760'
@@ -125,9 +129,14 @@ def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
         exp_err = Yexp[system][obs]['err'][idf]
         df_exp = pd.DataFrame({"cent": x, obs:exp_mean, "dy":exp_err})
 
+        # Adjust font size for the v_n's
+        normal_font_size=14
+        if (obs in ['v22','v32','v42']):
+            normal_font_size=18
+
         chart_exp = alt.Chart(df_exp).mark_circle(color='Black').encode(
-        x=alt.X( 'cent', axis=alt.Axis(title='Centrality (%)'), scale=alt.Scale(domain=(0, 70)) ),
-        y=alt.Y(obs, axis=alt.Axis(title=obs_word_labels[obs]), scale=alt.Scale(domain=(0, obs_lims[obs]))  )
+        x=alt.X( 'cent', axis=alt.Axis(title='Centrality (%)', titleFontSize=14), scale=alt.Scale(domain=(0, 70)) ),
+        y=alt.Y(obs, axis=alt.Axis(title=obs_word_labels[obs], titleFontSize=normal_font_size), scale=alt.Scale(domain=(0, obs_lims[obs]))  )
         )
 
         chart = alt.layer(chart_emu, chart_exp)
@@ -178,14 +187,14 @@ def make_plot_eta_zeta(params):
     df_eta_zeta = pd.DataFrame({'T': T, 'eta':eta_s, 'zeta':zeta_s})
 
     chart_eta = alt.Chart(df_eta_zeta, title='Specific shear viscosity').mark_line().encode(
-    x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
-    y=alt.Y('eta', axis=alt.Axis(title=eta_over_s_str), scale=alt.Scale(domain=(0., 0.5 ))  ),
+    x=alt.X('T', axis=alt.Axis(title='T [GeV]', titleFontSize=14), scale=alt.Scale(domain=(T_low, T_high)) ),
+    y=alt.Y('eta', axis=alt.Axis(title=eta_over_s_str, titleFontSize=14), scale=alt.Scale(domain=(0., 0.5 ))  ),
     color=alt.value("#FF0000")
     ).properties(width=150,height=150)
 
     chart_zeta = alt.Chart(df_eta_zeta, title='Specific bulk viscosity').mark_line().encode(
-    x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
-    y=alt.Y('zeta', axis=alt.Axis(title=zeta_over_s_str), scale=alt.Scale(domain=(0., 0.5 ))  ),
+    x=alt.X('T', axis=alt.Axis(title='T [GeV]', titleFontSize=14), scale=alt.Scale(domain=(T_low, T_high)) ),
+    y=alt.Y('zeta', axis=alt.Axis(title=zeta_over_s_str, titleFontSize=14), scale=alt.Scale(domain=(0., 0.5 ))  ),
     color=alt.value("#FF0000")
     ).properties(width=150,height=150)
 
