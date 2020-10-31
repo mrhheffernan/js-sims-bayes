@@ -118,7 +118,7 @@ def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
         df_exp = pd.DataFrame({"cent": x, obs:exp_mean, "dy":exp_err})
 
         chart_exp = alt.Chart(df_exp).mark_circle(color='Black').encode(
-        x=alt.X( 'cent', axis=alt.Axis(title='cent'), scale=alt.Scale(domain=(0, 70)) ),
+        x=alt.X( 'cent', axis=alt.Axis(title='Centrality (%)'), scale=alt.Scale(domain=(0, 70)) ),
         y=alt.Y(obs, axis=alt.Axis(title=obs_word_labels[obs]), scale=alt.Scale(domain=(0, obs_lims[obs]))  )
         )
 
@@ -171,12 +171,13 @@ def make_plot_eta_zeta(params):
 
     chart_eta = alt.Chart(df_eta_zeta).mark_line().encode(
     x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
-    y=alt.Y('eta', axis=alt.Axis(title='specific shear visc.'), scale=alt.Scale(domain=(0., 0.5 ))  )
+    y=alt.Y('eta', axis=alt.Axis(title='specific shear viscosity '), scale=alt.Scale(domain=(0., 0.5 ))  ),
+    color=alt.value("#FF0000")
     ).properties(width=150,height=150)
 
     chart_zeta = alt.Chart(df_eta_zeta).mark_line().encode(
     x=alt.X('T', axis=alt.Axis(title='T [GeV]'), scale=alt.Scale(domain=(T_low, T_high)) ),
-    y=alt.Y('zeta', axis=alt.Axis(title='specific bulk visc.'), scale=alt.Scale(domain=(0., 0.5 ))  ),
+    y=alt.Y('zeta', axis=alt.Axis(title='specific bulk viscosity'), scale=alt.Scale(domain=(0., 0.5 ))  ),
     color=alt.value("#FF0000")
     ).properties(width=150,height=150)
 
@@ -186,13 +187,13 @@ def make_plot_eta_zeta(params):
 
 def main():
     st.title('Hadronic Observable Emulator for Heavy Ion Collisions')
-    st.markdown(r'Our model(s) for the outcome of [ultrarelativistic heavy ion collisions](https://home.cern/science/physics/heavy-ions-and-quark-gluon-plasma) include many parameters which affects final hadronic observables in non-trivial ways. You can see how each observable (blue band) depend on the parameters by varying them using the sliders in the sidebar(left). All observables are plotted as a function of centrality (**cent**) for Pb nuclei collisions at $\sqrt{s} = 2.76$ TeV.')
+    st.markdown('Our model(s) for the outcome of [ultrarelativistic heavy ion collisions](https://home.cern/science/physics/heavy-ions-and-quark-gluon-plasma) include many parameters which affects final hadronic observables in non-trivial ways. You can see how each observable (blue band) depend on the parameters by varying them using the sliders in the sidebar(left). All observables are plotted as a function of centrality for Pb nuclei collisions at'r'$\sqrt{s_{NN}} = 2.76$ TeV.')
     st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
-    st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities, as determined by different parameters on the left sidebar.')
+    st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities (red lines), as determined by different parameters on the left sidebar.')
     st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
     st.markdown(r'An important modelling ingredient is tthe particlization model used to convert hydrodynamic fields into individual hadrons. Three different viscous correction models can be selected by clicking the ``Particlization model'' button below.')
 
-    idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Bernhard']
+    idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Torrieri-Bernhard']
     idf_name = st.selectbox('Particlization model',idf_names)
     inverted_idf_label = dict([[v,k] for k,v in idf_label.items()])
     idf = inverted_idf_label[idf_name]
