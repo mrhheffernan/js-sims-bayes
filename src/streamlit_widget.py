@@ -195,11 +195,11 @@ def make_plot_eta_zeta(params):
 
 def main():
     st.title('Hadronic Observable Emulator for Heavy Ion Collisions')
-    st.markdown('Our model(s) for the outcome of [ultrarelativistic heavy ion collisions](https://home.cern/science/physics/heavy-ions-and-quark-gluon-plasma) include many parameters which affects final hadronic observables in non-trivial ways. You can see how each observable (blue band) depend on the parameters by varying them using the sliders in the sidebar(left). All observables are plotted as a function of centrality for Pb nuclei collisions at'r'$\sqrt{s_{NN}} = 2.76$ TeV.')
+    st.markdown('Our [model(s)](https://inspirehep.net/literature/1821941) for the outcome of [ultrarelativistic heavy ion collisions](https://home.cern/science/physics/heavy-ions-and-quark-gluon-plasma) include many parameters which affects final hadronic observables in non-trivial ways. You can see how each observable (blue band) depends on the parameters by varying them using the sliders in the sidebar(left). All observables are plotted as a function of centrality for Pb nuclei collisions at'r'$\sqrt{s_{NN}} = 2.76$ TeV.')
     st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
     st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities (red lines), as determined by different parameters on the left sidebar.')
     st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
-    st.markdown(r'An important modelling ingredient is tthe particlization model used to convert hydrodynamic fields into individual hadrons. Three different viscous correction models can be selected by clicking the ``Particlization model'' button below.')
+    st.markdown(r'An important modelling ingredient is the particlization model used to convert hydrodynamic fields into individual hadrons. Three different viscous correction models can be selected by clicking the "Particlization model" button below.')
 
     idf_names = ['Grad', 'Chapman-Enskog R.T.A', 'Pratt-Torrieri-Bernhard']
     idf_name = st.selectbox('Particlization model',idf_names)
@@ -241,7 +241,7 @@ def main():
 
     st.header('How it works')
     st.markdown('A description of the physics model and parameters can be found [here](https://indico.bnl.gov/event/6998/contributions/35770/attachments/27166/42261/JS_WS_2020_SIMS_v2.pdf).')
-    st.markdown('The observables above (and additional ones unshown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
+    st.markdown('The observables above (and additional ones not shown) are combined into [principal components](https://en.wikipedia.org/wiki/Principal_component_analysis) (PC).')
     st.markdown('A [Gaussian Process](https://en.wikipedia.org/wiki/Gaussian_process) (GP) is fitted to each of the dominant principal components by running our physics model on a coarse [space-filling](https://en.wikipedia.org/wiki/Latin_hypercube_sampling) set of points in parameter space.')
     st.markdown('The Gaussian Process is then able to interpolate between these points, while estimating its own uncertainty.')
 
