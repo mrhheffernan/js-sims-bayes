@@ -53,18 +53,18 @@ system_observables = {
 obs_lims = {'dET_deta' : 2000. , 'dN_dy_pion' : 2000., 'dN_dy_proton' : 100., 'mean_pT_pion' : 1., 'mean_pT_proton' : 2., 'pT_fluct' : .05, 'v22' : .2, 'v32' : .05, 'v42' :.03 }
 
 obs_word_labels = {
-                    'dNch_deta' : r'charged multiplicity',
-                    'dN_dy_pion' : r'pion yield',
-                    'dN_dy_kaon' : r'Kaon yield',
-                    'dN_dy_proton' : r'proton yield',
-                    'dN_dy_Lambda' : r'lambda yield',
-                    'dN_dy_Omega' : r'omega yield',
-                    'dN_dy_Xi' : r'xi yield',
-                    'dET_deta' : r'transv. energy [GeV]',
-                    'mean_pT_pion' : r'pion mean pT [GeV]',
-                    'mean_pT_kaon' : r'kaon mean pT [GeV]',
-                    'mean_pT_proton' : r'proton mean pT [GeV]',
-                    'pT_fluct' : r'mean pT fluct.',
+                    'dNch_deta' : r'Charged multiplicity',
+                    'dN_dy_pion' : r'Pion dN/dy',
+                    'dN_dy_kaon' : r'Kaon dN/dy',
+                    'dN_dy_proton' : r'Proton dN/dy',
+                    'dN_dy_Lambda' : r'Lambda dN/dy',
+                    'dN_dy_Omega' : r'Omega dN/dy',
+                    'dN_dy_Xi' : r'Xi dN/dy',
+                    'dET_deta' : r'Transverse energy [GeV]',
+                    'mean_pT_pion' : r'Pion mean pT [GeV]',
+                    'mean_pT_kaon' : r'Kaon mean pT [GeV]',
+                    'mean_pT_proton' : r'Proton mean pT [GeV]',
+                    'pT_fluct' : r'Mean pT fluctuations',
                     'v22' : v2_str,
                     'v32' : v3_str,
                     'v42' : v4_str,
@@ -127,19 +127,28 @@ def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
         #experiment
         exp_mean = Yexp[system][obs]['mean'][idf]
         exp_err = Yexp[system][obs]['err'][idf]
-        df_exp = pd.DataFrame({"cent": x, obs:exp_mean, "dy":exp_err})
+        df_exp = pd.DataFrame({"cent": x, obs:exp_mean, obs+"_dy":exp_err, obs+"_dy_low":exp_mean-exp_err, obs+"_dy_high":exp_mean+exp_err})
 
         # Adjust font size for the v_n's
         normal_font_size=14
         if (obs in ['v22','v32','v42']):
             normal_font_size=18
 
-        chart_exp = alt.Chart(df_exp).mark_circle(color='Black').encode(
+        pre_chart_exp=alt.Chart(df_exp)
+
+        chart_exp = pre_chart_exp.mark_circle(color='Black').encode(
         x=alt.X( 'cent', axis=alt.Axis(title='Centrality (%)', titleFontSize=14), scale=alt.Scale(domain=(0, 70)) ),
         y=alt.Y(obs, axis=alt.Axis(title=obs_word_labels[obs], titleFontSize=normal_font_size), scale=alt.Scale(domain=(0, obs_lims[obs]))  )
         )
 
-        chart = alt.layer(chart_emu, chart_exp)
+        # generate the error bars
+        errorbars = pre_chart_exp.mark_errorbar().encode(
+                x=alt.X('cent', axis=alt.Axis(title='')),
+                y=alt.Y(obs+"_dy_low", axis=alt.Axis(title='')),
+                y2=alt.Y2(obs+"_dy_high"),
+        )
+
+        chart = alt.layer(chart_emu, chart_exp + errorbars)
 
         if iobs == 0:
             charts0 = chart
@@ -204,7 +213,7 @@ def make_plot_eta_zeta(params):
 
 def main():
     st.title('Hadronic Observable Emulator for Heavy Ion Collisions')
-    st.markdown('Our [model(s)](https://inspirehep.net/literature/1821941) for the outcome of [ultrarelativistic heavy ion collisions](https://home.cern/science/physics/heavy-ions-and-quark-gluon-plasma) include many parameters which affects final hadronic observables in non-trivial ways. You can see how each observable (blue band) depends on the parameters by varying them using the sliders in the sidebar(left). All observables are plotted as a function of centrality for Pb nuclei collisions at'r'$\sqrt{s_{NN}} = 2.76$ TeV.')
+    st.markdown('Our [model](https://inspirehep.net/literature/1821941) for the outcome of [ultrarelativistic heavy ion collisions](https://home.cern/science/physics/heavy-ions-and-quark-gluon-plasma) include many parameters which affects final hadronic observables in non-trivial ways. You can see how each observable (blue band) depends on the parameters by varying them using the sliders in the sidebar(left). All observables are plotted as a function of centrality for Pb nuclei collisions at'r'$\sqrt{s_{NN}} = 2.76$ TeV.')
     st.markdown('The experimentally measured observables by the [ALICE collaboration](https://home.cern/science/experiments/alice) are shown as black dots.')
     st.markdown('The last row displays the temperature dependence of the specific shear and bulk viscosities (red lines), as determined by different parameters on the left sidebar.')
     st.markdown('By default, these parameters are assigned the values that fit the experimental data *best* (maximize the likelihood).')
