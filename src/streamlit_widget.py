@@ -50,7 +50,7 @@ system_observables = {
                     'Au-Au-200' : ['dN_dy_pion', 'dN_dy_kaon', 'mean_pT_pion', 'mean_pT_kaon', 'v22', 'v32']
                     }
 
-obs_lims = {'dET_deta' : 2000. , 'dN_dy_pion' : 2000., 'dN_dy_proton' : 100., 'mean_pT_pion' : 1., 'mean_pT_proton' : 2., 'pT_fluct' : .05, 'v22' : .2, 'v32' : .05, 'v42' :.03 }
+obs_lims = {'dET_deta' : 2500. , 'dN_dy_pion' : 2000., 'dN_dy_proton' : 100., 'mean_pT_pion' : 1., 'mean_pT_proton' : 2., 'pT_fluct' : .05, 'v22' : .2, 'v32' : .05, 'v42' :.03 }
 
 obs_word_labels = {
                     'dNch_deta' : r'Charged multiplicity',
@@ -144,7 +144,7 @@ def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
         # generate the error bars
         errorbars = pre_chart_exp.mark_errorbar().encode(
                 x=alt.X('cent', axis=alt.Axis(title='')),
-                y=alt.Y(obs+"_dy_low", axis=alt.Axis(title='')),
+                y=alt.Y(obs+"_dy_low", axis=alt.Axis(title=''), scale=alt.Scale(domain=(0, obs_lims[obs]))  ),
                 y2=alt.Y2(obs+"_dy_high"),
         )
 
