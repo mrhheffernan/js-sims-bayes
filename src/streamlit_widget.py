@@ -122,7 +122,7 @@ def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
         dy_emu = (np.diagonal(np.abs(Yemu_cov[obs, obs]))**.5)[:,0]
         df_emu = pd.DataFrame({'cent': x, 'yl':y_emu - dy_emu, "yh":y_emu + dy_emu})
 
-        chart_emu = alt.Chart(df_emu).mark_area().encode(x='cent', y='yl', y2='yh').properties(width=150,height=150)
+        #chart_emu = alt.Chart(df_emu).mark_area().encode(x='cent', y='yl', y2='yh').properties(width=150,height=150)
 
         #experiment
         exp_mean = Yexp[system][obs]['mean'][idf]
@@ -148,6 +148,8 @@ def make_plot_altair(observables, Yemu_mean, Yemu_cov, Yexp, idf):
                 y2=alt.Y2(obs+"_dy_high"),
         )
 
+        chart_emu = alt.Chart(df_emu).mark_area().encode(x='cent', y='yl', y2='yh').properties(width=150,height=150)
+        
         chart = alt.layer(chart_emu, chart_exp + errorbars)
 
         if iobs == 0:
