@@ -91,7 +91,11 @@ class Design:
 
     """
     def __init__(self, system, validation, seed=None):
+
+        n_design_pts_main = SystemsInfo[system[0]+"-"+system[1]+"-"+str(system[2])]['n_design']
+        n_design_pts_validation = SystemsInfo[system[0]+"-"+system[1]+"-"+str(system[2])]['n_validation']
         npoints = n_design_pts_validation if validation else n_design_pts_main
+
         self.system = system[0]+system[1]+"-"+str(system[2])
         self.projectiles, self.target, self.beam_energy = system
         self.type = 'validation' if validation else 'main'

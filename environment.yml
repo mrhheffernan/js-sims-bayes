@@ -1,4 +1,4 @@
-name: emulator-validation
+name: emulator-validation-sims
 channels:
 - conda-forge
 dependencies:
@@ -21,6 +21,9 @@ dependencies:
 - scikit-image
 - rise
 - pip
+- plotly
+- hsluv
+- SALib
 - pip:
   - gpy
   - gpyopt  
